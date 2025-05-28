@@ -37,40 +37,40 @@ sim$death_activation_level <- 50
 
 
 #-------------------------------------------------------------------------------
-#---------------------- Rising of Clones I : [C1, C2, C3, C4] ------------------
+#---------------------- Rising of Clones I : [Clone 1, Clone 2, Clone 3, Clone 4] ------------------
 #-------------------------------------------------------------------------------
 
 #--------------------------------- clone 01 ------------------------------------
-sim$add_mutant(name = "C1", growth_rates = 0.1, death_rates = 0.01) # add species
-sim$place_cell("C1", 500, 500) # displace the initial cell in the tissue
-sim$run_up_to_size("C1", 1000)
+sim$add_mutant(name = "Clone 1", growth_rates = 0.1, death_rates = 0.01) # add species
+sim$place_cell("Clone 1", 500, 500) # displace the initial cell in the tissue
+sim$run_up_to_size("Clone 1", 1000)
 
 #--------------------------------- clone 02 ------------------------------------
-sim$add_mutant(name = "C2", growth_rates = 0.3, death_rates = 0.01)
-sim$mutate_progeny(sim$choose_cell_in("C1"), "C2")
+sim$add_mutant(name = "Clone 2", growth_rates = 0.3, death_rates = 0.01)
+sim$mutate_progeny(sim$choose_cell_in("Clone 1"), "Clone 2")
 
-sim$update_rates("C1", rates = c(growth = 0.05, death = 0.01))
-sim$run_up_to_size("C2", 1000)
+sim$update_rates("Clone 1", rates = c(growth = 0.05, death = 0.01))
+sim$run_up_to_size("Clone 2", 1000)
 
-sim$update_rates("C1", rates = c(growth = 0, death = 0.025))
-sim$run_up_to_size("C2", 2000)
+sim$update_rates("Clone 1", rates = c(growth = 0, death = 0.025))
+sim$run_up_to_size("Clone 2", 2000)
 
-sim$update_rates("C1", rates = c(growth = 0, death = 0.05))
-sim$update_rates("C2", rates = c(growth = 0.2, death = 0.02))
-sim$run_up_to_size("C2", 8000)
+sim$update_rates("Clone 1", rates = c(growth = 0, death = 0.05))
+sim$update_rates("Clone 2", rates = c(growth = 0.2, death = 0.02))
+sim$run_up_to_size("Clone 2", 8000)
 
 #--------------------------------- clone 03 ------------------------------------
-sim$add_mutant("C3",growth_rates = 0.5, death_rates = 0.01)
-sim$mutate_progeny(sim$choose_cell_in("C2"), "C3")
-sim$update_rates("C2", rates = c(growth = 0.2, death = 0.08))
-sim$run_up_to_size("C3", 1000)
+sim$add_mutant("Clone 3",growth_rates = 0.5, death_rates = 0.01)
+sim$mutate_progeny(sim$choose_cell_in("Clone 2"), "Clone 3")
+sim$update_rates("Clone 2", rates = c(growth = 0.2, death = 0.08))
+sim$run_up_to_size("Clone 3", 1000)
 
 #--------------------------------- clone 04 ------------------------------------
-sim$add_mutant(name = "C4", growth_rates = 0.6, death_rates = 0.01)
-sim$mutate_progeny(sim$choose_cell_in("C2"), "C4")
-sim$update_rates("C2", rates = c(growth = 0.2, death = 0.1))
-sim$update_rates("C3", rates = c(growth = 0.2, death = 0.01))
-sim$run_up_to_size("C4", 4000)
+sim$add_mutant(name = "Clone 4", growth_rates = 0.6, death_rates = 0.01)
+sim$mutate_progeny(sim$choose_cell_in("Clone 2"), "Clone 4")
+sim$update_rates("Clone 2", rates = c(growth = 0.2, death = 0.1))
+sim$update_rates("Clone 3", rates = c(growth = 0.2, death = 0.01))
+sim$run_up_to_size("Clone 4", 4000)
 
 
 #-------------------------------------------------------------------------------
@@ -81,7 +81,7 @@ sim$run_up_to_size("C4", 4000)
 a_lowercorbner <- as.integer(c(405, 420))
 a_uppercorner <- as.integer(c(454, 469))
 #sim$get_cells(a_lowercorbner, a_uppercorner) %>% group_by(mutant) %>% summarise(count = n()) 
-# C2(156) 6%, C3(2318) 94%, total(2474)
+# Clone 2(156) 6%, Clone 3(2318) 94%, total(2474)
 
 # SPN_1.1_plot <- plot_tissue(sim, num_of_bins=100) +
 #   ggplot2::geom_rect(ggplot2::aes(
@@ -98,7 +98,7 @@ sim$sample_cells("SPN06_1.1", a_lowercorbner, a_uppercorner)
 b_lowercorbner <- as.integer(c(440, 380))
 b_uppercorner <- as.integer(c(489, 429))
 #sim$get_cells(b_lowercorbner, b_uppercorner) %>% group_by(mutant) %>% summarise(count = n()) 
-# C2(1190) 60%, C3(323) 16%, C4(461) 24%, total(1974)
+# Clone 2(1190) 60%, Clone 3(323) 16%, Clone 4(461) 24%, total(1974)
 
 # SPN_1.2_plot <- plot_tissue(sim, num_of_bins=100) +
 #   ggplot2::geom_rect(ggplot2::aes(
@@ -119,22 +119,22 @@ sim$sample_cells("SPN06_1.2", b_lowercorbner, b_uppercorner)
 #-------------------------------------------------------------------------------
 chemo1_start <- sim$get_clock()
 
-sim$update_rates("C1", rates = c(growth = 0, death = 1))
-sim$update_rates("C2", rates = c(growth = 0, death = 1))
-sim$update_rates("C3", rates = c(growth = 0, death = 1))
-sim$update_rates("C4", rates = c(growth = 0, death = 1))
+sim$update_rates("Clone 1", rates = c(growth = 0, death = 1))
+sim$update_rates("Clone 2", rates = c(growth = 0, death = 1))
+sim$update_rates("Clone 3", rates = c(growth = 0, death = 1))
+sim$update_rates("Clone 4", rates = c(growth = 0, death = 1))
 
-sim$run_until(sim$var("C2") <= 100)
+sim$run_until(sim$var("Clone 2") <= 100)
 
 chemo1_end <- sim$get_clock()
 
 
 #-------------------------------------------------------------------------------
-#--------------------------- Rising of Clones II : [C5] ------------------------
+#--------------------------- Rising of Clones II : [Clone 5] ------------------------
 #-------------------------------------------------------------------------------
-sim$add_mutant(name = "C5", growth_rates = 0.2, death_rates = 0.01)
-sim$mutate_progeny(sim$choose_cell_in("C2"), "C5")
-sim$run_up_to_size("C5", 16000)
+sim$add_mutant(name = "Clone 5", growth_rates = 0.2, death_rates = 0.01)
+sim$mutate_progeny(sim$choose_cell_in("Clone 2"), "Clone 5")
+sim$run_up_to_size("Clone 5", 16000)
 
 
 #-------------------------------------------------------------------------------
@@ -142,12 +142,12 @@ sim$run_up_to_size("C5", 16000)
 #-------------------------------------------------------------------------------
 
 #--------------------------------- sample 2.1 ----------------------------------
-bbox <- sim$search_sample(c("C5" = 2000), 50, 50)
+bbox <- sim$search_sample(c("Clone 5" = 2000), 50, 50)
 c_lowercorbner <- bbox$lower_corner
 c_uppercorner <- bbox$upper_corner
 
 #sim$get_cells(c_lowercorbner, c_uppercorner) %>% group_by(mutant) %>% summarise(count = n()) 
-# C5(2216) 100%, total(2216)
+# Clone 5(2216) 100%, total(2216)
 
 # SPN_2.1_plot <- plot_tissue(sim, num_of_bins=100) +
 #   ggplot2::geom_rect(ggplot2::aes(
@@ -165,28 +165,28 @@ sim$sample_cells("SPN06_2.1", c_lowercorbner, c_uppercorner)
 #-------------------------------------------------------------------------------
 chemo2_start <- sim$get_clock()
 
-sim$update_rates("C5", rates = c(growth = 0, death = 1))
+sim$update_rates("Clone 5", rates = c(growth = 0, death = 1))
 
-sim$run_until(sim$var("C5") <= 100)
+sim$run_until(sim$var("Clone 5") <= 100)
 
 chemo2_end <- sim$get_clock()
 
 
 #-------------------------------------------------------------------------------
-#------------------------ Rising of Clones III : [C6, C7] ----------------------
+#------------------------ Rising of Clones III : [Clone 6, Clone 7] ----------------------
 #-------------------------------------------------------------------------------
 
 #--------------------------------- clone 06 ------------------------------------
-sim$add_mutant(name = "C6", growth_rates = 0.2, death_rates = 0.01)
-sim$mutate_progeny(sim$choose_cell_in("C5"), "C6")
-sim$run_up_to_size("C6", 3000)
+sim$add_mutant(name = "Clone 6", growth_rates = 0.2, death_rates = 0.01)
+sim$mutate_progeny(sim$choose_cell_in("Clone 5"), "Clone 6")
+sim$run_up_to_size("Clone 6", 3000)
 #message("clone 06 created!")
 
 #--------------------------------- clone 07 ------------------------------------
-sim$add_mutant("C7", growth_rates = 0.2, death_rates = 0.01)
-sim$mutate_progeny(sim$choose_cell_in("C6"), "C7")
-sim$update_rates("C6", rates = c(growth = 0.1, death = 0.03))
-sim$run_up_to_size("C7", 2000)
+sim$add_mutant("Clone 7", growth_rates = 0.2, death_rates = 0.01)
+sim$mutate_progeny(sim$choose_cell_in("Clone 6"), "Clone 7")
+sim$update_rates("Clone 6", rates = c(growth = 0.1, death = 0.03))
+sim$run_up_to_size("Clone 7", 2000)
 
 
 #-------------------------------------------------------------------------------
@@ -194,12 +194,12 @@ sim$run_up_to_size("C7", 2000)
 #-------------------------------------------------------------------------------
 
 #--------------------------------- sample 3.1 ----------------------------------
-bbox <- sim$search_sample(c("C6" = 2000), 50, 50)
+bbox <- sim$search_sample(c("Clone 6" = 2000), 50, 50)
 d_lowercorbner <- bbox$lower_corner
 d_uppercorner <- bbox$upper_corner
 
 #sim$get_cells(d_lowercorbner, d_uppercorner) %>% group_by(mutant) %>% summarise(count = n()) 
-# C6(2195) 100%, total(2195)
+# Clone 6(2195) 100%, total(2195)
 
 # SPN_3.1_plot <- plot_tissue(sim, num_of_bins=100) +
 #   ggplot2::geom_rect(ggplot2::aes(
@@ -217,7 +217,7 @@ e_lowercorbner <- as.integer(c(375, 390))
 e_uppercorner <- as.integer(c(424, 439))
 
 #sim$get_cells(e_lowercorbner, e_uppercorner) %>% group_by(mutant) %>% summarise(count = n()) 
-# C6(371) 18%, C7(1637) 82%, total(2008)
+# Clone 6(371) 18%, Clone 7(1637) 82%, total(2008)
 
 # SPN_3.2_plot <- plot_tissue(sim, num_of_bins=100) +
 #   ggplot2::geom_rect(ggplot2::aes(

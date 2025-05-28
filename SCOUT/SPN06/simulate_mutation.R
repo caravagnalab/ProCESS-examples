@@ -85,7 +85,7 @@ CNA_C6 <- CNA(
 # Clone 1 : TP53 R248Q/W/L
 #-------------------------------------------------------------------------------
 m_engine$add_mutant(
-  mutant_name = "C1", 
+  mutant_name = "Clone 1", 
   passenger_rates = passengers, 
   drivers = list(SNV_C1)
 )
@@ -93,7 +93,7 @@ m_engine$add_mutant(
 # Clone 2 : STK11 LOH
 #-------------------------------------------------------------------------------
 m_engine$add_mutant(
-  mutant_name = "C2", 
+  mutant_name = "Clone 2", 
   passenger_rates = passengers, 
   drivers = list(CNA_C2)
 )
@@ -101,7 +101,7 @@ m_engine$add_mutant(
 # Clone 3 : EGFR amp
 #-------------------------------------------------------------------------------
 m_engine$add_mutant(
-  mutant_name = "C3", 
+  mutant_name = "Clone 3", 
   passenger_rates = passengers, 
   drivers = list(CNA_C3)
 )
@@ -109,7 +109,7 @@ m_engine$add_mutant(
 # Clone 4 : KEAP1 R413C/H/L
 #-------------------------------------------------------------------------------
 m_engine$add_mutant(
-  mutant_name = "C4", 
+  mutant_name = "Clone 4", 
   passenger_rates = passengers, 
   drivers = list(SNV_C4)
 )
@@ -117,7 +117,7 @@ m_engine$add_mutant(
 # Clone 5 : KRAS G12D
 #-------------------------------------------------------------------------------
 m_engine$add_mutant(
-  mutant_name = "C5", 
+  mutant_name = "Clone 5", 
   passenger_rates = passengers, 
   drivers = list(SNV_C5)
 )
@@ -125,7 +125,7 @@ m_engine$add_mutant(
 # Clone 6 : KRAS amp (mutant)
 #-------------------------------------------------------------------------------
 m_engine$add_mutant(
-  mutant_name = "C6", 
+  mutant_name = "Clone 6", 
   passenger_rates = passengers, 
   drivers = list(CNA_C6)
 )
@@ -133,7 +133,7 @@ m_engine$add_mutant(
 # Clone 7 : whole genome doubling
 #-------------------------------------------------------------------------------
 m_engine$add_mutant(
-  mutant_name = "C7", 
+  mutant_name = "Clone 7", 
   passenger_rates = passengers, 
   drivers = list(WGD)
 )

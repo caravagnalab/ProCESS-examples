@@ -8,7 +8,7 @@
 #SBATCH --error=ProCESS.err
 
 module load singularity
-image="/orfeo/cephfs/scratch/cdslab/shared/SCOUT/process_1.0.0.sif"
+image="/orfeo/cephfs/scratch/cdslab/shared/SCOUT/process_1.0.2.sif"
 
 base="/orfeo/cephfs/scratch/cdslab/ahaghighi/packages/ProCESS-examples/SCOUT/SPN06"
 
