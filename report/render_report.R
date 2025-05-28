@@ -1,5 +1,6 @@
 library(dplyr)
 
+<<<<<<< HEAD
 # TO CHANGE #
 ########################
 # change with SPN name
@@ -14,11 +15,23 @@ input <- "/orfeo/cephfs/scratch/cdslab/shared/SCOUT"
 COV = c(50, 100, 150, 200)
 PUR = c(0.3, 0.6, 0.9)
 NORMAL_COV = 30
+=======
+COV = c(100)#c(50, 100, 150, 200)
+PUR = c(0.9)#c(0.3, 0.6, 0.9)
+NORMAL_COV = 30
+########################
+# change with SPN name
+spn <- "SPN06"
+########################
+workdir  <- "/orfeo/cephfs/scratch/cdslab/ahaghighi/packages/ProCESS-examples/report"
+output <- "/orfeo/cephfs/scratch/cdslab/shared/SCOUT"
+input <- "/orfeo/cephfs/scratch/cdslab/shared/SCOUT"
+>>>>>>> 17ac834 (private changes)
 
 dir.create(paste0(output,'/', spn, '/report/'), recursive = T, showWarnings = F)
 setwd(workdir)
 
-print('Rendering SPN report:')
+# print('Rendering SPN report:')
 params <- list(
   spn = spn,
   files = list(
@@ -29,8 +42,8 @@ params <- list(
   ),
   cna_dir = paste0(input, '/', spn, '/process/cna_data')
 )
-rmarkdown::render("Report.Rmd", 
-                  params = params, 
+rmarkdown::render("Report.Rmd",
+                  params = params,
                   output_file = paste0(output, '/', spn, '/report/', spn, '.html'))
 
 print('Done')

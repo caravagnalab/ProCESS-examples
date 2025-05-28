@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --partition=THIN
+#SBATCH --partition=EPYC
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --array=0-11
@@ -10,12 +10,16 @@
 
 # to change
 # path to a temporary directory 
+<<<<<<< HEAD
 dir="/orfeo/fast/area/lvaleriani/tmp_nf"
 mkdir -p $dir
+=======
+dir="/orfeo/fast/cdslab/ahaghighi/tmp_files"
+>>>>>>> 17ac834 (private changes)
 # path to ProCESS-examples repo
-base="/orfeo/scratch/area/lvaleriani/races/ProCESS-examples/report"
+base="/orfeo/cephfs/scratch/cdslab/ahaghighi/packages/ProCESS-examples/report"
 # spn name
-spn=SPN03
+spn=SPN06
 
 cov_values=(50 100 150 200)
 pur_values=(0.3 0.6 0.9)
