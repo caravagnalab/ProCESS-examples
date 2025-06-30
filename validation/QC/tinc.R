@@ -56,7 +56,7 @@ for (spn in SPN){
 sp <- ggpubr::ggscatter(final_table, x = "TIT", y = "purity",
                 color = "SPN", palette = "jco", position = 'jitter',
                 add = "reg.line") 
-sp + ggpubr::stat_cor(aes(color = SPN), label.x = 0.6, label.y.npc = c(0.27, 0.3))
+corr <- sp + ggpubr::stat_cor(aes(color = SPN), label.x = 0.6, label.y.npc = c(0.27, 0.3))
 
 
 v1 <- final_table %>% 
@@ -67,7 +67,7 @@ v1 <- final_table %>%
   facet_grid(coverage ~ purity) + 
   xlab('TIT (TINC)') +
   ylab('purity (ProCESS)') + 
-  scale_color_manual(values = c('steelblue', 'seagreen', 'goldenrod', 'coral', 'palevioletred')) +
+  scale_color_manual(values = c('steelblue', 'seagreen', 'goldenrod', 'coral', 'palevioletred', 'indianred3')) +
   xlim(0,1) +
   ylim(0,1) +
   theme_bw()
@@ -77,7 +77,7 @@ v2 <- ggplot(final_table, aes(x = SPN, y = error, col = SPN)) +
   geom_boxplot() +
   geom_jitter() +
   ylab('|ProCESS - TINC|') +
-  scale_color_manual(values = c('steelblue', 'seagreen', 'goldenrod', 'coral', 'palevioletred')) +
+  scale_color_manual(values = c('steelblue', 'seagreen', 'goldenrod', 'coral', 'palevioletred', 'indianred3')) +
   facet_grid(coverage ~ purity) +
   theme_bw()
   

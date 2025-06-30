@@ -85,8 +85,8 @@ memory <- tibble(sample = spns,
                  sample_forest = c('1.2', '0.8', '1.9', '0.7', NA, '2.4', '2.1'), #M
                  phylo_forest = c('2.1', '6', '1.8', '0.8', NA, '2.6', '2.8'), #G
                  sam = rep(NA, 7),
-                 bam = c('0.9', '0.6', '1.3', '0.6', NA, '1.7', '1.7'), #T
-                 fastq = c('0.7', '0.5', '0.9', '0.4', NA, '1.2', '1.2') #T
+                 bam = c('0.9', '0.6', '1.3', '0.6', '1.3', '1.7', '1.7'), #T
+                 fastq = c('0.7', '0.5', '0.9', '0.4', '0.7', '1.2', '1.2') #T
                  )
 
 mem <- memory %>% 
@@ -108,7 +108,6 @@ memory %>%
   theme_minimal()  +
   
 memory %>% 
-  filter(sample != 'SPN05') %>% 
   ggplot() +
   geom_col(aes(x = sample, y = fastq, fill = as.factor(N))) +
   scale_fill_manual('N samples', values = c('#7CCAD5', '#A0A6BE', '#C481A7', '#454995'))  +
@@ -118,3 +117,27 @@ memory %>%
   plot_layout(guides = 'collect') & theme(legend.position = 'bottom')
 ggsave(filename = 'plot_memory.png', plot = mem, width = 12, height = 4, units = 'in', dpi = 600)
 
+samples_n <- memory %>% select(sample, N)
+memory_sarek <- read.csv('/orfeo/cephfs/scratch/cdslab/shared/SCOUT/sarek_memory', sep = '\t', header = F) %>% 
+  tidyr::separate(V2, sep = '\\/', into = c('spn', 'sarek', 'comb')) %>% 
+  tidyr::separate(comb, sep = '_', into = c('cov', 'purity')) %>% 
+  mutate(cov = ifelse(cov=='normal', '30x', cov)) %>% 
+  mutate(type = ifelse(cov=='30x', 'normal', 'tumor')) %>% 
+  select(-sarek) %>% 
+  dplyr::rename(GB = V1) %>% 
+  mutate(GB = as.numeric(stringr::str_replace(GB, pattern = 'G', '')),
+         cov = stringr::str_replace(cov, pattern = 'x', ''),
+         purity = stringr::str_replace(purity, pattern = 'p', '')) %>% 
+  filter(spn %in% spns) %>% 
+  left_join(samples_n %>% dplyr::rename(spn = sample))
+
+
+memory_sarek %>% 
+  filter(type != 'normal') %>% 
+  ggplot()+
+  geom_col(aes(x = spn, y = GB, fill = as.factor(N))) +
+  scale_fill_manual('N samples', values = c('#7CCAD5', '#A0A6BE', '#C481A7', '#454995'))  +
+  ylab('GB') +
+  facet_grid(cov~purity) +
+  theme_minimal() 
+  

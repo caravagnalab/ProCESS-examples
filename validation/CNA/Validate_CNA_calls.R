@@ -15,7 +15,7 @@ ascat_df <- absolute_to_relative_coordinates(readRDS('data/ascat.rds') %>% dplyr
 cnvkit_df <- absolute_to_relative_coordinates(readRDS('data/cnvkit.rds'), centromere = T) 
 
 ############ Parse command-line arguments
-option_list <- list(make_option(c("--spn_id"), type = "character", default = 'SPN06'),
+option_list <- list(make_option(c("--spn_id"), type = "character", default = 'SPN03'),
                     make_option(c("--purity"), type = "character", default = '0.3'),
                     make_option(c("--coverage"), type = "character", default = '100')
 		                )
@@ -36,35 +36,45 @@ for (sample_id in samples){
   
   ProCESS_output = read_ProCESS(spn_id,sample_id,coverage,purity)
   CNA_ProCESS = ProCESS_output[["CNA"]] 
-  CNA_ProCESS = CNA_ProCESS %>%
-    mutate(ratio = ifelse(ratio > 0.09 & ratio < 0.1, 0.1, round(ratio,1))) %>% 
-    filter(ratio != 0) %>%
-    group_by(chr, major, minor, ratio) %>% 
-    summarise(from = min(from), to = max(to)) %>% 
-    ungroup()
   
-  CNA_ProCESS <- lapply(chromosomes, FUN = function(c){
-    df <- CNA_ProCESS %>% filter(chr == c)
-    breakpoint <- sort(unique(c(df$from, df$to, 1)))
-    
-    segments <- tibble(
-      chr = c,
-      seg_from = head(breakpoint, -1),
-      seg_to = tail(breakpoint, -1),
-      seg_id = paste(chr, seg_from, seg_to, sep = ':')
-    )
-    
-    df <- df %>% 
-      left_join(segments, by = join_by(chr), relationship = "many-to-many") %>% 
-      filter((from >= seg_from & to <= seg_to & ratio < 1) | (ratio == 1 & seg_from == from | seg_to == to) | (ratio < 1 & seg_from == from | seg_to == to))   
-    sub_clonal_seg <- df %>% filter(ratio != 1) %>% pull(seg_id)
-    
-    df <- df %>% filter(ratio == 1 & !(seg_id %in%  sub_clonal_seg) | ratio !=1) %>% 
-      select(-from, -to, -seg_id) %>% 
-      dplyr::rename(from = seg_from, to = seg_to) 
-    
-    return(df)
-  }) %>% bind_rows()
+  CNA_ProCESS = CNA_ProCESS %>% mutate(ratio = ifelse(ratio > 0.09 & ratio < 0.1, 0.1, round(ratio,1))) %>% 
+           filter(ratio != 0) 
+  
+  # CNA_ProCESS <- lapply(chromosomes, FUN = function(c){
+  #   df <- CNA_ProCESS %>% filter(chr == c) 
+  #   
+  #   if (nrow(df %>% filter(ratio !=1))>0){
+  #   
+  #     df = df %>% 
+  #       mutate(ratio = ifelse(ratio > 0.09 & ratio < 0.1, 0.1, round(ratio,1))) %>% 
+  #       filter(ratio != 0) %>%
+  #       group_by(chr, major, minor, ratio) %>% 
+  #       summarise(from = min(from), to = max(to)) %>% 
+  #       ungroup()
+  #   
+  #     breakpoint <- sort(unique(c(df$from, df$to, 1)))
+  #     
+  #     segments <- tibble(
+  #       chr = c,
+  #       seg_from = head(breakpoint, -1),
+  #       seg_to = tail(breakpoint, -1),
+  #       seg_id = paste(chr, seg_from, seg_to, sep = ':')
+  #     )
+  #     
+  #     df <- df %>% 
+  #       left_join(segments, by = join_by(chr), relationship = "many-to-many") %>% 
+  #       filter((from >= seg_from & to <= seg_to & ratio < 1) | (ratio == 1 & seg_from == from | seg_to == to) | (ratio < 1 & seg_from == from | seg_to == to))   
+  #     sub_clonal_seg <- df %>% filter(ratio != 1) %>% pull(seg_id)
+  #     
+  #     df <- df %>% filter(ratio == 1 & !(seg_id %in%  sub_clonal_seg) | ratio !=1) %>% 
+  #       select(-from, -to, -seg_id) %>% 
+  #       dplyr::rename(from = seg_from, to = seg_to) 
+  #     
+  #     return(df)
+  #   } else{
+  #     return(df)
+  #   }
+  #   }) %>% bind_rows()
   
   
   # Compute real ploidy
@@ -78,7 +88,8 @@ for (sample_id in samples){
     filter(ratio < 1 | CN !='1:1') %>% 
     select(-ratio, -CN, -major, -minor) %>% 
     distinct() %>% 
-    pull(len) %>% 
+    pull(len) %>%
+    unique() %>% 
     sum()
   fga = (altered/tot_genome)*100
   
@@ -90,8 +101,12 @@ for (sample_id in samples){
     select(-ratio, -CN, -major, -minor) %>% 
     distinct() %>% 
     pull(len) %>% 
+    unique() %>% 
     sum()
+  
   fgs = (subclonal/tot_genome)*100
+  
+  CNA_ProCESS  = CNA_ProCESS %>% mutate(type = ifelse(ratio != 1, 'subclonal', 'clonal'))
   
   #### ASCAT data
   message("Reading ASCAT data")
@@ -124,6 +139,8 @@ for (sample_id in samples){
   CNVkit_output = read_CNVkit(spn_id,sample_id,coverage,purity)
   CNA_cnvkit = CNVkit_output[["CNA"]]
   
+  CNA_ProCESS_original <- CNA_ProCESS
+  CNA_ProCESS <- CNA_ProCESS %>% filter(type == 'clonal')
   
   ############ Process data
   message("Create joint table ProCESS and ASCAT calls") 
@@ -222,19 +239,19 @@ for (sample_id in samples){
   seg_summary_sequenza = segmentation_sequenza[["summary"]]
   breakpoints_cnvkit = segmentation_cnvkit[["breakpoints"]]
   seg_summary_cnvkit = segmentation_cnvkit[["summary"]]
-    
   
   ########### Plots
   message("Generate plots")
   
-  CNA_ProCESS_rel <- absolute_to_relative_coordinates(CNA_ProCESS %>% dplyr::rename(start = from, end = to))%>% 
+  CNA_ProCESS_rel <- absolute_to_relative_coordinates(CNA_ProCESS_original %>% dplyr::rename(start = from, end = to))%>% 
     mutate(type = ifelse(ratio != 1, 'sub-clonal', 'clonal')) %>% 
     mutate(c = ifelse(ratio < 1 & ratio > 0.5, '1', '2')) %>% 
     mutate(c = ifelse(ratio ==1, 1, c)) %>% 
     select(-ratio) %>% 
     pivot_longer(cols = c(major, minor)) %>% 
     mutate(name = ifelse(name == 'major', 'Major', 'minor')) %>% 
-    mutate(name = paste0(name, c)) 
+    mutate(name = paste0(name, c))  %>% 
+    filter(chr %in% chromosomes)
   
   ProCESS_plt <-  CNAqc:::blank_genome(chromosomes = chromosomes) +
     geom_rect(data = CNA_ProCESS_rel, aes(xmin=start, xmax=end, ymin=-Inf, ymax=Inf, fill=type), alpha = .1) +
@@ -254,9 +271,10 @@ for (sample_id in samples){
               'Coverage: ', coverage,
               '\nTrue purity: ',purity,
               '\nTrue ploidy: ',round(ploidy,2),
-              '\nNumber of subclonal segments: ', CNA_ProCESS %>% filter(ratio != 1) %>% select(-ratio, -major, -minor) %>% unique() %>% nrow(),
+              '\nNumber of subclonal segments: ', CNA_ProCESS_original %>% filter(ratio != 1) %>% select(-ratio, -major, -minor) %>% unique() %>% nrow(),
               '\nFraction of genome altered: ', round(fga,2), '%',
               '\nFraction of genome subclonal: ', round(fgs,2), '%')))
+  
     
   ascat_plt <- CNAqc:::blank_genome(chromosomes = chromosomes) + 
     geom_rect(data = joint_segmentation_ascat_long,
@@ -275,7 +293,7 @@ for (sample_id in samples){
     ggtitle('ASCAT',
               subtitle = element_text(paste0(
                 'Proportion of genome inferred correctly - clonal: ', round(ascat_correctness$clonal,2)*100,'%',
-                '\nProportion of genome inferred correctly - all: ', round(ascat_correctness$all,2)*100,'%',
+                #'\nProportion of genome inferred correctly - all: ', round(ascat_correctness$all,2)*100,'%',
                 '\nInferred purity: ', purity_ploidy_ascat$AberrantCellFraction,
                 '\nInferred ploidy: ', round(purity_ploidy_ascat$Ploidy,2),
                 '\nAverage breakpoint distance: ',round(seg_summary_ascat$av_distance))))
@@ -299,7 +317,7 @@ for (sample_id in samples){
     ggtitle('sequenza',
             subtitle = element_text(paste0(
               'Proportion of genome inferred correctly - clonal: ', round(sequenza_correctness$clonal,2)*100,'%',
-              '\nProportion of genome inferred correctly - all: ', round(sequenza_correctness$all,2)*100,'%',
+              #'\nProportion of genome inferred correctly - all: ', round(sequenza_correctness$all,2)*100,'%',
               '\nInferred purity: ', purity_ploidy_sequenza$cellularity[[1]],
               '\nInferred ploidy: ', round(purity_ploidy_sequenza$ploidy.estimate[[1]],2),
               '\nAverage breakpoint distance: ',round(seg_summary_sequenza$av_distance))))

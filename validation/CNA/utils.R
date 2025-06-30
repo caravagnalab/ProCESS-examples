@@ -242,7 +242,10 @@ create_joint_segmentation = function(CNA_ProCESS, CNA_target, caller, chromosome
         names_to = "Type",  # New column for variable names
         values_to = "Value"  # New column for values
       )
+    joint_segmentation_shifted = joint_segmentation_shifted %>% filter(!is.na(TRUE_CN))
+    joint_segmentation_shifted_longer = joint_segmentation_shifted_longer %>% filter(!is.na(TRUE_CN))
   } else{
+    joint_segmentation_shifted = joint_segmentation_shifted %>% filter(!is.na(TRUE_CN))
     joint_segmentation_shifted_longer = joint_segmentation_shifted %>% 
       mutate(is_match = 
                case_when(

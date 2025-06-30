@@ -10,7 +10,7 @@ source("../../getters/sarek_getters.R")
 source("../../getters/process_getters.R")
 source("utils.R")
 
-option_list <- list(make_option(c("--spn_id"), type = "character", default = 'SPN03'),
+option_list <- list(make_option(c("--spn_id"), type = "character", default = 'SPN06'),
                     make_option(c("--coverages"), type = "character", default = '50, 100'),
                     make_option(c("--purities"), default = '0.6, 0.9, 0.3')
 )
@@ -56,7 +56,7 @@ df_metric = lapply(1:nrow(params_grid), function(i) {
 
 plt <- df_metric %>% 
   ggplot() + 
-  geom_point(aes(x = sample, y = as.numeric(true_purity) - as.numeric(purity), col = tool), size = 2.5) + # size = fgs
+  geom_point(aes(x = sample, y = as.numeric(true_purity) - as.numeric(purity), col = tool, size = fgs, alpha = 1-fga)) + # size = fgs
   geom_hline(aes(yintercept = 0)) +
   ylab('true_purity - inferred_purity') +
   theme_bw() +
@@ -64,13 +64,30 @@ plt <- df_metric %>%
 
 df_metric %>% 
   ggplot() + 
-  geom_point(aes(x = sample, y = as.numeric(true_ploidy) - as.numeric(ploidy), col = tool), size = 2.5) + 
+  geom_point(aes(x = sample, y = as.numeric(true_ploidy) - as.numeric(ploidy), col = tool,  size = fgs, alpha = 1-fga)) + 
   geom_hline(aes(yintercept = 0)) +
   ylab('true_ploidy - inferred_ploidy') +
   theme_bw() +
   facet_grid(as.numeric(coverage)  ~ as.numeric(true_purity))  +
-  plot_layout(nrow = 2) +
-  plot_annotation(title = spn_id)
+  
+df_metric %>% 
+  ggplot() + 
+  geom_point(aes(x = sample, y = correctness_clonal, col = tool,  size = fgs, alpha = 1-fga)) + 
+  ylab('% correctness') +
+  theme_bw() +
+  facet_grid(as.numeric(coverage)  ~ as.numeric(true_purity))  +
+  
+df_metric %>% 
+  ggplot() + 
+  geom_point(aes(x = sample, y = bp_distance, col = tool,  size = fgs, alpha = 1-fga)) + 
+  ylab('breakpoint distance') +
+  theme_bw() +
+  facet_grid(as.numeric(coverage)  ~ as.numeric(true_purity)) + 
+  plot_layout(nrow = 4) +
+  plot_annotation(title = spn_id) + plot_layout(guides = 'collect')
+
 
 plt
+
+
 
