@@ -551,7 +551,182 @@ analyze_vaf_performance <- function(seq_res_long, caller_res, only_pass,
   ))
 }
 
-get_multi_caller_report <- function(seq_res_long, caller_res_list, sample_info, min_vaf, only_pass) {
+analyze_ccf_performance <- function(seq_res_long, caller_res, only_pass, 
+                                    pi,
+                                    ccf_bins = c(-Inf, 0, 0.05, 0.1, 0.2, 0.3, 0.5, 1.0), 
+                                    ccf_tolerance_pct = 5, 
+                                    min_ccf_threshold = 0.02) {
+  
+  # Group filter categories
+  caller_res <- caller_res %>% 
+    dplyr::group_by(FILTER) %>% 
+    dplyr::mutate(f = dplyr::n() / nrow(caller_res)) %>% 
+    dplyr::mutate(FILTER = ifelse(FILTER == "PASS" | f > .05, FILTER, "Other"))
+  
+  if (only_pass) {
+    caller_res = caller_res %>% dplyr::filter(FILTER == "PASS")
+  }
+  
+  merged_df = merge_datasets(caller_res, seq_res_long, 0)
+  merged_df = merged_df %>% dplyr::select(mutationID, VAF_caller, VAF_truth)
+  
+  # Compute CCFs
+  merged_df <- merged_df %>%
+    dplyr::mutate(
+      CCF_truth = VAF_truth / pi * (pi + 2 * (1 - pi)) / 2,
+      CCF_caller = VAF_caller / pi * (pi + 2 * (1 - pi)) / 2
+    ) %>%
+    dplyr::mutate(
+      CCF_truth = pmin(CCF_truth, 1),
+      CCF_caller = pmin(CCF_caller, 1)
+    )
+  
+  # Create CCF bins
+  ccf_labels <- c("0%", "0–5%", "5–10%", "10–20%", "20–30%", "30–50%", "50–100%")
+  merged_df$CCF_bin <- cut(merged_df$CCF_truth, 
+                           breaks = ccf_bins, 
+                           include.lowest = FALSE,
+                           right = TRUE,
+                           labels = ccf_labels)
+  
+  # Calculate differences
+  merged_df$ccf_abs_diff <- abs(merged_df$CCF_truth - merged_df$CCF_caller)
+  merged_df$ccf_rel_diff_pct <- abs(merged_df$CCF_truth - merged_df$CCF_caller) / merged_df$CCF_truth * 100
+  
+  # Classify detection status
+  merged_df$detection_status <- dplyr::case_when(
+    # True Positives: Both must have VAF > threshold AND VAF difference within tolerance
+    !is.na(merged_df$CCF_truth) & !is.na(merged_df$CCF_caller) & 
+      merged_df$CCF_truth > min_ccf_threshold & merged_df$CCF_caller > min_ccf_threshold &
+      merged_df$ccf_rel_diff_pct <= ccf_tolerance_pct ~ "True Positive",
+    
+    # False Negatives: Truth exists but caller missed it OR VAF difference too large
+    !is.na(merged_df$CCF_truth) & merged_df$CCF_truth > min_ccf_threshold & 
+      (is.na(merged_df$CCF_caller) | merged_df$CCF_caller <= min_ccf_threshold |
+         (!is.na(merged_df$CCF_caller) & merged_df$ccf_rel_diff_pct > ccf_tolerance_pct)) ~ "False Negative",
+    
+    # False Positives: Caller detected but no truth OR truth VAF too low
+    !is.na(merged_df$CCF_caller) & merged_df$CCF_caller > min_ccf_threshold &
+      (is.na(merged_df$CCF_truth) | merged_df$CCF_truth <= min_ccf_threshold) ~ "False Positive",
+    
+    # TRUE NEGATIVES: Truth exists but VAF is below threshold AND caller correctly didn't call it (or called below threshold)
+    !is.na(merged_df$CCF_truth) & merged_df$CCF_truth <= min_ccf_threshold &
+      (is.na(merged_df$CCF_caller) | merged_df$CCF_caller <= min_ccf_threshold) ~ "True Negative",
+    
+    TRUE ~ "Unknown"
+  )
+  
+  # Bin true negatives
+  merged_df$CCF_bin_tn <- cut(merged_df$CCF_truth, 
+                              breaks = ccf_bins, 
+                              include.lowest = FALSE,
+                              right = TRUE,
+                              labels = ccf_labels)
+  
+  # Performance by CCF bin
+  performance_by_bin <- merged_df %>%
+    dplyr::filter(!is.na(CCF_bin) & CCF_truth > min_ccf_threshold) %>%
+    dplyr::group_by(CCF_bin) %>%
+    dplyr::summarise(
+      total_truth = dplyr::n(),
+      true_positives = sum(detection_status == "True Positive"),
+      false_negatives = sum(detection_status == "False Negative"),
+      ccf_discordant = sum(!is.na(CCF_caller) & CCF_caller > min_ccf_threshold &
+                             ccf_rel_diff_pct > ccf_tolerance_pct, na.rm = TRUE),
+      .groups = 'drop'
+    ) %>%
+    dplyr::mutate(
+      sensitivity = true_positives / (true_positives + false_negatives),
+      sensitivity_pct = round(sensitivity * 100, 1)
+    )
+  
+  tn_by_bin <- merged_df %>%
+    dplyr::filter(detection_status == "True Negative") %>%
+    dplyr::group_by(CCF_bin_tn) %>%
+    dplyr::summarise(true_negatives = dplyr::n(), .groups = 'drop') %>%
+    dplyr::rename(CCF_bin = CCF_bin_tn)
+  
+  fp_by_bin <- merged_df %>%
+    dplyr::filter(detection_status == "False Positive") %>%
+    dplyr::mutate(CCF_bin_fp = cut(CCF_caller, 
+                                   breaks = ccf_bins, 
+                                   include.lowest = FALSE,
+                                   right = TRUE,
+                                   labels = ccf_labels)) %>%
+    dplyr::group_by(CCF_bin_fp) %>%
+    dplyr::summarise(false_positives = dplyr::n(), .groups = 'drop') %>%
+    dplyr::rename(CCF_bin = CCF_bin_fp)
+  
+  performance_by_bin <- performance_by_bin %>%
+    dplyr::left_join(tn_by_bin, by = "CCF_bin") %>%
+    dplyr::left_join(fp_by_bin, by = "CCF_bin") %>%
+    dplyr::mutate(
+      true_negatives = ifelse(is.na(true_negatives), 0, true_negatives),
+      false_positives = ifelse(is.na(false_positives), 0, false_positives),
+      fpr = false_positives / (false_positives + true_negatives),
+      fpr_pct = round(fpr * 100, 3),
+      precision = true_positives / (true_positives + false_positives),
+      precision_pct = round(precision * 100, 1),
+      specificity = true_negatives / (true_negatives + false_positives),
+      specificity_pct = round(specificity * 100, 1)
+    ) %>%
+    dplyr::mutate(
+      fpr = ifelse((false_positives + true_negatives) == 0, NA, fpr),
+      fpr_pct = ifelse(is.na(fpr), NA, fpr_pct),
+      specificity = ifelse((false_positives + true_negatives) == 0, NA, specificity),
+      specificity_pct = ifelse(is.na(specificity), NA, specificity_pct),
+      precision = ifelse((true_positives + false_positives) == 0, NA, precision),
+      precision_pct = ifelse(is.na(precision), NA, precision_pct)
+    )
+  
+  total_tp <- sum(merged_df$detection_status == "True Positive", na.rm = TRUE)
+  total_fp <- sum(merged_df$detection_status == "False Positive", na.rm = TRUE)
+  total_tn <- sum(merged_df$detection_status == "True Negative", na.rm = TRUE)
+  total_fn <- sum(merged_df$detection_status == "False Negative", na.rm = TRUE)
+  
+  overall_precision <- ifelse((total_tp + total_fp) > 0, total_tp / (total_tp + total_fp), NA)
+  overall_sensitivity <- ifelse((total_tp + total_fn) > 0, total_tp / (total_tp + total_fn), NA)
+  overall_specificity <- ifelse((total_tn + total_fp) > 0, total_tn / (total_tn + total_fp), NA)
+  overall_fpr <- ifelse((total_tn + total_fp) > 0, total_fp / (total_tn + total_fp), NA)
+  
+  ccf_accuracy_by_bin <- merged_df %>%
+    dplyr::filter(detection_status == "True Positive") %>%
+    dplyr::group_by(CCF_bin) %>%
+    dplyr::summarise(
+      n_variants = dplyr::n(),
+      ccf_correlation = ifelse(dplyr::n() > 1, stats::cor(CCF_truth, CCF_caller, use = "complete.obs"), NA),
+      mean_abs_error = mean(ccf_abs_diff, na.rm = TRUE),
+      median_abs_error = stats::median(ccf_abs_diff, na.rm = TRUE),
+      rmse = sqrt(mean(ccf_abs_diff^2, na.rm = TRUE)),
+      .groups = 'drop'
+    )
+  
+  results <- performance_by_bin %>%
+    dplyr::left_join(ccf_accuracy_by_bin, by = "CCF_bin")
+  
+  return(list(
+    performance_table = results,
+    overall_metrics = list(
+      precision = overall_precision,
+      sensitivity = overall_sensitivity,
+      specificity = overall_specificity,
+      fpr = overall_fpr
+    ),
+    detection_summary = table(merged_df$detection_status),
+    confusion_matrix = list(
+      TP = total_tp,
+      FP = total_fp,
+      TN = total_tn,
+      FN = total_fn
+    ),
+    raw_data = merged_df,
+    ccf_tolerance_pct = ccf_tolerance_pct,
+    min_ccf_threshold = min_ccf_threshold
+  ))
+}
+
+
+get_multi_caller_report <- function(seq_res_long, caller_res_list, pi, sample_info, min_vaf, only_pass) {
   if (only_pass) {
     names_to_keep = names(caller_res_list)
     caller_res_list = lapply(caller_res_list, function(cr) {
@@ -584,8 +759,55 @@ get_multi_caller_report <- function(seq_res_long, caller_res_list, sample_info, 
     "strelka" = caller_res_list$strelka %>% dplyr::filter(VAF >= min_vaf) %>% dplyr::pull(mutationID),
     "freebayes" = caller_res_list$freebayes %>% dplyr::filter(VAF >= min_vaf) %>% dplyr::pull(mutationID)
   )
-  upset_plot = ggVennDiagram(x, force_upset = TRUE)
-  upset_plot = ggplotify::as.ggplot(upset_plot)
+  
+  # Get all unique mutation IDs from all methods
+  all_mutations <- unique(c(
+    seq_res_long %>% dplyr::filter(VAF >= min_vaf) %>% dplyr::pull(mutationID),
+    caller_res_list$mutect2 %>% dplyr::filter(VAF >= min_vaf) %>% dplyr::pull(mutationID),
+    caller_res_list$strelka %>% dplyr::filter(VAF >= min_vaf) %>% dplyr::pull(mutationID),
+    caller_res_list$freebayes %>% dplyr::filter(VAF >= min_vaf) %>% dplyr::pull(mutationID)
+  ))
+  
+  # Create the tibble
+  mutation_tibble <- tibble(
+    mutationID = all_mutations,
+    ProCESS = as.integer(mutationID %in% (seq_res_long %>% dplyr::filter(VAF >= min_vaf) %>% dplyr::pull(mutationID))),
+    mutect2 = as.integer(mutationID %in% (caller_res_list$mutect2 %>% dplyr::filter(VAF >= min_vaf) %>% dplyr::pull(mutationID))),
+    strelka = as.integer(mutationID %in% (caller_res_list$strelka %>% dplyr::filter(VAF >= min_vaf) %>% dplyr::pull(mutationID))),
+    freebayes = as.integer(mutationID %in% (caller_res_list$freebayes %>% dplyr::filter(VAF >= min_vaf) %>% dplyr::pull(mutationID)))
+  ) %>%
+    # Add VAF from seq_res_long
+    dplyr::left_join(
+      seq_res_long %>% dplyr::select(mutationID, VAF),
+      by = "mutationID"
+    ) %>%
+    # Replace NA VAF values with 0
+    dplyr::mutate(VAF = ifelse(is.na(VAF), 0, VAF))
+
+  ccf_bins = c(-Inf, 0, 0.05, 0.1, 0.2, 0.3, 0.5, 1.0)
+  mutation_tibble$CCF = mutation_tibble$VAF * pi^(-1) * (pi * 1 + (1 - pi) * 2) / 2
+  mutation_tibble$CCF[mutation_tibble$CCF > 1] = 1
+  
+  # Create custom labels
+  ccf_labels = c("0%", "0–5%", "5–10%", "10–20%", "20–30%", "30–50%", "50–100%")
+  
+  mutation_tibble$CCF_bin <- cut(mutation_tibble$CCF, 
+                                 breaks = ccf_bins, 
+                                 include.lowest = FALSE,
+                                 right = TRUE,
+                                 labels = ccf_labels)
+  methods = names(x)
+  upset_plot <- ComplexUpset::upset(mutation_tibble, methods, base_annotations=list(
+    'Intersection size'=ComplexUpset::intersection_size(
+      counts=FALSE,
+      mapping=aes(fill=CCF_bin)
+    ) +
+      scale_fill_manual(values=c('#f0f9e8','#ccebc5','#a8ddb5','#7bccc4','#4eb3d3','#2b8cbe','#08589e'))
+  ),
+  width_ratio=0.1) 
+  
+  # upset_plot = ggVennDiagram(x, force_upset = TRUE)
+  # upset_plot = ggplotify::as.ggplot(upset_plot)
   
   ###
   # METRICS COMBINATION AND ADVANCED ANALYSIS
@@ -602,10 +824,19 @@ get_multi_caller_report <- function(seq_res_long, caller_res_list, sample_info, 
     metrics_results$performance_table %>% dplyr::mutate(caller = nc)
   }) %>% do.call("bind_rows", .)
   
+  ccf_analysis_results_across_callers = lapply(names(caller_res_list), function(nc) {
+    caller_res = caller_res_list[[nc]]
+    metrics_results = analyze_ccf_performance(seq_res_long, 
+                                              caller_res, pi = pi,
+                                              only_pass = TRUE, 
+                                              min_ccf_threshold = min_vaf,
+                                              ccf_tolerance_pct = 5)
+    metrics_results$performance_table %>% dplyr::mutate(caller = nc)
+  }) %>% do.call("bind_rows", .)
   
   # Generate precision-recall curve
-  precision_recall_plot = plot_multicaller_precision_recall_vaf(vaf_analysis_results_across_callers)
-  rmse_plot = plot_multicaller_rmse_vaf(vaf_analysis_results_across_callers)
+  precision_recall_plot = plot_multicaller_precision_recall(performance_data = ccf_analysis_results_across_callers, x_name = "CCF_bin")
+  #rmse_plot = plot_multicaller_rmse_vaf(vaf_analysis_results_across_callers)
   
   ###
   # REPORT LAYOUT DESIGN
@@ -619,10 +850,10 @@ get_multi_caller_report <- function(seq_res_long, caller_res_list, sample_info, 
   AAABBB
   CCCDDD
   CCCDDD
-  EEEEEE
-  EEEEEE
-  FFFGGG
-  FFFGGG
+  #EEEE#
+  #EEEE#
+  #FFFF#
+  #FFFF#
   "
   
   # Generate descriptive title and subtitle for the report
@@ -634,7 +865,7 @@ get_multi_caller_report <- function(seq_res_long, caller_res_list, sample_info, 
   # free() function allows each plot to maintain its own scales
   report_plot <- free(DP_density) + free(DP_ecdf) +
     free(VAF_density) + free(VAF_ecdf) + 
-    free(precision_recall_plot) + free(upset_plot) + free(rmse_plot) +
+    free(precision_recall_plot) + free(upset_plot) +
     plot_layout(design = design) +
     plot_annotation(title, subtitle) & 
     theme(text = element_text(size = 12))

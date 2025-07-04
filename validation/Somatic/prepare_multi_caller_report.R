@@ -100,7 +100,7 @@ for (mut_type in mut_types) {
   
   sample_info = list(mut_type=mut_type, spn=spn_id, purity=purity, coverage=coverage)
   report_plot = get_multi_caller_report(seq_res_long = gt_res, 
-                                   caller_res_list = caller_res_list, 
+                                   caller_res_list = caller_res_list, pi = as.numeric(purity),
                                    sample_info = sample_info, 
                                    min_vaf = min_vaf, 
                                    only_pass = TRUE)
@@ -123,6 +123,14 @@ for (mut_type in mut_types) {
                                                 only_pass = TRUE, 
                                                 min_vaf_threshold = min_vaf, 
                                                 vaf_tolerance_pct = 5)  # 5% VAF tolerance
+      
+      metrics_results = analyze_ccf_performance(sample_ground_truth_res, 
+                                                sample_caller_res, 
+                                                pi = as.numeric(purity),
+                                                only_pass = TRUE, 
+                                                min_ccf_threshold = min_vaf, 
+                                                ccf_tolerance_pct = 5)  # 5% VAF tolerance
+      
       metrics_results$raw_data = NULL
       metrics_results
     })
