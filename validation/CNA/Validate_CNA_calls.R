@@ -17,7 +17,7 @@ cnvkit_df <- absolute_to_relative_coordinates(readRDS('data/cnvkit.rds'), centro
 ############ Parse command-line arguments
 option_list <- list(make_option(c("--spn_id"), type = "character", default = 'SPN03'),
                     make_option(c("--purity"), type = "character", default = '0.3'),
-                    make_option(c("--coverage"), type = "character", default = '100')
+                    make_option(c("--coverage"), type = "character", default = '50')
 		                )
 
 opt_parser <- OptionParser(option_list = option_list)
@@ -31,8 +31,40 @@ purity = opt$purity
 samples = get_sample_names(spn_id)
 chromosomes = c(paste0('chr',1:22))
 
+process_rds <- readRDS(get_mutations(spn = spn_id, coverage = coverage, purity = purity, type = 'tumour'))
+process_normal <- readRDS(get_mutations(spn = spn_id, coverage = coverage, purity = purity, type = 'normal'))
+process_normal_long <- ProCESS::seq_to_long(process_normal)
+process_normal_long <- process_normal_long %>% ungroup() %>% select(chr, from, to, NV, DP, VAF)
+rm(process_normal)
+process_rds_long <- ProCESS::seq_to_long(process_rds)
+rm(process_rds)
+process_rds_long <- process_rds_long %>% ungroup() %>% filter(classes == 'germinal') %>% select(chr, from, to, ref, alt, NV, DP, VAF, sample_name)
+cov_T = as.numeric(coverage)
+cov_N = 30
+ratio = cov_N/cov_T
+
+process_rds_long <- process_rds_long %>% 
+  left_join(process_normal_long, by = join_by(chr, from, to), suffix = c('_T', '_N')) %>% 
+  filter(ref %in% c('A', 'T', 'C', 'G')) %>% 
+  filter(alt %in% c('A', 'T', 'C', 'G')) %>%
+  select(chr, from, to, NV_T, DP_T, VAF_T, sample_name, DP_N, VAF_N) %>% 
+  mutate(DR = (DP_T/DP_N)*ratio) %>% 
+  filter(VAF_N > 0.3, VAF_N < 0.7) 
+
+
 for (sample_id in samples){
   message(paste0("Reading ProCESS data for sample ", sample_id))
+  
+  process_rds <- process_rds_long %>% filter(sample_name == sample_id) %>% filter(DP_T > 10) %>% sample_n(1e4)
+  process_rds <- absolute_to_relative_coordinates_muts(process_rds %>% mutate(chr = paste0('chr',chr)))
+  plt_snp <- CNAqc:::blank_genome(chromosomes = chromosomes) + 
+    geom_point(data = process_rds, aes(x = from, y = VAF_T), size = .1) + 
+    ylab('BAF') + 
+    CNAqc:::blank_genome(chromosomes = chromosomes) + 
+    geom_point(data = process_rds, aes(x = from, y = DR), size = .1) + 
+    ylab('DR') +
+    ylim(-1,3) + 
+    plot_layout(nrow=2)
   
   ProCESS_output = read_ProCESS(spn_id,sample_id,coverage,purity)
   CNA_ProCESS = ProCESS_output[["CNA"]] 
@@ -75,13 +107,12 @@ for (sample_id in samples){
   #     return(df)
   #   }
   #   }) %>% bind_rows()
-  
-  
+
   # Compute real ploidy
   ploidy = compute_true_ploidy(CNA_ProCESS)
   
   # Compute FGA
-  tot_genome = CNA_ProCESS  %>% filter(!(chr %in% c('chrX', 'chrY'))) %>%  mutate(len=to-from) %>% pull(len) %>% unique() %>% sum()
+  tot_genome = CNA_ProCESS  %>% filter(!(chr %in% c('chrX', 'chrY')))  %>% select(chr, from, to) %>% distinct() %>%  mutate(len=to-from) %>% pull(len) %>% unique() %>% sum()
   altered = CNA_ProCESS %>% 
     filter(!(chr %in% c('chrX', 'chrY'))) %>% 
     mutate(len = to-from, CN = paste(major, minor, sep=':')) %>% 
@@ -341,7 +372,7 @@ for (sample_id in samples){
               '\nAverage breakpoint distance: ',round(seg_summary_cnvkit$av_distance))))
   
   
-  plt <- ProCESS_plt + ascat_plt + sequenza_plt + cnvkit_plt + patchwork::plot_layout(nrow = 4)
+  plt <- plt_snp + ProCESS_plt + ascat_plt + sequenza_plt + cnvkit_plt + patchwork::plot_layout(nrow = 6)
   
   ### Save reports 
   outdir <- paste0(data_dir,spn_id,"/validation/cna/",spn_id,"/",coverage,"x_",purity,'p/',sample_id,'/')
@@ -353,8 +384,8 @@ for (sample_id in samples){
   filename <- paste(spn_id, coverage, purity, sample_id, sep='_')
   file_path <- file.path(reportdir, filename)
   
-  ggsave(plt, file = paste0(outdir,'report.png'), height = 10, width = 8)
-  ggsave(plt, file = paste0(file_path,'.png'), height = 10, width = 8)
+  ggsave(plt, file = paste0(outdir,'report.png'), height = 14, width = 8)
+  ggsave(plt, file = paste0(file_path,'.png'), height = 14, width = 8)
   
   
   table_metric <- tibble('true_purity' = purity,

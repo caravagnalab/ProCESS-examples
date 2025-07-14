@@ -36,21 +36,23 @@ colors = c("ProCESS"="deepskyblue3", "haplotypecaller"="coral3", "strelka"="pale
 plt_metric <- all_metric %>% 
   pivot_longer(cols = c(Accuracy, Sensitivity, Precision, Recall, F1_Score)) %>% 
   ggplot() +
-  geom_point(aes(x = spn, y = value, col = tool), size = 3) +
+  geom_point(aes(x = name, y = value, col = tool), size = 3) +
+  geom_line(aes(x = name, y = value, col = tool, group = tool), linetype = 2) +
   scale_color_manual(values = colors) +
   xlab('metric') + 
-  facet_grid(name~.) + 
+  facet_grid(spn~.) + 
+  ylim(0.9,1) + 
   theme_bw()
 
 plt_baf <- all_baf %>% 
   ggplot() +
-  geom_boxplot(aes(x = spn, y = RMSE, fill = tool)) +
+  geom_boxplot(aes(x = spn, y = RMSE, fill = tool), outliers = F) +
   scale_fill_manual(values = colors) +
   theme_bw() + 
   all_baf %>% 
   ggplot() +
-  geom_boxplot(aes(x = spn, y = cor_coeff, fill = tool)) +
+  geom_boxplot(aes(x = spn, y = cor_coeff, fill = tool), outliers = F) +
   scale_fill_manual(values = colors) +
   theme_bw() +
-  plot_layout(guides = 'collect')
+  plot_layout(guides = 'collect', nrow = 2)
 plt_baf

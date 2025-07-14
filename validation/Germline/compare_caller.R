@@ -82,16 +82,6 @@ DP_ecdf = plot_ecdf_comparison_multi(DP_list, labels, colors, x_label = "Read De
 BAF_density = plot_density_comparison_multi(BAF_list, labels, colors, x_label = "BAF", n=N)
 BAF_ecdf = plot_ecdf_comparison_multi(BAF_list, labels, colors, x_label = "BAF", n=N)
 
-x = list(
-  "ProCESS" = process_normal %>% dplyr::pull(mutationID),
-  "haplotypecaller" = list_tool_pass$haplotypecaller  %>% dplyr::pull(mutationID),
-  "strelka" = list_tool_pass$strelka  %>% dplyr::pull(mutationID),
-  "freebayes" = list_tool_pass$freebayes  %>% dplyr::pull(mutationID)
-)
-upset_plot = ggVennDiagram::ggVennDiagram(x, force_upset = TRUE)
-upset_plot = ggplotify::as.ggplot(upset_plot)
-
-
 #freebayes
 merged_freebayes = merge_datasets(snp_caller = list_tool$freebayes, ground_truth = process_normal)
 y_true_freebayes = as.numeric(factor((merged_freebayes$BAF.races > 0), levels=c(FALSE, TRUE))) - 1
@@ -147,6 +137,24 @@ baf_comparison_haplotypecaller <- merged_haplotypecaller_pass %>%
   )
 
 all_metric <- bind_rows(metrics_freebayes, metrics_strelka, metrics_haplotypecaller) %>% mutate(spn = spn)
+all_baf <- bind_rows(baf_comparison_haplotypecaller %>% mutate(tool = 'haplotypecaller'), 
+                     baf_comparison_strelka %>% mutate(tool = 'strelka'), 
+                     baf_comparison_freebayes %>% mutate(tool = 'freebayes')) %>% mutate(spn = spn)
+
+saveRDS(object = list(report_metrics=all_metric, baf_metric = all_baf), file = paste0(report,'/normal_metrics.rds'))
+
+print('start plotting')
+x = list(
+  "ProCESS" = process_normal %>% dplyr::pull(mutationID),
+  "haplotypecaller" = list_tool_pass$haplotypecaller  %>% dplyr::pull(mutationID),
+  "strelka" = list_tool_pass$strelka  %>% dplyr::pull(mutationID),
+  "freebayes" = list_tool_pass$freebayes  %>% dplyr::pull(mutationID)
+)
+upset_plot = ggVennDiagram::ggVennDiagram(x, force_upset = TRUE)
+upset_plot = ggplotify::as.ggplot(upset_plot)
+
+
+
 metric_plot <- all_metric %>% 
   pivot_longer(cols = c(Accuracy, Sensitivity, Precision, Recall, F1_Score)) %>% 
   ggplot() +
@@ -156,9 +164,6 @@ metric_plot <- all_metric %>%
   xlab('metric') + 
   theme_bw()
 
-all_baf <- bind_rows(baf_comparison_haplotypecaller %>% mutate(tool = 'haplotypecaller'), 
-                     baf_comparison_strelka %>% mutate(tool = 'strelka'), 
-                     baf_comparison_freebayes %>% mutate(tool = 'freebayes')) %>% mutate(spn = spn)
 
 baf_corr_plot <- all_baf %>% 
   ggplot() +
@@ -183,4 +188,3 @@ report_plot <- DP_density + theme(legend.position = 'none') + DP_ecdf + theme(le
   plot_annotation(title)
 
 ggsave(plot = report_plot, filename = paste0(report,'/normal.png'), dpi = 500, width = 11, height = 12, units = 'in')
-saveRDS(object = list(report_metrics=all_metric, baf_metric = all_baf), file = paste0(report,'/normal_metrics.rds'))

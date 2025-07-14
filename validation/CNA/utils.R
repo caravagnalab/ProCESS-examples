@@ -74,6 +74,13 @@ absolute_to_relative_coordinates <- function(muts, reference = CNAqc::chr_coordi
   }
 }
 
+absolute_to_relative_coordinates_muts <- function(muts, reference = CNAqc::chr_coordinates_GRCh38){
+  vfrom = reference$from
+  names(vfrom) = reference$chr
+  muts <- muts %>% mutate(from = from + vfrom[chr])
+  return(muts) 
+}
+
 ## Read data
 read_ProCESS = function(spn_id,sample_id,coverage,purity){
   

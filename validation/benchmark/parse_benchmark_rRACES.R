@@ -132,12 +132,15 @@ memory_sarek <- read.csv('/orfeo/cephfs/scratch/cdslab/shared/SCOUT/sarek_memory
   left_join(samples_n %>% dplyr::rename(spn = sample))
 
 
-memory_sarek %>% 
+plt_sarek <- memory_sarek %>% 
+  group_by(spn, cov, type, N) %>% 
+  summarize(GB = sum(as.numeric(GB))) %>% 
   filter(type != 'normal') %>% 
   ggplot()+
   geom_col(aes(x = spn, y = GB, fill = as.factor(N))) +
   scale_fill_manual('N samples', values = c('#7CCAD5', '#A0A6BE', '#C481A7', '#454995'))  +
   ylab('GB') +
-  facet_grid(cov~purity) +
+  facet_grid(.~cov) +
+  ggtitle('nf-core/sarek') +
   theme_minimal() 
-  
+ggsave(filename = 'plot_sarek.png', plot = plt_sarek, width = 8, height = 4, units = 'in', dpi = 600)

@@ -36,8 +36,8 @@ bcftools view ${vcf} --regions chr${CHROMOSOME} -o ${outdir}/chr${CHROMOSOME}_no
 germline_report_shell_script="""#!/bin/bash
 #SBATCH --nodes=1
 #SBATCH --tasks-per-node=1
-#SBATCH --cpus-per-task=1
-#SBATCH --mem 100g
+#SBATCH --cpus-per-task=4
+#SBATCH --mem 300g
 #SBATCH --time=10:00:00
 
 module load R/4.4.1
