@@ -1,4 +1,84 @@
-# Reshape data
+### Align ProCESS and tumourevo signatures/exposures data ###
+
+align_sparsesig_res <- function(sparse_list) {
+  aligned <- list()
+  
+  for (spn in names(sparse_list)) {
+    aligned[[spn]] <- list()
+    
+    for (coverage in names(sparse_list[[spn]])) {
+      aligned[[spn]][[coverage]] <- list()
+      
+      for (purity in names(sparse_list[[spn]][[coverage]])) {
+        mat <- sparse_list[[spn]][[coverage]][[purity]]
+        
+        if (is.null(mat) || !is.matrix(mat)) next
+        
+        # Coerce to numeric matrix
+        mat <- apply(mat, 2, as.numeric)
+        
+        # Assign proper rownames consistently
+        n_samples <- nrow(mat)
+        sample_ids <- paste0(spn, "_1.", seq_len(n_samples))
+        rownames(mat) <- sample_ids
+        
+        # Normalize rows to proportions
+        mat <- t(apply(mat, 1, function(x) if (sum(x) == 0) x else x / sum(x)))
+        
+        # Store
+        aligned[[spn]][[coverage]][[purity]] <- as.matrix(mat)
+      }
+    }
+  }
+  
+  return(aligned)
+}
+
+
+align_sigprofiler_res <- function(sigprofiler_list) {
+  aligned <- list()
+  
+  for (spn in names(sigprofiler_list)) {
+    aligned[[spn]] <- list()
+    
+    for (coverage in names(sigprofiler_list[[spn]])) {
+      aligned[[spn]][[coverage]] <- list()
+      
+      for (purity in names(sigprofiler_list[[spn]][[coverage]])) {
+        df <- sigprofiler_list[[spn]][[coverage]][[purity]][["SigProfiler_COSMIC_exposure"]]
+        
+        if (is.null(df)) next
+        
+        df <- as.data.frame(df)
+        if (!"Samples" %in% colnames(df)) next
+        
+        df <- df %>%
+          tibble::column_to_rownames("Samples") %>%
+          mutate(across(everything(), as.numeric))
+        
+        df_norm <- t(apply(df, 1, function(x) if (sum(x) == 0) x else x / sum(x)))
+        if (is.vector(df_norm)) {
+          df_norm <- matrix(df_norm, nrow = 1, dimnames = list(rownames(df), colnames(df)))
+        }
+        
+        df <- as.data.frame(df_norm)
+        
+        # Clean sample names: extract "SPN01_1.1" from long names
+        pattern <- "^.*?_(SPN\\d+_\\d+\\.\\d+)$"
+        rn <- rownames(df)
+        rn_new <- ifelse(grepl(pattern, rn), sub(pattern, "\\1", rn), rn)
+        rownames(df) <- rn_new
+        
+        aligned[[spn]][[coverage]][[purity]] <- df
+      }
+    }
+  }
+  
+  return(aligned)
+}
+
+
+### Reshape data ###
 
 reshape_exposures_long <- function(exposures_mat, spn, coverage = NA, purity = NA, method_name) {
   df <- as.data.frame(exposures_mat)
@@ -24,7 +104,7 @@ extract_ground_truth_long <- function(ground_truth_list) {
 
         if (is.null(exposures_mat)) next
 
-        long_df <- reshape_exposures_long(exposures_mat, spn, coverage, purity, "GroundTruth")
+        long_df <- reshape_exposures_long(exposures_mat, spn, coverage, purity, "ProCESS")
         out[[paste(spn, coverage, purity, sep = "_")]] <- long_df
       }
     }
@@ -73,6 +153,7 @@ extract_sigprofiler_long <- function(sigprof_aligned) {
 
   do.call(rbind, out)
 }
+
 
 prepare_sankey_data <- function(ground_truth_list, sparsesig_aligned, sigprof_aligned) {
   gt_long <- extract_ground_truth_long(ground_truth_list)

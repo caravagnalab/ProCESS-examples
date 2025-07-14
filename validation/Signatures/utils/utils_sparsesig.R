@@ -8,7 +8,7 @@ map_sparsesig_to_cosmic <- function(sparsesig_out, mut_counts, cosmic_path, thre
   de_novo_signatures <- t(sparsesig_out[["beta"]]) %>% as.matrix()
   de_novo_exposures <- sparsesig_out[["alpha"]]
   
-  # Compute cosine similarity matrix
+  # Calculate cosine similarity matrix
   similarity_matrix <- MutationalPatterns::cos_sim_matrix(de_novo_signatures, cosmic_signatures)
   
   # Separate background
@@ -72,4 +72,5 @@ map_sparsesig_to_cosmic <- function(sparsesig_out, mut_counts, cosmic_path, thre
   
   return(remapped_exposures_prop)
 }
+
 

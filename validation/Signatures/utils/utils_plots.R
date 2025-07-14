@@ -1,57 +1,63 @@
+# Sankey plot #
+
 generate_sankey <- function(spn_id, cov = NULL, pur = NULL) {
   df_spn <- sankey_df %>% filter(SPN == spn_id)
   
-  # Optional filtering if coverage and purity are provided
   if (!is.null(cov)) df_spn <- df_spn %>% filter(Coverage == cov)
   if (!is.null(pur)) df_spn <- df_spn %>% filter(Purity == pur)
   
-  gt_sigs <- unique(df_spn$Signature[df_spn$Method == "GroundTruth"])
-  ss_sigs <- unique(df_spn$Signature[df_spn$Method == "SparseSignatures"])
-  sp_sigs <- unique(df_spn$Signature[df_spn$Method == "SigProfiler"])
-  
-  all_sigs <- sort(unique(c(gt_sigs, ss_sigs, sp_sigs)))
-  
-  presence_df <- data.frame(Signature = all_sigs) %>%
-    dplyr::mutate(
-      GroundTruth = Signature %in% gt_sigs,
-      SparseSignatures = Signature %in% ss_sigs,
-      SigProfiler = Signature %in% sp_sigs
+  # Prepare data
+  long_df <- df_spn %>%
+    mutate(
+      Method = factor(Method, levels = c("ProCESS", "SparseSignatures", "SigProfiler")),
+      alluvium = interaction(Sample_ID, Signature)
     )
   
-  long_df <- presence_df %>%
-    tidyr::pivot_longer(cols = c(GroundTruth, SparseSignatures, SigProfiler),
-                 names_to = "Method",
-                 values_to = "Present") %>%
-    dplyr::filter(Present) %>%
-    dplyr::select(-Present) %>%
-    dplyr::mutate(Method = factor(Method, levels = c("GroundTruth", "SparseSignatures", "SigProfiler")),
-           alluvium = Signature)
+  # Label data: calculate midpoint y-position for each stratum (Signature) in each Method
+  label_data <- long_df %>%
+    group_by(Sample_ID, Method, Signature) %>%
+    summarise(Exposure = sum(Exposure), .groups = "drop") %>%
+    arrange(Sample_ID, Method, desc(Signature)) %>%  # ordering for stacking
+    group_by(Sample_ID, Method) %>%
+    mutate(
+      cum_exposure = cumsum(Exposure),
+      ymin = cum_exposure - Exposure,
+      ymid = ymin + Exposure / 2,
+      Method = factor(Method, levels = c("ProCESS", "SparseSignatures", "SigProfiler")),
+      label = paste0(Signature, "\n(", round(Exposure, 2), ")")
+    ) %>%
+    ungroup()
   
-  # Build dynamic title
   title_text <- paste0(spn_id)
   if (!is.null(cov)) title_text <- paste0(title_text, ", cov=", cov)
   if (!is.null(pur)) title_text <- paste0(title_text, ", pur=", pur)
   
-  # Plot
   ggplot(long_df,
          aes(x = Method, stratum = Signature, alluvium = alluvium,
-             fill = Signature, label = Signature)) +
-    geom_flow(width = 1/4) +
+             y = Exposure, fill = Signature)) +
+    geom_flow(stat = "alluvium", lode.guidance = "frontback", color = "gray", alpha = 0.6) +
     geom_stratum(width = 1/3, color = "black") +
-    geom_text(stat = "stratum", size = 3) +
+    geom_text(
+      data = label_data,
+      aes(x = Method, y = ymid, label = label),
+      inherit.aes = FALSE,
+      size = 3,
+      color = "black"
+    ) +
     scale_fill_brewer(palette = "Set3") +
+    facet_wrap(~ Sample_ID, ncol = 3, scales = "free_y") +
     theme_minimal() +
     theme(
       legend.position = "none",
       axis.text.x = element_text(size = 12),
-      axis.text.y = element_text(size = 12),
+      axis.text.y = element_blank(),
       axis.title = element_text(size = 12),
       plot.title = element_text(size = 12, face = "plain")
     ) +
     labs(
       title = title_text,
       x = "Method",
-      y = "Signatures"
+      y = "Exposure"
     )
 }
 
