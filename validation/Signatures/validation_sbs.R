@@ -1,9 +1,10 @@
 setwd("/orfeo/cephfs/scratch/cdslab/kdavydzenka/ProCESS-examples/")
 
-pkgs <- c("tidyverse", "ggplot2", "caret", "ggtext", "reshape2", "lsa", "Metrics", "MutationalPatterns",
+pkgs <- c("ProCESS", "tidyverse", "ggplot2", "caret", "ggtext", "reshape2", "lsa", "Metrics", "MutationalPatterns",
 "ggalluvial", "patchwork")
-
 sapply(pkgs, require, character.only = TRUE)
+
+#setwd("/orfeo/cephfs/scratch/cdslab/shared/SCOUT/")
 
 source("getters/process_getters.R")
 source("getters/tumourevo_getters.R")
@@ -16,7 +17,7 @@ source("validation/signatures/utils/utils_plots.R")
 ### Get ProCESS exposure data ###
 
 base_path <- "/orfeo/cephfs/scratch/cdslab/shared/SCOUT"
-spn_id <- c("SPN01", "SPN03", "SPN04")
+spn <- c("SPN01")
 
 process_exposures_list <- list()
 
@@ -28,24 +29,25 @@ for (spn_id in spn) {
     return(NULL)
   })
 
-  process_exposures[[spn_id]] <- exposure_sbs
+  process_exposures_list[[spn_id]] <- exposure_sbs
 }
 
 
-### Get tumourevo data ###
+### Load tumourevo signature data ###
 
-spn_list <- c("SPN01", "SPN03", "SPN04")
-coverage_list <- c(50)
+base_path <- "/orfeo/cephfs/scratch/cdslab/shared/SCOUT"
+spn_list <- c("SPN01")
+coverage_list <- c(100)
 purity_list <- c(0.3, 0.6, 0.9)
 dataset <- "SCOUT"
-context <- "SBS96"
+context <- 'SBS96'
 vcf_caller <- "mutect2"
 cna_caller <- "ascat"
-
 
 tumourevo_signature_res <- list()
 
 # Iterate over all combinations
+
 for (spn in spn_list) {
   tumourevo_signature_res[[spn]] <- list()
   
@@ -84,6 +86,7 @@ for (spn in spn_list) {
           sparsesig$nmf_Lasso_out,
           sparsesig$cv_means_mse,
           sparsesig$best_params_config,
+          sparsesig$mut_counts,
           sigprofiler$COSMIC_exposure,
           sigprofiler$COSMIC_signatures,
           sigprofiler$denovo_exposure,
@@ -96,6 +99,7 @@ for (spn in spn_list) {
           "SparseSig_nmf_Lasso_out",
           "SparseSig_cv_means_mse",
           "SparseSig_best_params_config",
+          "SparseSig_mut_counts",
           "SigProfiler_COSMIC_exposure",
           "SigProfiler_COSMIC_signatures",
           "SigProfiler_denovo_exposure",
@@ -121,44 +125,58 @@ for (spn in spn_list) {
 
 ### Map De novo SparseSignatures results to COSMIC using cosine similarity ###
 
-cosmic_path <- "COSMIC_v3.4/COSMIC_v3.4_SBS_GRCh38.txt"
+# Test on a single combination
+#sparsesig_out <- tumourevo_signature_res[["SPN01"]][["coverage_100"]][["purity_0.6"]][["SparseSig_nmf_Lasso_out"]]
+#cosmic_path <- "COSMIC_v3.4/COSMIC_v3.4_SBS_GRCh38.txt"
 
-sparsig_cosmic <- list()
+#remapped_exposures_prop <- map_sparsesig_to_cosmic(
+  #sparsesig_out = sparsesig_out,
+  #cosmic_path = cosmic_path,
+  #threshold = 0.7
+#)
+
+# Iterate across combinations of coverage and purity for a given SPN
+
+mapped_res <- list()
 
 for (spn in names(tumourevo_signature_res)) {
-
-  # Set threshold depending on SPN
-  threshold <- switch(spn,
-                      "SPN01" = 0.5,
-                      "SPN03" = 0.7,
-                      "SPN04" = 0.7,
-                      0.7)  # default if any others
-
-  for (coverage in names(tumourevo_signature_res[[spn]])) {
-    for (purity in names(tumourevo_signature_res[[spn]][[coverage]])) {
-
-      # Access Sparsesig output and mutation counts
-      sparsesig_out <- tumourevo_signature_res[[spn]][[coverage]][[purity]][["SparseSig_nmf_Lasso_out"]]
-      mut_counts <- tumourevo_signature_res[[spn]][[coverage]][[purity]][["SigProfiler_mut_counts"]]
-
-      # Map to COSMIC signatures with appropriate threshold
-      remapped_exposures_prop <- map_sparsesig_to_cosmic(
-        sparsesig_out = sparsesig_out,
-        mut_counts = mut_counts,
-        cosmic_path = cosmic_path,
-        threshold = threshold
-      )
-
-      # Store results
-      sparsig_cosmic[[spn]][[coverage]][[purity]] <- remapped_exposures_prop
+  mapped_res[[spn]] <- list()
+  
+  for (cov in names(tumourevo_signature_res[[spn]])) {
+    mapped_res[[spn]][[cov]] <- list()
+    
+    for (pur in names(tumourevo_signature_res[[spn]][[cov]])) {
+      sig_out <- tumourevo_signature_res[[spn]][[cov]][[pur]][["SparseSig_nmf_Lasso_out"]]
+      
+      if (is.null(sig_out)) {
+        warning(paste("Missing sig_out for", spn, cov, pur))
+        mapped_res[[spn]][[cov]][[pur]] <- NULL
+        next
+      }
+      
+      remapped <- tryCatch({
+        map_sparsesig_to_cosmic(
+          sparsesig_out = sig_out,
+          mut_counts = mut_counts,
+          cosmic_path = cosmic_path,
+          threshold = 0.7
+        )
+      }, error = function(e) {
+        message(paste("Error in", spn, cov, pur, ":", e$message))
+        return(NULL)
+      })
+      
+      mapped_res[[spn]][[cov]][[pur]] <- remapped
     }
   }
 }
 
 
+
 ### Validate Signatures across combinations ###
-spn_list <- c("SPN01", "SPN03", "SPN04")
-coverage <- 50
+
+spn_list <- c("SPN01")
+coverage <- c(100)
 purity_values <- c(0.3, 0.6, 0.9)
 
 ground_truth <- list()
@@ -174,11 +192,46 @@ for (spn in spn_list) {
     warning(paste("Missing ground truth for", spn))
   }
 }
-
+sparsig_cosmic <- mapped_res
 sparsesig_aligned <- align_sparsesig_res(sparsig_cosmic)
 sigprof_aligned <- align_sigprofiler_res(tumourevo_signature_res)
 
 
+# Calculate metrics
+ground_truth_nested <- list()
+
+for (spn in names(ground_truth)) {
+  if (is.null(ground_truth_nested[[spn]])) {
+    ground_truth_nested[[spn]] <- list()
+  }
+  
+  for (cov in coverage) {
+    coverage_key <- paste0("coverage_", cov)
+    
+    if (is.null(ground_truth_nested[[spn]][[coverage_key]])) {
+      ground_truth_nested[[spn]][[coverage_key]] <- list()
+    }
+    
+    for (purity in purity_values) {
+      purity_key <- paste0("purity_", purity)
+      ground_truth_nested[[spn]][[coverage_key]][[purity_key]] <- ground_truth[[spn]]
+    }
+  }
+}
+
+
+metrics_sparsesig <- evaluate_all_combined(ground_truth_nested, sparsesig_aligned, threshold = 0.05)
+metrics_sigprof <- evaluate_all_combined(ground_truth_nested, sigprof_aligned, threshold = 0.05)
+
+combined_metrics <- bind_rows(
+  metrics_sparsesig %>% mutate(Tool = "SparseSignatures"),
+  metrics_sigprof %>% mutate(Tool = "SigProfiler")
+)
+
+saveRDS(combined_metrics, file = "combined_metrics_signatures.rds")
+
+
+# Calculate metrics
 ground_truth_nested <- list()
 
 for (spn in names(ground_truth)) {
@@ -210,7 +263,7 @@ combined_metrics <- bind_rows(
 saveRDS(combined_metrics, file = "combined_metrics_signatures.rds")
 
 
-# Sankey plot - Compare estimated and true signatures  #
+### Compare estimated and true signatures  ###
 
 sankey_df <- prepare_sankey_data(ground_truth_nested, sparsesig_aligned, sigprof_aligned)
 
@@ -219,17 +272,18 @@ sankey_df <- sankey_df %>%
     Coverage = as.numeric(gsub("coverage_", "", Coverage)),
     Purity = as.numeric(gsub("purity_", "", Purity))
   ) %>% 
-  dplyr::filter(Coverage == 50, Purity == 0.6)
+  dplyr::filter(Coverage == 100, Purity == 0.9)
 
 
+spns <- c("SPN01")
+sankey_plots <- lapply(spns, function(spn) generate_sankey(spn, cov = 100, pur = 0.9))
 
-spns <- c("SPN01", "SPN03", "SPN04")
-sankey_plots <- lapply(spns, function(spn) generate_sankey(spn, cov = 50, pur = 0.6))
-wrapped_sankey <- wrap_plots(sankey_plots, ncol = 3)
+wrapped_sankey <- wrap_plots(sankey_plots, ncol = 1)
 wrapped_sankey
 
 
-## Exposure validation ##
+
+### Exposure validation ###
 
 # Align exposure data
 
@@ -349,11 +403,13 @@ compute_exposure_metrics <- function(aligned_exposures) {
   )
 }
 
+
 metrics <- compute_exposure_metrics(aligned_exposures)
 
+saveRDS(metrics, file = "exposure_metrics.rds")
 
 
-### Generate final report plot ###
+### Generate final plots ###
 p_cosine <- plot_cosine_similarity(metrics[["cosine"]])
 p_mse <- plot_mse_per_signature(metrics[["mse"]])
 
@@ -363,13 +419,11 @@ bottom_plots <- p_cosine + p_mse +
 
 bottom_plots
 
-final_plots <- wrapped_sankey / bottom_plots +
-  plot_layout(heights = c(1, 1))
+#final_plots <- wrapped_sankey / bottom_plots +
+  #plot_layout(heights = c(1, 1))
 
-final_plots
-
-ggsave("final_plot.pdf", plot = final_plots,
-       width = 20, height = 10, units = "in")
+ggsave("metrics_plot.png", plot = bottom_plots,
+       width = 15, height = 7.0, units = "in")
 
 
 

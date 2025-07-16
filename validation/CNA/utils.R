@@ -1,3 +1,86 @@
+library(IRanges)
+library(GenomicRanges)
+
+
+reciprocal_overlap <- function(pred, truth, threshold = 0.5) {
+  hits <- findOverlaps(pred, truth)
+  keep <- c()
+  for (i in seq_along(hits)) {
+    q <- queryHits(hits)[i]
+    s <- subjectHits(hits)[i]
+    inter_len <- width(pintersect(pred[q], truth[s]))
+    ro1 <- inter_len / width(pred[q])
+    ro2 <- inter_len / width(truth[s])
+    if (ro1 >= threshold && ro2 >= threshold) {
+      keep <- c(keep, i)
+    }
+  }
+  hits[keep]
+}
+
+
+calculate_metrics <- function(gt, df_caller){
+  gt_gr <- GRanges(seqnames = gt$chrom,
+                      ranges = IRanges(start = gt$start,
+                                       end = gt$end),
+                      cn = gt$cn)
+  
+  caller_gr <- GRanges(seqnames = df_caller$chrom,
+                     ranges = IRanges(start = df_caller$start,
+                                      end = df_caller$end),
+                     cn = df_caller$cn)
+  
+  # Find overlaps
+  matched <- reciprocal_overlap(caller_gr, gt_gr, threshold = 0.5)
+  TP <- length(matched)                     
+  FP <- length(caller_gr) - length(unique(queryHits(matched)))
+  FN <- length(gt_gr) - length(unique(subjectHits(matched))) 
+  precision <- TP / (TP + FP)
+  recall    <- TP / (TP + FN)
+  f1_score  <- 2 * precision * recall / (precision + recall)
+  
+  return(list("precision"=precision,"recall"=recall,"f1_score"=f1_score))
+  
+}
+
+
+color_by_state = c("INFERRED_Major1"='steelblue',
+                   "INFERRED_minor1"='indianred',
+                   "INFERRED_CN"='seagreen')
+
+fill_by_match = c('match'= alpha('gainsboro', .03),
+                  'no match subclone'= alpha('cadetblue3', .08),
+                  'match subclone'= alpha('goldenrod', .08),
+                  'no match' = alpha('indianred', .08),
+                  'subclonal' = alpha('goldenrod', .08))
+
+color_type <- c('clonal' = 'gainsboro', 'sub-clonal' = 'lightsalmon')
+color_process <- c('Major1'='steelblue', 'minor1'='indianred', 'Major2'='steelblue1', 'minor2'="orangered")
+
+absolute_to_relative_coordinates <- function(muts, reference = CNAqc::chr_coordinates_GRCh38, centromere = F){
+  vfrom = reference$from
+  names(vfrom) = reference$chr
+  if (!centromere){
+    muts %>%
+      mutate(
+        start = start + vfrom[chr],
+        end = end + vfrom[chr])
+  } else if (centromere){
+    muts %>%
+      mutate(
+        start = start + vfrom[chr],
+        end = end + vfrom[chr],
+        centromere = centromere + vfrom[chr])
+  }
+}
+
+absolute_to_relative_coordinates_muts <- function(muts, reference = CNAqc::chr_coordinates_GRCh38){
+  vfrom = reference$from
+  names(vfrom) = reference$chr
+  muts <- muts %>% mutate(from = from + vfrom[chr])
+  return(muts) 
+}
+
 ## Read data
 read_ProCESS = function(spn_id,sample_id,coverage,purity){
   
@@ -6,51 +89,7 @@ read_ProCESS = function(spn_id,sample_id,coverage,purity){
     mutate(chr = paste0('chr',chr)) %>% dplyr::rename(from=begin,to=end) %>%
     mutate(seg_id = paste0(chr,':',from,':',to)) %>% as_tibble()
   
-  # Read SNP data
-  mutations = readRDS(get_mutations(spn = spn_id, type = 'tumour', coverage =coverage, purity = purity))
-  
-  normal = readRDS(get_mutations(spn = spn_id, type = 'normal')) %>% 
-    mutate(chr = paste0('chr', chr)) %>% 
-    mutate(mut_id = paste(chr, chr_pos, ':')) %>% 
-    filter(causes != 'pre-neoplastic')
-  
-  # Create table of SNPs with associated BAF and DR in absolute coordinates
-  snps = mutations %>% 
-    filter(classes == "germinal", causes=="") %>% 
-    mutate(chr = paste0('chr', chr)) %>% 
-    mutate(mut_id = paste(chr, chr_pos, ':'))
-  
-  snps = snps %>% ungroup() %>% sample_n(size = nrow(snps)/100)
-  normal = normal %>% ungroup() %>% filter(mut_id %in% snps$mut_id)
-  
-  snps = snps %>%
-    rename(pos=chr_pos) %>% select(c("chr", "pos", 
-                                     paste0(sample_id,".occurrences"), 
-                                     paste0(sample_id,".coverage"), 
-                                     paste0(sample_id,".VAF")),
-                                   "mut_id")
-  colnames(snps)=c("chr", "pos", "NV", "DP", "VAF", "mut_id")
-  
-  normal = normal  %>% 
-    rename(pos=chr_pos) %>% 
-    select(c("chr", "pos","normal_sample.occurrences","normal_sample.coverage", "normal_sample.VAF", "mut_id"))
-  colnames(normal)=c("chr", "pos", "NV_normal", "DP_normal", "VAF_normal", "mut_id")
-  
-  
-  joint_table_snps = left_join(snps, normal, by=c('chr', 'pos'))
-  coverage_normal = 30
-  coverage_tumor = as.integer(coverage)
-  norm_const = coverage_normal/coverage_tumor
-  joint_table_snps = joint_table_snps %>% 
-    rename(BAF = VAF) %>% 
-    mutate(DR = (DP/DP_normal)*norm_const)
-  joint_table_snps_shifted=lapply(chromosomes, function(c){
-    from_c = CNAqc:::get_reference('hg38') %>% filter(chr == c) %>% pull(from)
-    joint_table_snps %>% filter(chr == c) %>% mutate(pos = pos+from_c)
-  })
-  joint_table_snps_shifted = Reduce(rbind,joint_table_snps_shifted)
-  
-  return(list('CNA'=CNA_races, 'snps'=joint_table_snps_shifted))
+  return(list('CNA'=CNA_races))
 }
 
 read_ASCAT = function(spn_id,sample_id,coverage,purity){
@@ -63,33 +102,13 @@ read_ASCAT = function(spn_id,sample_id,coverage,purity){
                                       sampleID = sample_id)
   
   CNA_ascat = read.csv(ascat_results$cnvs, sep='\t') %>%
-    mutate(chr = paste0('chr',chr)) %>% rename(from=startpos,to=endpos,major=nMajor,minor=nMinor) %>% as_tibble()
-  # BAF and DR ascat
-  BAF_file = data.table::fread(ascat_results$tumourBAF, sep='\t')
-  colnames(BAF_file) = c('id', 'Chromosome', 'Position', 'BAF')
-  DR_file = data.table::fread(ascat_results$tumourLogR, sep='\t')
-  colnames(DR_file) = c('id', 'Chromosome', 'Position', 'LogR')
+    mutate(chr = paste0('chr',chr)) %>% dplyr::rename(from=startpos,to=endpos,major=nMajor,minor=nMinor) %>% as_tibble()
+  
   purity_ploidy = read.csv(ascat_results$purityploidy, sep='\t')
-  
-  # Join and shif BAF and DR
-  BAF_DR = left_join(
-    BAF_file,
-    DR_file %>% mutate(DR = exp(LogR))) %>%
-    mutate(Chromosome = paste0('chr', Chromosome))
-  random_indeces = sample(BAF_DR$Position, as.integer(length(BAF_DR$Position)/100), replace = FALSE)
-  BAF_DR_filtered = BAF_DR %>% filter(Position %in% random_indeces)
-  BAF_DR_shifted = lapply(1:nrow(BAF_DR_filtered), function(r){
-    #print(r)
-    chromosome = BAF_DR_filtered[r,]$Chromosome
-    from_chromosome = CNAqc:::get_reference('hg38') %>% filter(chr==chromosome) %>% pull(from)
-    BAF_DR_filtered[r,] %>% mutate(Position = Position + from_chromosome)
-  })
-  BAF_DR_shifted = Reduce(rbind, BAF_DR_shifted)
-  
-  return(list('CNA'=CNA_ascat, 'BAF_DR'=BAF_DR_shifted %>% as_tibble(), 'purity_ploidy'= purity_ploidy))
+  return(list('CNA'=CNA_ascat, 'purity_ploidy'= purity_ploidy))
 }
 
-read_Sequenza = function(spn_id,sample_id,coverage,purity, seq_dir){
+read_Sequenza = function(spn_id,sample_id,coverage,purity){
   caller = 'sequenza'
   sequenza_results <- get_sarek_cna_file(spn = spn_id,
                                          coverage = coverage,
@@ -97,19 +116,12 @@ read_Sequenza = function(spn_id,sample_id,coverage,purity, seq_dir){
                                          caller = caller,
                                          type = "tumour",
                                          sampleID = sample_id)
+  
   CNA_sequenza = read.csv(sequenza_results$segments, sep='\t')
   CNA_sequenza = CNA_sequenza %>% select(!c(N.BAF,sd.BAF,N.ratio,sd.ratio,CNt,LPP))
   colnames(CNA_sequenza) = c('chr', 'from', 'to','BAF','DR','major','minor')
-  BAF_DR_file_sequenza = sequenza::read.seqz(paste0(seq_dir,'/filtered.seqz'))
-  BAF_DR_file_sequenza_shifted = lapply(chromosomes, function(c){
-    from_c = CNAqc:::get_reference('hg38') %>% filter(chr == c) %>% pull(from)
-    BAF_DR_file_sequenza %>% filter(chromosome == c) %>% 
-      mutate(shifted_position = position+from_c)
-  })
-  BAF_DR_file_sequenza_shifted = Reduce(rbind, BAF_DR_file_sequenza_shifted)
   purity_ploidy_sequenza = read.csv(sequenza_results$confints_CP, sep='\t')
-  
-  return(list('CNA'=CNA_sequenza, 'BAF_DR'=BAF_DR_file_sequenza_shifted, 'purity_ploidy'= purity_ploidy_sequenza))
+  return(list('CNA'=CNA_sequenza, 'purity_ploidy'= purity_ploidy_sequenza))
 }
 
 read_CNVkit = function(spn_id,sample_id,coverage,purity){
@@ -124,49 +136,30 @@ read_CNVkit = function(spn_id,sample_id,coverage,purity){
   CNA_cnvkit = read.csv(cnvkit_results$somatic.call,sep='\t')
   CNA_cnvkit = CNA_cnvkit %>% select(!c(gene,ci_hi,ci_lo,depth,probes,weight))
   colnames(CNA_cnvkit) = c('chr', 'from','to','logR','CN')
-  # DR cnvkit
-  DR_file_cnvkit = data.table::fread(cnvkit_results$cnr, sep='\t') %>% as_tibble()
-  
-  # ## inspect CNVkit calls
-  # CNA_cnvkit_shifted =lapply(chromosomes, function(c){
-  #   from_c = CNAqc:::get_reference('hg38') %>% filter(chr == c) %>% pull(from)
-  #   CNA_cnvkit %>% filter(chromosome == c) %>% 
-  #     mutate(start = start+from_c,
-  #            end = end+from_c)
-  # })
-  # CNA_cnvkit_shifted = Reduce(rbind,CNA_cnvkit_shifted)
-  
-  DR_file_cnvkit_shifted =lapply(chromosomes, function(c){
-    from_c = CNAqc:::get_reference('hg38') %>% filter(chr == c) %>% pull(from)
-    DR_file_cnvkit %>% filter(chromosome == c) %>% 
-      mutate(start = start+from_c,
-             end = end+from_c)
-  })
-  DR_file_cnvkit_shifted = Reduce(rbind,DR_file_cnvkit_shifted)
-  
-  return(list('CNA'=CNA_cnvkit, 'DR'=DR_file_cnvkit_shifted))
+
+  return(list('CNA'=CNA_cnvkit))
 }
 
 ## Create joint segmentation
 create_joint_segmentation = function(CNA_ProCESS, CNA_target, caller, chromosomes){
   
   joint_segmentation = lapply(chromosomes, function(c){
-    #print(c)
-    CNA_ProCESS_chr = CNA_ProCESS %>% filter(chr==c) %>% 
+    
+    CNA_ProCESS_chr = CNA_ProCESS %>% 
+      filter(chr==c) %>% 
       mutate(group = cumsum(
         lag(major, default = dplyr::first(major)) != major |
           lag(minor, default = dplyr::first(minor)) != minor |
           lag(ratio, default = dplyr::first(ratio)) != ratio
       )) %>%
-      group_by(chr, major, minor, ratio, group) %>%
-      summarise(from = min(from), to = max(to), .groups = "drop") %>%
+      group_by(chr, major, minor, ratio, group, from ,to) %>%
       select(chr, from, to, major, minor, ratio) %>% 
       arrange(from, to)
     
     CNA_target_chr = CNA_target %>% filter(chr==c)
     froms = c(CNA_ProCESS_chr$from %>% unique(), CNA_target_chr$from %>% unique())
     tos = c(CNA_ProCESS_chr$to %>% unique(), CNA_target_chr$to %>% unique())
-    breakpoints = c(froms, tos) %>% sort()
+    breakpoints = c(froms, tos) %>% sort() %>% unique()
     df = data.frame()
     
     for (i in 1:(length(breakpoints)-1)){
@@ -189,6 +182,7 @@ create_joint_segmentation = function(CNA_ProCESS, CNA_target, caller, chromosome
         true_cn=true_M1+true_m1
       }
       if (nrow(true_cna)>1){
+        true_cna = true_cna %>% arrange(desc(ratio))
         true_M1=true_cna[1,] %>% pull(major)
         true_m1=true_cna[1,] %>% pull(minor)
         true_M2=true_cna[2,] %>% pull(major)
@@ -243,24 +237,31 @@ create_joint_segmentation = function(CNA_ProCESS, CNA_target, caller, chromosome
     joint_segmentation_shifted_longer = joint_segmentation_shifted %>% 
       mutate(is_match = 
                case_when(
-                 TRUE_Major1==INFERRED_Major1 & TRUE_minor1==INFERRED_minor1 & is.na(TRUE_Major2) | 
-                   TRUE_Major1==INFERRED_Major1 & TRUE_minor1==INFERRED_minor1 & TRUE_Major2==INFERRED_Major1 & TRUE_minor2==INFERRED_minor1 ~ 'complete match',
-                 TRUE_Major1==INFERRED_Major1 & TRUE_minor1==INFERRED_minor1 & !is.na(TRUE_Major2) ~ 'undetected subclone',
+                 TRUE_Major1==INFERRED_Major1 & TRUE_minor1==INFERRED_minor1 & is.na(TRUE_Major2) ~ 'match',
+                 TRUE_Major1==INFERRED_Major1 & TRUE_minor1==INFERRED_minor1 | 
+                 TRUE_Major1==INFERRED_Major1 & TRUE_minor1==INFERRED_minor1 & !is.na(TRUE_Major2) ~ 'match subclone',
+                 TRUE_Major1!=INFERRED_Major1 & TRUE_minor1!=INFERRED_minor1 & !is.na(TRUE_Major2) ~ 'no match subclone',
                  .default = 'no match'
                )) %>%
+      mutate(type = ifelse(!is.na(TRUE_Major2) & !is.na(TRUE_Major2), 'subclonal', 'clonal')) %>% 
       pivot_longer(
         cols = c('TRUE_Major1', 'TRUE_minor1', 'TRUE_Major2', 'TRUE_minor2', 'INFERRED_Major1', 'INFERRED_minor1'),  
         names_to = "Type",  # New column for variable names
         values_to = "Value"  # New column for values
       )
-  }else{
+    joint_segmentation_shifted = joint_segmentation_shifted %>% filter(!is.na(TRUE_CN))
+    joint_segmentation_shifted_longer = joint_segmentation_shifted_longer %>% filter(!is.na(TRUE_CN))
+  } else{
+    joint_segmentation_shifted = joint_segmentation_shifted %>% filter(!is.na(TRUE_CN))
     joint_segmentation_shifted_longer = joint_segmentation_shifted %>% 
       mutate(is_match = 
                case_when(
-                 abs(TRUE_CN - INFERRED_CN)<.1 ~ 'complete match',
-                 abs(TRUE_CN - INFERRED_CN)>=.1 & abs(TRUE_CN - INFERRED_CN)<.5 ~ 'close',
+                 abs(TRUE_CN - INFERRED_CN)<.1 ~ 'match',
                  .default = 'no match'
-               )) %>% select(from, to, chromosome, TRUE_CN, INFERRED_CN,is_match)%>%
+               )) %>% 
+      mutate(type = ifelse(!is.na(TRUE_Major2) & !is.na(TRUE_Major2), 'subclonal', 'clonal')) %>% 
+      select(from, to, chromosome, TRUE_CN, INFERRED_CN,is_match, type) %>%
+      mutate(is_match = ifelse(type == 'subclonal', 'subclonal', is_match)) %>% 
       pivot_longer(
         cols = c('TRUE_CN', 'INFERRED_CN'),  
         names_to = "Type",  # New column for variable names
@@ -291,10 +292,23 @@ shift_segments = function(CNA){
 }
 
 ## Compute correctness 
-compute_correctness = function(df){
-  1-( (df %>% filter(is_match == 'no match') %>% mutate(len=to-from) %>%
-         pull(len) %>% unique() %>% sum()) / (df %>% mutate(len=to-from) %>%
-                                                pull(len) %>% unique() %>% sum()))
+compute_correctness = function(df, caller) {
+  if (caller %in% c('ascat', 'sequenza')){
+    clonal = 1-( (df %>% filter(is_match == 'no match') %>% filter(type == 'clonal') %>% mutate(len=to-from) %>%
+           pull(len) %>% unique() %>% sum()) / (df %>% filter(type == 'clonal') %>% mutate(len=to-from) %>%
+                                                  pull(len) %>% unique() %>% sum()))
+    
+    all = 1-( (df %>% filter(is_match %in% c('no match', 'no match subclone')) %>% mutate(len=to-from) %>%
+                    pull(len) %>% unique() %>% sum()) / (df %>% mutate(len=to-from) %>%
+                                                           pull(len) %>% unique() %>% sum()))
+  } else{
+    clonal = 1-( (df %>% filter(is_match == 'no match') %>% filter(type == 'clonal') %>% mutate(len=to-from) %>%
+                    pull(len) %>% unique() %>% sum()) / (df %>% filter(type == 'clonal') %>% mutate(len=to-from) %>%
+                                                           pull(len) %>% unique() %>% sum()))
+    all <- NA
+  }
+  
+  return(list('all'=all, 'clonal'=clonal))
 }
 
 ## Expected BAF and DR functions
@@ -409,98 +423,153 @@ covered_genome = function(CNA_target, chromosome){
   covered = CNA_target %>% filter(chr == chromosome) %>% mutate(l=to-from) %>% pull(l) %>% sum()
   (covered / chr_len)*100
 }
+
 breakpoint_analysis = function(CNA_ProCESS, CNA_target, chromosome, th=1e7){
   ProCESS_BP = CNA_ProCESS %>% filter(chr==chromosome) #%>% select(from, to)
-  BP_f = ProCESS_BP$from
-  BP_t = ProCESS_BP$to
+  
+  BP_f = ProCESS_BP$from %>% unique()
+  BP_t = ProCESS_BP$to %>% unique()
   
   CNA_target_c = CNA_target %>% filter(chr==chromosome)
   BP_target_f = CNA_target_c$from %>% unique()
   BP_target_t = CNA_target_c$to %>% unique()
   
-  missed_bp = 0
-  missed_bp_coord = c()
-  added_bp = 0
-  added_bp_coord = c()
-  distances = c()
-  matching_coord = c()
+  if (nrow(CNA_target_c)==0){
+    BP_df = data.frame(
+      'og_coord'=c(BP_f,BP_f),
+      'coord'=rep(NA, length(c(BP_f,BP_f))),
+      'dist'=rep(NA,length(c(BP_f,BP_f))),
+      'state'=rep('no bp',length(c(BP_f,BP_f)))
+    )
+  }else{
+  
+  BP_df = data.frame()
   
   for (bp in BP_f){
     dist = min(abs(bp - BP_target_f))
-    if (dist > th){
-      missed_bp = missed_bp+1
-      missed_bp_coord = c(missed_bp_coord,bp)
+    coord = BP_target_f[which.min(abs(bp - BP_target_f))]
+    if (dist < th){
+      df = data.frame(
+        'og_coord'=bp,
+        'coord'=coord,
+        'dist'=dist,
+        'state'='matching'
+      )
     }else{
-        distances=c(distances,dist)
-        matching_coord = c(matching_coord, bp)
-        }
+      df = data.frame(
+        'og_coord'=bp,
+        'coord'=NA,
+        'dist'=NA,
+        'state'='missed'
+      )
+    }
+    BP_df = rbind(BP_df, df)
   }
   
   for (bp in BP_t){
     dist = min(abs(bp - BP_target_t))
-    if (dist > th){
-      missed_bp = missed_bp+1
-      missed_bp_coord = c(missed_bp_coord,bp)
+    coord = BP_target_t[which.min(abs(bp - BP_target_t))]
+    if (dist < th){
+      df = data.frame(
+        'og_coord'=bp,
+        'coord'=coord,
+        'dist'=dist,
+        'state'='matching'
+      )
     }else{
-        distances=c(distances,dist)
-        matching_coord = c(matching_coord, bp)
-        }
+      df = data.frame(
+        'og_coord'=bp,
+        'coord'=NA,
+        'dist'=NA,
+        'state'='missed'
+      )
+    }
+    BP_df = rbind(BP_df, df)
   }
   
   for (bp in BP_target_f){
-    dist = min(abs(bp - BP_f))
-    if (dist > th){
-      added_bp = added_bp+1
-      added_bp_coord = c(added_bp_coord, bp)
-      }
+    if (!(bp %in% BP_df$coord)){
+      df = data.frame(
+        'og_coord'=NA,
+        'coord'=bp,
+        'dist'=NA,
+        'state'='added'
+      )
+      BP_df = rbind(BP_df, df)
+    }
   }
   
-  list(
-    'chromosome' = chromosome,
-    'missed_bp_coord' = missed_bp_coord %>% unique(),
-    'added_bp_coord' = added_bp_coord %>% unique(),
-    'n_missed' = missed_bp,
-    'n_added' = added_bp,
-    'distances_between_matching' = distances %>% unique(),
-    'matching_coord' = matching_coord %>% unique()
-  )
+  for (bp in BP_target_t){
+    if (!(bp %in% BP_df$coord)){
+      df = data.frame(
+        'og_coord'=NA,
+        'coord'=bp,
+        'dist'=NA,
+        'state'='added'
+      )
+      BP_df = rbind(BP_df, df)
+    }
+  }
+  }
+  return(BP_df)
 }
 segmentation_analysis = function(CNA_ProCESS, CNA_target, chromosomes, th=1e7){
-  bp_df = lapply(chromosomes, function(c){
-    breakpoint_analysis(CNA_ProCESS, CNA_target, c, th)
+  # Mean percentage of genome covered by segments
+  mean_covered_genome = lapply(chromosomes, function(c){
+    covered_genome(CNA_target, c)
+  }) %>% unlist() %>% mean()
+  
+  # Breakpoints
+  BP = lapply(chromosomes, function(chr){
+    #print(chr)
+    bp = breakpoint_analysis(CNA_ProCESS, CNA_target, chr, th=th)
+    bp$chromosome = chr
+    bp
   })
+  BP = Reduce(rbind, BP)
+  
+  # % of missed breakpoints (on total)
+  missed_bp = (BP %>% filter(state == 'missed') %>% nrow()) / (BP %>% filter(state %in% c('missed','matching')) %>% nrow()) * 100
+  # % of added breakpoints (on total)
+  added_bp = (BP %>% filter(state == 'added') %>% nrow()) #/ (BP %>% filter(state %in% c('missed','matching')) %>% nrow()) * 100
+  # average distance
+  av_dist = mean(BP %>% filter(state == 'matching') %>% pull(dist))
+  
+  summary_df = data.frame(
+    'missed_bp'=missed_bp,
+    'added_bp'=added_bp,
+    'av_distance'=av_dist
+  )
+  
+  return(list('summary'=summary_df, 'breakpoints' = BP))
 }
-
-
-## Find matching segments between two different segmentations
-# find_matching_segments = function(CNA_ProCESS_unique,CNA_target,seg_ids){
-#   best_segments = lapply(seg_ids, function(s){
-#     # print(s)
-#     f = CNA_ProCESS_unique %>% filter(seg_id==s) %>% pull(from)
-#     t = CNA_ProCESS_unique %>% filter(seg_id==s) %>% pull(to)
-#     c = CNA_ProCESS_unique %>% filter(seg_id==s) %>% pull(chr)
-#     max_overlap_df = CNA_target %>% filter(chr == c) %>% rowwise() %>% mutate(l= (min(t,to)-max(f,from))) %>%
-#       #mutate(seg_len=to-from) %>% rowwise() %>%
-#       mutate(p= min( (l/(t-f))*100, 100) )
-#     max_overlap = max(max_overlap_df$l)
-#     best_match = max_overlap_df %>% filter(l==max_overlap) 
-#     if (nrow(best_match)>0){
-#       best_match=best_match %>% mutate(original_from= f, original_to= t, distance = mean(abs(from-f), abs(to-t)))
-#     }
-#   })
-#   best_segments = Reduce(rbind,best_segments)
-#   best_segments = best_segments %>% rowwise() %>% mutate(ids = paste0(chr, ':',from,':',to))
-#   ids = best_segments$ids %>% unique()
-#   filtered_best_segments = lapply(ids, function(i){
-#     best_segments_i= best_segments %>% filter(ids == i)
-#     best_segments_i = best_segments_i %>% filter(p==max(best_segments_i$p)) 
-#     # best_segments_i = best_segments_i %>% filter(l==max(best_segments_i$l))
-#     best_segments_i
-#   })
-#   filtered_best_segments = Reduce(rbind, filtered_best_segments)
-#   filtered_best_segments
-# }
-
+my_blank_genome = function (ref = "GRCh38", genomic_coords, chromosomes = paste0("chr", 
+                                                                                 c(1:22, "X", "Y")), label_chr = -0.5, cex = 1) 
+{
+  reference_coordinates = CNAqc:::get_reference(ref, genomic_coords) %>% 
+    filter(chr %in% chromosomes)
+  low = min(reference_coordinates$from)
+  upp = max(reference_coordinates$to)
+  p1 = ggplot2::ggplot(reference_coordinates) + CNAqc:::my_ggplot_theme(cex = cex) + 
+    ggplot2::geom_segment(ggplot2::aes(x = centromerStart, 
+                                       xend = centromerEnd, y = 0, yend = Inf), size = 0, 
+                          color = "black", linetype = 8)
+  p1 = p1 + ggplot2::geom_rect(data = reference_coordinates, 
+                               ggplot2::aes(xmin = from, xmax = from, ymin = 0, ymax = Inf), 
+                               alpha = 0, colour = "grey", size=0)
+  p1 = p1 + ggplot2::geom_hline(yintercept = 0, size = 1, colour = "gainsboro") + 
+    ggplot2::geom_hline(yintercept = 1, size = 0.3, colour = "black", 
+                        linetype = "dashed") + ggplot2::labs(x = "Chromosome", 
+                                                             y = "Major/ minor allele") + ggpubr::rotate_y_text() + 
+    ggplot2::scale_x_continuous(breaks = c(0, reference_coordinates$centromerStart, 
+                                           upp), labels = c("", gsub(pattern = "chr", replacement = "", 
+                                                                     reference_coordinates$chr), ""))+
+    theme(
+      panel.grid.major=element_blank(),
+      panel.grid.minor=element_blank(),
+    ) 
+  return(p1)
+}
 
 
 

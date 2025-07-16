@@ -1,4 +1,7 @@
+### Validation of Signatures ###
+
 evaluate_signatures <- function(true_signatures, predicted_signatures) {
+  
   # Union of all signatures involved
   all_signatures <- union(true_signatures, predicted_signatures)
   
@@ -37,75 +40,6 @@ evaluate_signatures <- function(true_signatures, predicted_signatures) {
     FN = FN,
     TN = TN
   ))
-}
-
-
-align_sigprofiler_res <- function(sigprofiler_list) {
-  aligned <- list()
-
-  for (spn in names(sigprofiler_list)) {
-    aligned[[spn]] <- list()
-
-    for (coverage in names(sigprofiler_list[[spn]])) {
-      aligned[[spn]][[coverage]] <- list()
-
-      for (purity in names(sigprofiler_list[[spn]][[coverage]])) {
-        df <- sigprofiler_list[[spn]][[coverage]][[purity]][["Sigprofiler_CosmicExposure"]]
-
-        if (is.null(df)) next
-
-        df <- as.data.frame(df)
-        colnames(df)[1] <- "Sample_ID"
-
-        df <- df %>%
-          tibble::column_to_rownames("Sample_ID") %>%
-          mutate(across(everything(), as.numeric))
-
-        df_norm <- t(apply(df, 1, function(x) if (sum(x) == 0) x else x / sum(x)))
-        df <- as.data.frame(df_norm)
-
-        pattern <- "^.*?_(SPN\\d+_\\d+\\.\\d+)$"
-        rn <- rownames(df)
-        rn_new <- ifelse(
-          grepl(pattern, rn),
-          sub(pattern, "\\1", rn),
-          rn
-        )
-        rownames(df) <- rn_new
-
-        aligned[[spn]][[coverage]][[purity]] <- df
-      }
-    }
-  }
-
-  return(aligned)
-}
-       
-
-
-align_sparsesig_res <- function(sparse_list) {
-  aligned <- list()
-
-  for (spn in names(sparse_list)) {
-    aligned[[spn]] <- list()
-
-    for (coverage in names(sparse_list[[spn]])) {
-      aligned[[spn]][[coverage]] <- list()
-
-      for (purity in names(sparse_list[[spn]][[coverage]])) {
-        mat <- sparse_list[[spn]][[coverage]][[purity]]
-
-        # Generate sample IDs based on matrix row count
-        n_samples <- nrow(mat)
-        sample_ids <- paste0(spn, "_1.", seq_len(n_samples))
-        rownames(mat) <- sample_ids
-
-        aligned[[spn]][[coverage]][[purity]] <- as.matrix(mat)
-      }
-    }
-  }
-
-  return(aligned)
 }
 
 
@@ -175,6 +109,7 @@ evaluate_all_combined <- function(ground_truth_list, predicted_list, threshold =
 }
 
 
+### Validation of exposures ###
 
 compute_mse <- function(inferred_mat, ground_truth_mat) {
   inferred_mat <- as.matrix(inferred_mat)

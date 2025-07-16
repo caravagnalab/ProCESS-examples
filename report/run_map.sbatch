@@ -24,7 +24,7 @@ module load singularity/3.10.4
 export TMPDIR=$dir
 export SINGULARITY_TMPDIR=$dir
 export TMP=$dir
-image="/orfeo/cephfs/scratch/cdslab/shared/SCOUT/process_1.0.2.sif"
+image="/orfeo/cephfs/scratch/cdslab/shared/SCOUT/process_1.1.0.sif"
 
 input="/orfeo/cephfs/scratch/cdslab/shared/SCOUT"
 

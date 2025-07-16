@@ -1,20 +1,100 @@
-get_colors = function(df) {
-  all_levels <- levels(factor(df$FILTER))
-  full_colors <- setNames(RColorBrewer::brewer.pal(8, "Set2")[1:length(all_levels)], all_levels)  
+library(caret)
+
+
+safe_cor_test <- function(x, y, min_points = 3) {
+  # Remove NA values
+  valid_idx <- !is.na(x) & !is.na(y) & is.finite(x) & is.finite(y)
+  x_clean <- x[valid_idx]
+  y_clean <- y[valid_idx]
   
-  original_names = names(full_colors)
-  if ("PASS" %in% names(full_colors)) {
-    names(full_colors)[which(names(full_colors)=="PASS")] = original_names[1]
-    names(full_colors)[1] = "PASS"
+  # Check if we have enough data points
+  if (length(x_clean) < min_points) {
+    return(NA_real_)
   }
   
-  if ("Other" %in% names(full_colors)) {
-    names(full_colors)[which(names(full_colors)=="Other")] = original_names[2]
-    names(full_colors)[2] = "Other"
+  # Check for zero variance (constant values)
+  if (stats::var(x_clean) == 0 || stats::var(y_clean) == 0) {
+    return(NA_real_)
   }
   
-  full_colors
+  # Try correlation test with error handling
+  tryCatch({
+    cor_result <- stats::cor.test(x_clean, y_clean)
+    return(cor_result$estimate)
+  }, error = function(e) {
+    return(NA_real_)
+  })
 }
+
+# Function to safely calculate RMSE
+safe_rmse <- function(actual, predicted) {
+  # Remove NA values
+  valid_idx <- !is.na(actual) & !is.na(predicted) & is.finite(actual) & is.finite(predicted)
+  actual_clean <- actual[valid_idx]
+  predicted_clean <- predicted[valid_idx]
+  
+  # Check if we have data points
+  if (length(actual_clean) == 0) {
+    return(NA_real_)
+  }
+  
+  # Calculate RMSE
+  sqrt(mean((actual_clean - predicted_clean)^2))
+}
+
+
+plot_density_comparison_multi <- function(vec_list, labels, colors, x_label, n) {
+  if (length(vec_list) != length(labels) || length(labels) != length(colors)) {
+    stop("vec_list, labels, and colors must have the same length.")
+  }
+  
+  df <- purrr::map2_dfr(vec_list, labels, ~ data.frame(value = .x, group = .y))
+  
+  ks_tests <- purrr::map2(vec_list[-1], labels[-1], ~ stats::ks.test(vec_list[[1]], .x))
+  p_values <- purrr::map_chr(ks_tests, ~ sprintf("%.4g", .x$p.value))
+  comp_labels <- paste0(labels[1], " vs ", labels[-1], ": p = ", p_values)
+  
+  ns <- purrr::map_chr(vec_list, ~ format(length(.x), big.mark = "'"))
+  group_info <- paste0('sample ', n, ' mutations')
+  
+  ggplot2::ggplot(df, ggplot2::aes(x = value, color = group)) +
+    ggplot2::geom_density(alpha = 0.5) +
+    ggplot2::scale_color_manual('', values = colors) +
+    ggplot2::labs(
+      title = paste0(x_label, " Comparison"),
+      subtitle = group_info,
+      x = x_label,
+      y = "Density",
+      fill = ""
+    ) +
+    ggplot2::theme_bw()
+}
+
+plot_ecdf_comparison_multi <- function(vec_list, labels, colors, x_label, n) {
+  if (length(vec_list) != length(labels) || length(labels) != length(colors)) {
+    stop("vec_list, labels, and colors must have the same length.")
+  }
+  
+  df <- purrr::map2_dfr(vec_list, labels, ~ data.frame(value = .x, group = .y))
+  
+  ks_tests <- purrr::map2(vec_list[-1], labels[-1], ~ stats::ks.test(vec_list[[1]], .x))
+  p_values <- purrr::map_chr(ks_tests, ~ sprintf("%.4g", .x$p.value))
+  ns <- purrr::map_chr(vec_list, ~ format(length(.x), big.mark = ""))
+  group_info <- paste0('sample ', n, ' mutations')
+  
+  ggplot2::ggplot(df, ggplot2::aes(x = value, color = group)) +
+    ggplot2::stat_ecdf(geom = "step", size = 1) +
+    ggplot2::scale_color_manual('', values = colors) +
+    ggplot2::labs(
+      title = paste0(x_label, " ECDF Comparison"),
+      subtitle = group_info,
+      x = x_label,
+      y = "ECDF",
+      color = ""
+    ) +
+    ggplot2::theme_bw()
+}
+
 
 merge_datasets <- function(snp_caller, ground_truth) {
   df <- snp_caller %>%
@@ -35,93 +115,6 @@ merge_datasets <- function(snp_caller, ground_truth) {
   return(df)
 }
 
-
-plot_venn_diagram = function(merged_df, caller_name) {
-  id_muts_races = merged_df %>% dplyr::filter(positive_truth) %>% dplyr::pull(mutationID)
-  id_muts_caller = merged_df %>% dplyr::filter(positive_call) %>% dplyr::pull(mutationID)
-  x = list("races"=id_muts_races, caller_name=id_muts_caller)
-  names(x) = c("races", caller_name)
-  ggVennDiagram::ggVennDiagram(x) +
-    scale_fill_gradient2(low = "white", high = "#4981BF", mid = "white", midpoint=0) +
-    coord_flip() +
-    theme(legend.position = "none")
-}
-
-
-seq_to_long <- function(seq_results) {
-  # Extract sample names from column names
-  sample_names <- strsplit(colnames(seq_results)[grepl(".VAF", colnames(seq_results), fixed = TRUE)], ".VAF") %>% unlist()
-  
-  seq_df <- lapply(sample_names, function(sn) {
-    cc <- c("chr", "chr_pos", "ref", "alt", "causes", "classes", colnames(seq_results)[grepl(paste0(sn, "."), colnames(seq_results), fixed = TRUE)])
-    seq_results[, cc] %>%
-      `colnames<-`(c("chr", "chr_pos", "ref", "alt", "causes", "classes", "occurences", "coverage", "VAF")) %>%
-      dplyr::mutate(sample_name = sn)
-  }) %>% do.call("bind_rows", .)
-  
-  seq_df %>%
-    dplyr::rename(chr = chr, from = chr_pos, DP = coverage, NV = occurences, ALT = alt) %>%
-    dplyr::mutate(to = from)
-}
-
-plot_baf_difference <- function(df) {
-  df <- df %>%
-    mutate(BAF_diff = BAF.caller - BAF.races)
-  
-  ggplot(df, mapping = aes(x=FILTER, y=BAF_diff)) +
-    geom_violin() +
-    labs(title = "Boxplot of BAF differences", y = "BAF Difference (Caller - Truth)", x = "") +
-    theme_bw()
-}
-
-# Function to plot Histogram of depth Differences
-plot_cov_difference <- function(df) {
-  df <- df %>%
-    dplyr::mutate(DP_diff = DP.caller - DP.races)
-  
-  ggplot(df, mapping = aes(x=FILTER, y=DP_diff)) +
-    geom_violin() +
-    labs(title = "Boxplot of DP differences", y = "DP Difference (Caller - Truth)", x = "") +
-    theme_bw()
-}
-
-plot_scatter_with_corr <- function(data, x_var, y_var, col_var = "FILTER", title = NULL) {
-  # Perform correlation test to get r and p-value
-  data[[x_var]][is.na(data[[x_var]])] = 0
-  data[[y_var]][is.na(data[[y_var]])] = 0
-  
-  corr_test <- cor.test(data[[x_var]], data[[y_var]], use = "complete.obs")
-  corr_coef <- corr_test$estimate
-  p_val <- corr_test$p.value
-  
-  # Format p-value appropriately
-  if (p_val < 0.001) {
-    p_text <- "p < 0.001"
-  } else if (p_val < 0.01) {
-    p_text <- paste0("p = ", format(round(p_val, 3), nsmall = 3))
-  } else if (p_val < 0.05) {
-    p_text <- paste0("p = ", format(round(p_val, 2), nsmall = 2))
-  } else {
-    p_text <- paste0("p = ", format(round(p_val, 2), nsmall = 2))
-  }
-  
-  # Format correlation coefficient (rounded to 2 decimal places)
-  corr_text <- paste0("r = ", round(corr_coef, 2), ", ", p_text)
-  
-  # Create plot
-  p <- ggplot(data, aes_string(x = x_var, y = y_var, col = col_var)) +
-    geom_point(alpha = 0.5, size = .4) +
-    geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "black") +
-    annotate("text", x = Inf, y = -Inf, label = corr_text,
-             hjust = 1.1, vjust = -0.5) +
-    theme_bw() +
-    labs(x = x_var, y = y_var)
-  p
-}
-
-
-library(caret)
-
 compute_metrics <- function(actual, predicted) {
   cm <- table(Actual = actual, Predicted = predicted)
   confusion_matrix <- confusionMatrix(as.factor(predicted), as.factor(actual), positive = "1")
@@ -136,26 +129,3 @@ compute_metrics <- function(actual, predicted) {
   
   return(metrics)
 }
-
-plot_filter_distribution = function(merged_df, colors, log_scale = TRUE) {
-  p = merged_df %>% 
-    dplyr::group_by(FILTER) %>% 
-    dplyr::summarise(n=n()) %>% 
-    na.omit() %>% 
-    ggplot(mapping = aes(x=reorder(FILTER, +n), y=n, fill = FILTER)) +
-    geom_col() +
-    theme_bw() +
-    scale_fill_manual(values = colors) +
-    coord_flip() +
-    labs(x = "FILTER", y="count") + 
-    theme(legend.position = 'None')
-  
-  if (log_scale) {
-    p <- p +
-      scale_y_continuous(trans = "log10")
-  }
-  
-  p 
-}
-
-

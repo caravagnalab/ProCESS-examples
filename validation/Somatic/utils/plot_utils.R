@@ -86,7 +86,7 @@ plot_scatter_with_corr <- function(data, x_var, y_var, col_var = "FILTER", title
     p_text <- "NA"
     corr_coef <- NA
   } else {
-    p_text <- stats::format.pval(p_val, digits = 1)
+    p_text <- format.pval(p_val, digits = 1)
   }
   
   corr_text <- paste0("r = ", round(corr_coef, 2), ", ", p_text)
@@ -787,22 +787,21 @@ plot_vaf_accuracy <- function(results) {
     )
 }
 
-
-
-plot_multicaller_precision_recall_vaf <- function(performance_data, 
+plot_multicaller_precision_recall <- function(performance_data, x_name,
                                                   title = "Precision and Recall Across VAF Bins",
                                                   text_size = 3.5,
                                                   point_size = 1.5,
                                                   line_size = 1) {
-  required_cols <- c("VAF_bin", "precision", "sensitivity", "caller")
+
+  required_cols <- c(x_name, "precision", "sensitivity", "caller")
   if (!all(required_cols %in% colnames(performance_data))) {
     stop("Required columns missing from performance table: ", 
          paste(setdiff(required_cols, colnames(performance_data)), collapse = ", "))
   }
   
   plot_data <- performance_data %>%
-    dplyr::select(VAF_bin, precision, recall = sensitivity, caller) %>%
-    dplyr::filter(!is.na(VAF_bin)) %>%
+    dplyr::select(x_name, precision, recall = sensitivity, caller) %>%
+    dplyr::filter(!is.na(x_name)) %>%
     tidyr::pivot_longer(cols = c(precision, recall),
                         names_to = "metric",
                         values_to = "value") %>%
@@ -814,7 +813,7 @@ plot_multicaller_precision_recall_vaf <- function(performance_data,
   
   ggplot2::ggplot(
     plot_data,
-    ggplot2::aes(x = VAF_bin, y = value, color = caller, linetype = metric,
+    ggplot2::aes(x = .data[[x_name]], y = value, color = caller, linetype = metric,
                  group = interaction(caller, metric))
   ) +
     ggplot2::geom_line(size = line_size, alpha = 0.8) +
@@ -836,7 +835,7 @@ plot_multicaller_precision_recall_vaf <- function(performance_data,
     ggplot2::scale_color_manual(name = "Caller", values = method_colors) +
     ggplot2::labs(
       title = title,
-      x = "VAF Bin",
+      x = x_name,
       y = "Performance"
     ) +
     ggplot2::theme_bw()

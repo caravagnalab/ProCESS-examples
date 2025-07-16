@@ -7,7 +7,7 @@ dir <- getwd()
 outdir <- "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/SPN01/process/"
 setwd(outdir)
 set.seed(06117)
-sim <- SpatialSimulation(name = 'SPN01', seed = 12345, save_snapshot=TRUE)
+sim <- TissueSimulation(name = 'SPN01', seed = 12345, save_snapshot=TRUE)
 sim$history_delta <- 1
 sim$death_activation_level <- 50
 
@@ -42,6 +42,7 @@ sim$update_rates(species = "Clone 2", rates = c(growth = 0.05, death = 0.5))
 sim$run_up_to_size("Clone 3", 6000)
 sim$update_rates(species = "Clone 2", rates = c(growth = 0.01, death = 0.8))
 sim$run_up_to_size("Clone 3", 8000) ## orignal 15000
+
 sim$update_rates(species = "Clone 2", rates = c(growth = 0.01, death = 1))
 sim$run_up_to_size("Clone 3", 10000)
 
@@ -56,10 +57,7 @@ sim$run_up_to_size("Clone 4", 6000) ##60000 ## orignal 8000
 #### try this
 sim$update_rates(species = "Clone 3", rates = c(growth = 0.01, death = 0.01))
 sim$run_up_to_size("Clone 4", 8000)
-
-
 sim$run_up_to_size("Clone 4", 15000)
-
 
 print("End simulation")
 ## Sample 3
@@ -78,5 +76,5 @@ sim$sample_cells("SPN01_1.2", bboxB_lower_corner, bboxB_upper_corner)
 print("SPN01_1.2 has been sampled")
 
 # # Forest
-forest <- sim$get_samples_forest()
+forest <- sim$get_sample_forest()
 forest$save(paste0(outdir,"sample_forest.sff"))

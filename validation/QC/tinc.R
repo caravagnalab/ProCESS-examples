@@ -21,6 +21,7 @@ PUR <- c(0.3, 0.6, 0.9)
 
 final_table <- tibble()
 for (spn in SPN){
+  print(spn)
   for (cov in COV){
     for (pur in PUR){
       samples <- get_sample_names(spn)
@@ -52,8 +53,13 @@ for (spn in SPN){
 }
 #saveRDS(object = table, file = paste0(out, param$cov,'x_',param$pur,'p_',param$variantcaller,'_ascat.rds'))
 
+sp <- ggpubr::ggscatter(final_table, x = "TIT", y = "purity",
+                color = "SPN", palette = "jco", position = 'jitter',
+                add = "reg.line") 
+corr <- sp + ggpubr::stat_cor(aes(color = SPN), label.x = 0.6, label.y.npc = c(0.27, 0.3))
 
-tit <- final_table %>% 
+
+v1 <- final_table %>% 
   ggplot() +
   geom_abline(linewidth = 0.5, col = 'gray') +
   geom_jitter(aes(x = TIT, y = purity, col = SPN), size = 3) +
@@ -61,8 +67,20 @@ tit <- final_table %>%
   facet_grid(coverage ~ purity) + 
   xlab('TIT (TINC)') +
   ylab('purity (ProCESS)') + 
-  scale_color_manual(values = c('steelblue', 'seagreen', 'goldenrod')) +
+  scale_color_manual(values = c('steelblue', 'seagreen', 'goldenrod', 'coral', 'palevioletred', 'indianred3')) +
   xlim(0,1) +
-  ylim(0,1)
+  ylim(0,1) +
+  theme_bw()
 
-ggsave(filename = 'validation_TINC.png', plot = tit, width = 7, height = 4, units = 'in', dpi = 600)
+
+v2 <- ggplot(final_table, aes(x = SPN, y = error, col = SPN)) +
+  geom_boxplot() +
+  geom_jitter() +
+  ylab('|ProCESS - TINC|') +
+  scale_color_manual(values = c('steelblue', 'seagreen', 'goldenrod', 'coral', 'palevioletred', 'indianred3')) +
+  facet_grid(coverage ~ purity) +
+  theme_bw()
+  
+
+ggsave(filename = 'validation_TINC_v1.png', plot = v1, width = 7, height = 4, units = 'in', dpi = 600)
+ggsave(filename = 'validation_TINC_v2.png', plot = v2, width = 9, height = 4, units = 'in', dpi = 600)

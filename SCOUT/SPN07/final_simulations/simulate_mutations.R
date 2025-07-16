@@ -32,17 +32,17 @@ m_engine$add_mutant(mutant_name = "Clone 3",
 m_engine$add_mutant(mutant_name = "Clone 4",
                     passenger_rates = c(SNV = 1e-8, CNA = 1e-12, indel=1e-9),
                     drivers = list(
-                      SNV('X', 2719, 'T','C') # ARTX R907*
+                      SNV('X', 77682537, 'A') # ARTX R907*
                     )
 )
 m_engine$add_mutant(mutant_name = "Clone 5",
                     passenger_rates = c(SNV = 1e-7, CNA = 1e-12, indel=1e-9),
                     drivers = list(
-                      SNV('2', 1082, 'A','G') # MSH6 c.1082G>A	p.R361H
+                      SNV('2', 47799065,'A') # MSH6 c.1082G>A	p.R361H
                     )
 )
 m_engine$add_mutant(mutant_name = "Clone 6",
-                    passenger_rates = c(SNV = 1e-7, CNA = 1e-10, indel=1e-9),
+                    passenger_rates = c(SNV = 1e-7, CNA = 1e-12, indel=1e-9),
                     drivers = list(
                       list('TP53 R248W')
                     )

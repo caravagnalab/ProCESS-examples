@@ -14,8 +14,8 @@ conda activate process
 
 
 SPN='SPN04'
-COV='50'
-PUR='0.9'
+COV='100'
+PUR='0.6'
 
 # Map SLURM_ARRAY_TASK_ID to chromosome names
 if [[ ${SLURM_ARRAY_TASK_ID} -le 22 ]]; then

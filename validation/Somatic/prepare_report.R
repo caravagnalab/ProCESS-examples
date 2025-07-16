@@ -30,21 +30,10 @@ if (gender=="XX"){
 
 # INPUT PARAMATERS ####
 callers = c("mutect2", "strelka", "freebayes")
-# chromosomes = paste0("chr", c(1:22, "X", "Y"))
 min_vaf = .02
 mut_types = c("INDEL", "SNV")
 comb = list(PI = purity, COV = coverage)
-#path_to_cna <- paste0(data_dir,spn_id,"/process/cna_data/")
-#samples = gsub(pattern="_cna.rds",replacement="",x=list.files(path_to_cna,pattern="_cna.rds"))
 samples = get_sample_names(spn = spn_id)
-
-# path_to_seq = get_mutations(spn = spn_id, 
-#                         base_path = data_dir, 
-#                         coverage = coverage, 
-#                         purity = purity, 
-#                         type = "tumour")
-
-#path_to_seq <- paste0(data_dir,spn_id,"/sequencing/tumour/purity_",purity,"/data/mutations/seq_results_muts_merged_coverage_",coverage,"x.rds")
 
 input_dir <-  paste0(data_dir,spn_id,"/validation/somatic/")
 outdir <- paste0(data_dir,spn_id,"/validation/somatic/report")
@@ -55,49 +44,57 @@ message("Parsing combination: purity=", purity, ", cov=", coverage)
 caller = "mutect2"
 sample_id = samples[1]
 mut_type = "SNV"
+caller =
 for (caller in callers) {
   message("  Using caller: ", caller)
-  for (sample_id in samples) {
-    message("    Working with sample : ", sample_id)
-    for (mut_type in mut_types) {
-      message("      Considering only ", mut_type)
-      
-      # spn <- gsub(".*SCOUT/(SPN[0-9]+).*", "\\1", path_to_seq)
-      # purity <- gsub(".*purity_([0-9.]+).*", "\\1", path_to_seq)
-      # coverage <- gsub(".*coverage_([0-9]+).*", "\\1", path_to_seq)
-      combination = paste0(coverage, "x_", purity, "p")
-      process_folder_path <- file.path(input_dir, spn_id, combination, "process", sample_id, mut_type)
-      caller_folder_path = file.path(input_dir, spn_id, combination, caller, sample_id, mut_type)
-      
+  for (mut_type in mut_types) {
+    message("      Considering only ", mut_type)
+    
+    # spn <- gsub(".*SCOUT/(SPN[0-9]+).*", "\\1", path_to_seq)
+    # purity <- gsub(".*purity_([0-9.]+).*", "\\1", path_to_seq)
+    # coverage <- gsub(".*coverage_([0-9]+).*", "\\1", path_to_seq)
+    combination = paste0(coverage, "x_", purity, "p")
+    
+    gt_res = lapply(samples, function(sample_id) {
+      process_folder_path <- file.path(input_dir, spn_id, combination, "process", sample_id, mut_type)  
       # Get ground truth
       gt_res = lapply(chromosomes, function(chromosome){
         gt_path = file.path(process_folder_path, paste0(chromosome,".rds"))
         readRDS(gt_path)
-      }) %>% do.call("bind_rows", .)
-      
+      }) %>% do.call("bind_rows", .) %>% 
+        dplyr::mutate(sample = sample_id) %>% 
+        dplyr::mutate(mutationID = paste0(mutationID,":",sample_id))
+      gt_res
+    }) %>% do.call("bind_rows", .)
+    
+    caller_res = lapply(samples, function(sample_id) {
       # Get caller res
+      caller_folder_path = file.path(input_dir, spn_id, combination, caller, sample_id, mut_type)
       caller_res = lapply(chromosomes, function(chromosome) {
         caller_path = file.path(caller_folder_path, paste0(chromosome,".rds"))
-        readRDS(caller_path)  
+        readRDS(caller_path) %>% 
+          dplyr::filter(FILTER == "PASS")
       }) %>% do.call("bind_rows", .) %>% 
-        dplyr::filter(!is.na(VAF))
-      
-      sample_info = list(caller_name=caller, sample_id=sample_id, mut_type=mut_type, spn=spn_id, purity=purity, coverage=coverage)
-      report = get_report(seq_res_long = gt_res, 
-                          caller_res = caller_res, 
-                          sample_info = sample_info, 
-                          min_vaf = min_vaf)
-      
-      report_path = file.path(caller_folder_path, "report.png")
-      metrics_path = file.path(caller_folder_path, "metrics.rds")
-      ggsave(report_path, plot = report$report_plot, width = 15, height = 20, units = "in", dpi = 400)
-      saveRDS(list(report_metrics=report$report_metrics, vaf_comparison=report$vaf_comparison), metrics_path)
-      
-      filename = paste(spn_id, combination, caller, sample_id, mut_type, sep = '_')
-      file_path = file.path(outdir, filename)
-      ggsave(paste0(file_path, '.png'), plot = report$report_plot, width = 15, height = 20, units = "in", dpi = 400)
-      
-      message("        Report done!")
-    }
+        dplyr::filter(!is.na(VAF)) %>% 
+        dplyr::mutate(sample = sample_id) %>% 
+        dplyr::mutate(mutationID = paste0(mutationID,":",sample_id))
+      caller_res
+    }) %>% do.call("bind_rows", .)
+    
+    sample_info = list(caller_name=caller, mut_type=mut_type, spn=spn_id, purity=purity, coverage=coverage)
+    report = get_report(seq_res_long = gt_res, 
+                        caller_res = caller_res, 
+                        sample_info = sample_info, 
+                        min_vaf = min_vaf)
+    
+    results_folder_path = file.path(input_dir, spn_id, combination, caller, mut_type)
+    dir.create(results_folder_path, recursive = T)
+    metrics_path = file.path(results_folder_path, "metrics.rds")
+    saveRDS(list(report_metrics=report$report_metrics, vaf_comparison=report$vaf_comparison), metrics_path)
+    
+    filename = paste(spn_id, combination, caller, mut_type, sep = '_')
+    file_path = file.path(outdir, filename)
+    ggsave(paste0(file_path, '.png'), plot = report$report_plot, width = 18, height = 18, units = "in", dpi = 400)
+    message("        Report done!")
   }
 }

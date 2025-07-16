@@ -5,12 +5,12 @@ set.seed(06117)
 
 
 outdir <- "/orfeo/scratch/cdslab/shared/SCOUT/SPN01/process/"
-forest <- load_samples_forest(paste0(outdir,"sample_forest.sff"))
+forest <- load_sample_forest(paste0(outdir,"sample_forest.sff"))
 
 
-setwd("/orfeo/cephfs/scratch/cdslab/shared/ProCESS/GRCh38")
-m_engine <- MutationEngine(setup_code = "GRCh38",tumour_type = "COAD",
-                           tumour_study = "US")
+setwd("/orfeo/cephfs/scratch/cdslab/shared/SCOUT/")
+m_engine <- MutationEngine(setup_code = "GRCh38",tumour_type = "COADREAD", context_sampling = 20)
+                           # COSMIC_account = list("email"="giorgia.gandolfi@phd.units.it","password"="2*db!XQ4sgQ!dbg"))
 
 
 mu_SNV = 1e-8
@@ -28,12 +28,12 @@ mu_SNV = 1e-8
 mu_CNA = 1e-13
 m_engine$add_mutant(mutant_name = "Clone 3",passenger_rates = c(SNV = mu_SNV, CNA = mu_CNA,indel=mu_INDELs),drivers = list("TP53 R175H"))
 
-m_engine$add_mutant(mutant_name = "Clone 4",passenger_rates = c(SNV = mu_SNV, CNA = mu_CNA,indel=mu_INDELs),drivers = list(WGD))
+m_engine$add_mutant(mutant_name = "Clone 4",passenger_rates = c(SNV = mu_SNV, CNA = mu_CNA,indel=mu_INDELs),drivers = list(WGD,"PIK3CA R88Q"))
 
 
 # Mutational signatures
-m_engine$add_exposure(time = 0,coefficients = c(SBS1 = 0.20,SBS5 = 0.35,
-                                                SBS18 = 0.15,SBS17b = 0.25,ID1 = 0.60,ID2 = 0.40,SBS88 = 0.05))
+m_engine$add_exposure(time = 0,coefficients = c(SBS1 = 0.15,SBS5 = 0.40,
+                                                SBS18 = 0.15,SBS17b = 0.20,ID1 = 0.40,ID2 = 0.40,ID18=0.2,SBS88 = 0.10))
 print("Mutation engine created")
 phylo_forest <- m_engine$place_mutations(forest, num_of_preneoplatic_SNVs=800, num_of_preneoplatic_indels=200)
 phylo_forest$save(paste0(outdir,"phylo_forest.sff"))

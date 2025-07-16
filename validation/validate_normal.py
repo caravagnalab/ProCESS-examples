@@ -36,16 +36,14 @@ bcftools view ${vcf} --regions chr${CHROMOSOME} -o ${outdir}/chr${CHROMOSOME}_no
 germline_report_shell_script="""#!/bin/bash
 #SBATCH --nodes=1
 #SBATCH --tasks-per-node=1
-#SBATCH --cpus-per-task=1
-#SBATCH --mem 50g
-#SBATCH --time=4:00:00
+#SBATCH --cpus-per-task=4
+#SBATCH --mem 300g
+#SBATCH --time=10:00:00
 
 module load R/4.4.1
 
 cd ${DIRECTORY}/Germline/
-Rscript ${DIRECTORY}/Germline/compare.R -s ${SPN} -t 'freebayes' 
-Rscript ${DIRECTORY}/Germline/compare.R -s ${SPN} -t 'haplotypecaller'
-Rscript ${DIRECTORY}/Germline/compare.R -s ${SPN} -t 'strelka'
+Rscript ${DIRECTORY}/Germline/compare_caller.R -s ${SPN}
 """
 
 if (__name__ == '__main__'):
@@ -84,7 +82,7 @@ if (__name__ == '__main__'):
     
     #curr_dir = os.getcwd()
     base_dir = args.directory
-    log_dir = '{}/validation/out/'.format(base_dir)
+    log_dir = '{}/out/'.format(base_dir)
     
     os.makedirs(f'/orfeo/scratch/cdslab/shared/SCOUT/{args.SPN}/validation/germline/vcf', exist_ok = True)
     os.makedirs(f'/orfeo/scratch/cdslab/shared/SCOUT/{args.SPN}/validation/germline/report', exist_ok = True)
