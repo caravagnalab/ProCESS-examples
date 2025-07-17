@@ -5,21 +5,22 @@ seed <- 12345
 set.seed(seed)
 
 outdir <- "/orfeo/scratch/cdslab/shared/SCOUT/SPN04/process/"
-forest <- load_samples_forest(paste0(outdir,"sample_forest.sff"))
+forest <- load_sample_forest(paste0(outdir,"sample_forest.sff"))
 treatment_info <- readRDS(paste0(outdir,"treatment_info.rds"))
 
-setwd("/orfeo/scratch/cdslab/shared/ProCESS/GRCh38/")
+setwd("/orfeo/scratch/cdslab/shared/SCOUT/")
 # Set tumour type and gender
-m_engine <- MutationEngine(setup_code = "GRCh38",tumour_study = "KR", tumour_type = "LAML")
+
+m_engine <- MutationEngine(setup_code = "GRCh38", tumour_type = "AML", context_sampling = 20)
 m_engine$set_germline_subject("NA18940")
 
-mu_SNV = 1e-8
-mu_ID = 1e-9
-mu_CNA = 1e-11
+mu_SNV = 1e-9
+mu_ID = 1e-10
+mu_CNA = 1e-10
 
-driver_Clone1 = SNV(chr="2", chr_pos=208248389, alt="T", ref="C", allele=1)
-driver_Clone2 = CNA(type='A', chr='12', chr_pos=25100000, len=1e7)
-driver_Clone3 = list("NRAS Q61K", allele = 1)
+driver_Clone1 = list("IDH1 R132C")
+driver_Clone2 = CNA(type='A', chr='8', chr_pos=46000001, len=99138636)
+driver_Clone3 = list("NRAS Q61K")
 
 # Add drivers ####
 
@@ -37,9 +38,9 @@ m_engine$add_mutant(mutant_name = "Clone 3",
 
 
 # Mutational Signatures ####
-m_engine$add_exposure(coefficients = c(SBS5 = 0.5, SBS1 = 0.5, ID1 = 1))
-m_engine$add_exposure(time = treatment_info$treatment_start, c(SBS5 = 0.35, SBS1 = 0.35, SBS25 = 0.3, ID1 = 1))
-m_engine$add_exposure(time = treatment_info$treatment_end, coefficients = c(SBS5 = 0.5, SBS1 = 0.5, ID1 = 1))
+m_engine$add_exposure(time = 0, coefficients = c(SBS5 = 0.5, SBS1 = 0.2, SBS18 = 0.3, ID1 = 0.5, ID2 = 0.5))
+m_engine$add_exposure(time = treatment_info$treatment_start, coefficients = c(SBS5 = 0.4, SBS1 = 0.1, SBS18 = 0.2, SBS25 = 0.3, ID1 = 0.5, ID2 = 0.5))
+m_engine$add_exposure(time = treatment_info$treatment_end, coefficients = c(SBS5 = 0.5, SBS1 = 0.2, SBS18 = 0.3, ID1 = 0.5, ID2 = 0.5))
 
 # Phylo forest ######
 print("Mutation engine created")
