@@ -652,7 +652,7 @@ output_dir_combination="${output_base_dir}/{JOB_NAME}"
 
 config={CONFIG}
 nextflow run nf-core/sarek -r 3.5.1 --genome GATK.GRCh38 --input $input \
-    --step variant_calling --tools cnvkit,freebayes,strelka,haplotypecaller,ascat,mutect2 --joint_mutect2 true \
+    --step variant_calling --tools cnvkit,freebayes,strelka,ascat,mutect2 --joint_mutect2 true \
     --outdir $output_dir_combination -profile singularity -c $config
 """
 
