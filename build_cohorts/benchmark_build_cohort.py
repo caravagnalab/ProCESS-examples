@@ -1154,8 +1154,9 @@ if (__name__ == '__main__'):
                     sequenza_launcher = sequenza_launcher_orig
                     
                     #tumourevo sh file and csv file
-		    with open(tumour_type_file) as cancer_type_file:
-			cancer_type = cancer_type_file.read().strip()
+                    with open(tumour_type_file) as cancer_type_file:
+                        cancer_type = cancer_type_file.read().strip()
+
                     variant_callers = ['freebayes', 'strelka', 'mutect2']
                     cn_caller = ['ascat', 'sequenza']
                     combinations = []
