@@ -3,28 +3,30 @@ library(dplyr)
 
 base="/orfeo/cephfs/scratch/cdslab/shared/SCOUT/SPN03/process/"
 setwd(base)
+set.seed(0609)
 
-forest <- load_samples_forest("sample_forest.sff")
+forest <- load_sample_forest("sample_forest.sff")
 
-setwd('/orfeo/cephfs/scratch/cdslab/shared/ProCESS/GRCh38')
-m_engine <- MutationEngine(setup_code = "GRCh38",
-                           tumour_type= 'CLLE')
+setwd('/orfeo/cephfs/scratch/cdslab/shared/SCOUT/')
+m_engine <- MutationEngine(setup_code = "GRCh38", 
+                           tumour_type = 'CLLSLL', 
+                           context_sampling = 20)
 
-SNV_rate = 1e-8
-indel_rate = 1e-9
+SNV_rate = 1e-9
+indel_rate = 1e-10
 CNA_rate = 1e-12
 
 # Clone 1 
 # NOTCH1p2514*fs*4  
-# NOTCH1 FY357Y
+# 13q14.2  deletion
 m_engine$add_mutant(mutant_name = "Clone 1",
                     passenger_rates = c(SNV = SNV_rate,
                                         CNA = CNA_rate,
                                         indel = indel_rate),
-                    drivers = list("NOTCH1 E943K", 
-                                   CNA(chr = "13", 
-                                       chr_pos = 39500001, 
-                                       len = 1.5e6,  
+                    drivers = list("NOTCH1 P2514Rfs*4", 
+                                   CNA(chr = "13",
+                                       chr_pos = 45000000, 
+                                       len = 1e7,  
                                        type = "D"))
 )
 
@@ -34,22 +36,25 @@ m_engine$add_mutant(mutant_name = "Clone 2",
                     passenger_rates = c(SNV = SNV_rate,
                                         CNA = CNA_rate,
                                         indel = indel_rate),
-                    driver = list("KRAS G12D")
+                    driver = list("TP53 R175H")
 )
 
 # Clone 3
 # Unknown
+# MAP2K1 P124L
+# 15	66436825	66436825	C	G
+# https://pmc.ncbi.nlm.nih.gov/articles/PMC4815041/
 m_engine$add_mutant(mutant_name = "Clone 3",
                     passenger_rates = c(SNV = SNV_rate,
                                         CNA = CNA_rate,
                                         indel = indel_rate),
-                    driver = list(SNV("10", 62813404, "A", allele = 0))
+                    driver = list(SNV("15", 66436825, alt = "G", ref = 'C'))
 )
 
 # Signatures
-# SBS1, SBS5, IDSXX
-m_engine$add_exposure(c(SBS5 = 0.3, SBS1 = 0.7, ID5 = 1))
-m_engine
+# SBS1, SBS5
+m_engine$add_exposure(c(SBS5 = 0.3, SBS1 = 0.2, SBS9 = 0.5,
+                        ID5 = 0.6, ID1 = 0.2, ID2 = 0.2))
 
 phylo_forest <- m_engine$place_mutations(forest, 
                                          num_of_preneoplatic_SNVs = 800,
@@ -57,13 +62,10 @@ phylo_forest <- m_engine$place_mutations(forest,
 
 phylo_forest$save(paste0(base,"phylo_forest.sff"))
 
-
 dir.create(paste0(base, "cna_data"),recursive = T)
 sample_names <- phylo_forest$get_samples_info()[["name"]]
 lapply(sample_names,function(s){
   cna <- phylo_forest$get_bulk_allelic_fragmentation(s)
   saveRDS(file=paste0(base, "cna_data/",s,"_cna.rds"), object=cna)
 })
-
-
 
