@@ -32,33 +32,33 @@ samples_table <- function(snapshot, sample_forest) {
 }
 
 
-get_sbs_exposures <- function(spn, base_path) {
-
+get_exposures_by_context <- function(spn, base_path, context = "SBS") {
+  
   phylo_forest <- get_phylo_forest(spn = spn, base_path = base_path)
   sample_forest <- get_sample_forest(spn = spn, base_path = base_path)
-  snapshot_path <- file.path(base_path, spn, "process", spn)
-
-  # Load phyloforest object
+  snapshot_path <- file.path(base_path, spn, "process_old", spn)
+  
+  # Load phyloforest object 
   phylo_forest <- ProCESS::load_phylogenetic_forest(phylo_forest)
   # Load sample forest object
   samples_forest <- ProCESS::load_samples_forest(sample_forest)
-
+  
   # Generate sample-level data
   samples_data <- samples_table(snapshot = snapshot_path, sample_forest = samples_forest)
-
+  
   sample_ids <- samples_data %>%
     dplyr::pull(Sample_ID)
-
+  
   # Get exposures
   exposure_prop <- phylo_forest$get_exposures()
-
+  
   # Filter out time = 0 exposures if others exist
   if (any(exposure_prop$time != 0)) {
     exposure_prop_filtered <- exposure_prop %>% dplyr::filter(time != 0)
   } else {
     exposure_prop_filtered <- exposure_prop
   }
-
+  
   # Match sample IDs to timepoints
   assign_sample_id <- function(t) {
     if (t == 0) {
@@ -68,7 +68,7 @@ get_sbs_exposures <- function(spn, base_path) {
       return(samples_data$Sample_ID[match_idx])
     }
   }
-
+  
   # Expand each exposure row to a sample ID
   expanded_rows <- do.call(rbind, lapply(1:nrow(exposure_prop_filtered), function(i) {
     t <- exposure_prop_filtered$time[i]
@@ -82,12 +82,12 @@ get_sbs_exposures <- function(spn, base_path) {
       )
     }))
   }))
-
+  
   # Aggregate and reshape
   avg_exposure <- expanded_rows %>%
     dplyr::group_by(Sample_ID, signature) %>%
     dplyr::summarise(mean_exposure = mean(exposure), .groups = "drop")
-
+  
   exposure_matrix <- avg_exposure %>%
     tidyr::pivot_wider(
       names_from = signature,
@@ -95,12 +95,12 @@ get_sbs_exposures <- function(spn, base_path) {
       values_fill = list(mean_exposure = 0)
     ) %>%
     dplyr::arrange(Sample_ID)
-
-  # Keep only SBS signatures
-  exposure_sbs <- exposure_matrix %>%
-    dplyr::select(Sample_ID, starts_with("SBS"))
-
-  return(exposure_sbs)
+  
+  # Keep only signatures matching the context (e.g., "SBS", "ID", etc.)
+  exposure_filtered <- exposure_matrix %>%
+    dplyr::select(Sample_ID, tidyselect::matches(paste0("^", context)))
+  
+  return(exposure_filtered)
 }
 
 
@@ -121,5 +121,3 @@ load_signature_data <- function(paths) {
     }
   })
 }
-
-
