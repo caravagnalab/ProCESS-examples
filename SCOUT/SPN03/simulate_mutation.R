@@ -3,7 +3,7 @@ library(dplyr)
 
 base="/orfeo/cephfs/scratch/cdslab/shared/SCOUT/SPN03/process/"
 setwd(base)
-set.seed(0609)
+set.seed(1806)
 
 forest <- load_sample_forest("sample_forest.sff")
 
