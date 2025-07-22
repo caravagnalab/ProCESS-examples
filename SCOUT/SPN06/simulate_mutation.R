@@ -15,8 +15,8 @@ timing <- readRDS(paste0(outdir, "chemo_timing.rds"))
 #-------------------------------------------------------------------------------
 #-------------------------- set up Mutation Engine -----------------------------
 #-------------------------------------------------------------------------------
-setwd("/orfeo/cephfs/scratch/cdslab/shared/ProCESS/GRCh38")
-m_engine <- MutationEngine(setup_code = "GRCh38", tumour_type = "LUAD", tumour_study = "US")
+setwd("/orfeo/cephfs/scratch/cdslab/shared/SCOUT")
+m_engine <- MutationEngine(setup_code = "GRCh38", tumour_type = "LUAD", context_sampling = 20)
 
 
 #-------------------------------------------------------------------------------
@@ -56,7 +56,8 @@ CNA_C3 <- CNA(
 
 # KEAP1 R413C/H/L
 #-------------------------------------------------------------------------------
-SNV_C4 <- "KEAP1 R460M"
+#SNV_C4 <- "KEAP1 R460M"
+SNV_C4 <- "KEAP1 R413H"
 
 
 # KRAS G12D
@@ -142,17 +143,17 @@ m_engine$add_mutant(
 #-------------------------------------------------------------------------------
 #----------------------------- mutational signatures ---------------------------
 #-------------------------------------------------------------------------------
-# SBS1, SBS4, SBS5 and ID1 are always active
-m_engine$add_exposure(time = 0, coefficients = c(SBS1 = 0.3, SBS4 = 0.5, SBS5 = 0.2, ID1 = 1))
+# SBS1, SBS4, SBS5, ID1 and ID2 are always active
+m_engine$add_exposure(time = 0, coefficients = c(SBS1 = 0.2, SBS4 = 0.5, SBS5 = 0.3, ID1 = 0.6, ID2 = 0.4))
 
 # SBS11 active after timolozomide
-m_engine$add_exposure(time = timing$chemo1_start, coefficients = c(SBS1 = 0.25, SBS4 = 0.45, SBS5 = 0.15, SBS11 = 0.15, ID1 = 1))
+m_engine$add_exposure(time = timing$chemo1_start, coefficients = c(SBS1 = 0.15, SBS4 = 0.45, SBS5 = 0.25, SBS11 = 0.15, ID1 = 0.7, ID2 = 0.3))
 
 # SBS25 active during chemotherapy
-m_engine$add_exposure(time = timing$chemo2_start, coefficients = c(SBS1 = 0.25, SBS4 = 0.45, SBS5 = 0.15, SBS11 = 0.1, SBS25 = 0.05, ID1 = 1))
+m_engine$add_exposure(time = timing$chemo2_start, coefficients = c(SBS1 = 0.15, SBS4 = 0.45, SBS5 = 0.25, SBS11 = 0.1, SBS25 = 0.05, ID1 = 0.7, ID2 = 0.3))
 
 # SBS25 de-active after chemotherapy
-m_engine$add_exposure(time = timing$chemo2_end, coefficients = c(SBS1 = 0.25, SBS4 = 0.45, SBS5 = 0.15, SBS11 = 0.15, ID1 = 1))
+m_engine$add_exposure(time = timing$chemo2_end, coefficients = c(SBS1 = 0.15, SBS4 = 0.45, SBS5 = 0.25, SBS11 = 0.15, ID1 = 0.8, ID2 = 0.2))
 
 
 #-------------------------------------------------------------------------------
