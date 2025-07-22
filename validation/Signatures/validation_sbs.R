@@ -17,7 +17,7 @@ source("validation/signatures/utils/utils_plots.R")
 ### Get ProCESS exposure data ###
 
 base_path <- "/orfeo/cephfs/scratch/cdslab/shared/SCOUT"
-spn <- c("SPN01")
+spn <- c("SPN01", "SPN03", "SPN04")
 
 process_exposures_list <- list()
 
@@ -36,9 +36,9 @@ for (spn_id in spn) {
 ### Load tumourevo signature data ###
 
 base_path <- "/orfeo/cephfs/scratch/cdslab/shared/SCOUT"
-spn_list <- c("SPN01")
-coverage_list <- c(100)
-purity_list <- c(0.3, 0.6, 0.9)
+spn_list <- c("SPN01", "SPN03", "SPN04")
+coverage_list <- c(50)
+purity_list <- c(0.9)
 dataset <- "SCOUT"
 context <- 'SBS96'
 vcf_caller <- "mutect2"
@@ -173,11 +173,11 @@ for (spn in names(tumourevo_signature_res)) {
 
 
 
-### Validate Signatures across combinations ###
+### Summarize Signatures across combinations ###
 
-spn_list <- c("SPN01")
-coverage <- c(100)
-purity_values <- c(0.3, 0.6, 0.9)
+spn_list <- c("SPN01", "SPN03", "SPN04")
+coverage <- c(50)
+purity_values <- c(0.9)
 
 ground_truth <- list()
 
@@ -192,12 +192,13 @@ for (spn in spn_list) {
     warning(paste("Missing ground truth for", spn))
   }
 }
+
 sparsig_cosmic <- mapped_res
 sparsesig_aligned <- align_sparsesig_res(sparsig_cosmic)
 sigprof_aligned <- align_sigprofiler_res(tumourevo_signature_res)
 
 
-# Calculate metrics
+
 ground_truth_nested <- list()
 
 for (spn in names(ground_truth)) {
@@ -220,66 +221,29 @@ for (spn in names(ground_truth)) {
 }
 
 
-metrics_sparsesig <- evaluate_all_combined(ground_truth_nested, sparsesig_aligned, threshold = 0.05)
-metrics_sigprof <- evaluate_all_combined(ground_truth_nested, sigprof_aligned, threshold = 0.05)
 
-combined_metrics <- bind_rows(
-  metrics_sparsesig %>% mutate(Tool = "SparseSignatures"),
-  metrics_sigprof %>% mutate(Tool = "SigProfiler")
-)
-
-saveRDS(combined_metrics, file = "combined_metrics_signatures.rds")
-
-
-# Calculate metrics
-ground_truth_nested <- list()
-
-for (spn in names(ground_truth)) {
-  coverage_key <- paste0("coverage_", coverage)
-  
-  if (is.null(ground_truth_nested[[spn]])) {
-    ground_truth_nested[[spn]] <- list()
-  }
-  
-  if (is.null(ground_truth_nested[[spn]][[coverage_key]])) {
-    ground_truth_nested[[spn]][[coverage_key]] <- list()
-  }
-  
-  for (purity in purity_values) {
-    purity_key <- paste0("purity_", purity)
-    ground_truth_nested[[spn]][[coverage_key]][[purity_key]] <- ground_truth[[spn]]
-  }
-}
-
-
-metrics_sparsesig <- evaluate_all_combined(ground_truth_nested, sparsesig_aligned, threshold = 0.05)
-metrics_sigprof <- evaluate_all_combined(ground_truth_nested, sigprof_aligned, threshold = 0.05)
-
-combined_metrics <- bind_rows(
-  metrics_sparsesig %>% mutate(Tool = "SparseSignatures"),
-  metrics_sigprof %>% mutate(Tool = "SigProfiler")
-)
-
-saveRDS(combined_metrics, file = "combined_metrics_signatures.rds")
-
-
-### Compare estimated and true signatures  ###
+### Compare exposure of estimated and true signatures  ###
 
 sankey_df <- prepare_sankey_data(ground_truth_nested, sparsesig_aligned, sigprof_aligned)
+
+saveRDS(sankey_df, file = "validation/sankey_signatures_sbs.rds")
 
 sankey_df <- sankey_df %>%
   dplyr::mutate(
     Coverage = as.numeric(gsub("coverage_", "", Coverage)),
     Purity = as.numeric(gsub("purity_", "", Purity))
   ) %>% 
-  dplyr::filter(Coverage == 100, Purity == 0.9)
+  dplyr::filter(Coverage == 50, Purity == 0.9)
 
 
 spns <- c("SPN01")
-sankey_plots <- lapply(spns, function(spn) generate_sankey(spn, cov = 100, pur = 0.9))
+sankey_plots <- lapply(spns, function(spn) generate_sankey_sbs(spn, cov = 50, pur = 0.9))
 
 wrapped_sankey <- wrap_plots(sankey_plots, ncol = 1)
 wrapped_sankey
+
+saveRDS(wrapped_sankey, file = "validation/sankey_SPN01_50x_0.9p_sbs.rds")
+ggsave("validation/sankey_SPN01_50x_0.9p_sbs.pdf", plot = wrapped_sankey, width = 12, height = 5, units = "in")
 
 
 

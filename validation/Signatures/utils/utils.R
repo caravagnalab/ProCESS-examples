@@ -155,12 +155,25 @@ extract_sigprofiler_long <- function(sigprof_aligned) {
 }
 
 
-prepare_sankey_data <- function(ground_truth_list, sparsesig_aligned, sigprof_aligned) {
+prepare_sankey_data_sbs <- function(ground_truth_list, sparsesig_aligned, sigprof_aligned) {
   gt_long <- extract_ground_truth_long(ground_truth_list)
   sparsesig_long <- extract_sparsesig_long(sparsesig_aligned)
   sigprof_long <- extract_sigprofiler_long(sigprof_aligned)
 
   combined <- bind_rows(gt_long, sparsesig_long, sigprof_long)
+
+  # Filter to keep only exposures > 0
+  combined <- combined %>% filter(Exposure > 0)
+
+  return(combined)
+}
+
+
+prepare_sankey_data_id <- function(ground_truth_list, sigprof_aligned) {
+  gt_long <- extract_ground_truth_long(ground_truth_list)
+  sigprof_long <- extract_sigprofiler_long(sigprof_aligned)
+
+  combined <- bind_rows(gt_long, sigprof_long)
 
   # Filter to keep only exposures > 0
   combined <- combined %>% filter(Exposure > 0)
