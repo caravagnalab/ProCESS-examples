@@ -8,10 +8,10 @@ library(dplyr)
 
 # load time in which is born the third clone and the samples forest
 clone3_born = readRDS("clone3_clock.rds")
-sampled_phylogeny = load_samples_forest("sample_forest.sff")
+sampled_phylogeny = load_sample_forest("sample_forest.sff")
 
 curr_dir = getwd()
-setwd("/orfeo/cephfs/scratch/cdslab/shared/ProCESS/GRCh38")
+setwd('/orfeo/cephfs/scratch/cdslab/shared/SCOUT')
 
 # setting the germline subject as columbian woman and tumor type to colonrectal cancer
 mu_SNV = 1e-8
@@ -21,12 +21,12 @@ mu_CNA = 1e-11
 # last clone is hypermutant (only for snvs and ids, lower CNAs)
 mu_SNV_clone3 = 1e-7
 mu_ID_clone3 = 7e-9
-mu_CNA_clone3 = 1e-13
+mu_CNA_clone3 = 1e-11
 
 m_engine <- MutationEngine(setup_code = "GRCh38", 
-                tumour_type = "COAD", 
-                tumour_study = "US", 
-                germline_subject = "HG01113")
+                           context_sampling = 20,
+                           tumour_type = "COADREAD",
+                           germline_subject = "HG01113")
 
 m_engine$add_mutant(mutant_name = "Clone 1",
                     passenger_rates = c(SNV = mu_SNV, indel = mu_ID, CNA = mu_CNA),
@@ -44,16 +44,17 @@ m_engine$add_mutant(mutant_name = "Clone 3",
 m_engine$add_exposure(
     time = 0, 
     coefficients = c(
-        ID1 = 1,
-        SBS1 = 0.5,
-        SBS5 = 0.5)
+        ID1 = 0.7,
+        ID2 = 0.3,
+        SBS1 = 0.2,
+        SBS5 = 0.8)
 )
 
 m_engine$add_exposure(
     time = round(clone3_born),
     coefficients = c(
         SBS1 = 0.2, SBS5 = 0.2, SBS10b = 0.2, SBS6 = 0.4, # hypermutant signature
-        ID1 = 0.5, ID7 = 0.5)
+        ID1 = 0.2, ID7 = 0.3, ID2 = 0.5)
 )
 
 # Sys.time()
