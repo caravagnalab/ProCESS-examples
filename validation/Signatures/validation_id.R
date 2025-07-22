@@ -172,3 +172,60 @@ wrapped_sankey
 saveRDS(wrapped_sankey, file = "validation/sankey_SPN01_50x_0.9p_id.rds")
 ggsave("validation/sankey_SPN01_50x_0.9p_id.pdf", plot = wrapped_sankey, width = 12, height = 5, units = "in")
 
+
+## Exposure validation ##
+
+# Align exposure data
+
+aligned_exposures <- list(
+  SigProfiler = list()
+)
+
+spn_list <- names(ground_truth_nested)
+
+for (spn in spn_list) {
+  coverage_list <- names(ground_truth_nested[[spn]])
+
+  for (coverage in coverage_list) {
+    purity_list <- names(ground_truth_nested[[spn]][[coverage]])
+
+    for (purity in purity_list) {
+      # Access exposure matrices
+      gt <- ground_truth_nested[[spn]][[coverage]][[purity]]
+      sigprof <- sigprof_aligned[[spn]][[coverage]][[purity]]
+
+      # Find shared signatures
+      shared_sigprof <- intersect(colnames(gt), colnames(sigprof))
+
+      # Subset to shared signatures
+      gt_sigprof <- gt[, shared_sigprof, drop = FALSE]
+      sigprof <- sigprof[, shared_sigprof, drop = FALSE]
+
+      # Create unique key for storage
+      key <- paste(spn, coverage, purity, sep = "_")
+
+      # Store aligned pairs
+      aligned_exposures$SigProfiler[[key]] <- list(gt = gt_sigprof, tool = sigprof)
+    }
+  }
+}
+
+
+## Calculate exposures metrics ##
+
+metrics <- compute_exposure_metrics(aligned_exposures)
+
+saveRDS(metrics, file = "validation/metrics_SPNs_id.rds")
+
+# Generate final plot
+p_cosine <- plot_cosine_similarity(metrics[["cosine"]])
+p_mse <- plot_mse_per_signature(metrics[["mse"]])
+
+bottom_plots <- p_cosine + p_mse +
+  plot_layout(guides = "collect") &
+  theme(legend.position = "right")
+
+bottom_plots
+
+ggsave("validation/validation_SPNs_50x_0.9p_id.pdf", plot = bottom_plots, width = 16, height = 5, units = "in")
+
