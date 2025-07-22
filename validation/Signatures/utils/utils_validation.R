@@ -62,7 +62,77 @@ mse_per_signature <- function(gt, tool) {
 
 
 
-
+compute_exposure_metrics <- function(aligned_exposures) {
+  cosine_results <- list()
+  mse_results <- list()
+  cosine_idx <- 1
+  mse_idx <- 1
+  
+  for (method in names(aligned_exposures)) {
+    keys <- names(aligned_exposures[[method]])
+    
+    for (key in keys) {
+      # Extract matrices
+      gt_mat <- aligned_exposures[[method]][[key]]$gt
+      tool_mat <- aligned_exposures[[method]][[key]]$tool
+      
+      # Skip if ground truth is empty
+      if (nrow(gt_mat) == 0 || ncol(gt_mat) == 0) next
+      
+      parts <- str_split(key, "_", simplify = TRUE)
+      SPN <- parts[1]
+      Coverage <- as.numeric(parts[3])
+      Purity <- as.numeric(parts[5])
+      
+      # COSINE SIMILARITY
+      # Align sample rows
+      common_samples <- intersect(rownames(gt_mat), rownames(tool_mat))
+      if (length(common_samples) == 0) next
+      
+      gt_common <- as.matrix(gt_mat[common_samples, , drop = FALSE])
+      tool_common <- as.matrix(tool_mat[common_samples, , drop = FALSE])
+      
+      # Compute cosine similarity
+      sims <- cosine_similarity_exposures(gt_common, tool_common)
+      
+      cosine_results[[cosine_idx]] <- tibble(
+        Sample = common_samples,
+        SPN = SPN,
+        Coverage = Coverage,
+        Purity = Purity,
+        Tool = method,
+        CosineSimilarity = sims
+      )
+      cosine_idx <- cosine_idx + 1
+      
+      # Align signatures
+      common_sigs <- intersect(colnames(gt_mat), colnames(tool_mat))
+      if (length(common_sigs) == 0) next
+      
+      gt_sub <- as.matrix(gt_mat[, common_sigs, drop = FALSE])
+      tool_sub <- as.matrix(tool_mat[, common_sigs, drop = FALSE])
+      
+      # Compute MSE
+      mse_vec <- colMeans((gt_sub - tool_sub)^2, na.rm = TRUE)
+      
+      mse_results[[mse_idx]] <- tibble(
+        SPN = SPN,
+        Coverage = Coverage,
+        Purity = Purity,
+        Tool = method,
+        Signature = names(mse_vec),
+        MSE = mse_vec
+      )
+      mse_idx <- mse_idx + 1
+    }
+  }
+  
+  # Combine results into data frames
+  list(
+    cosine = bind_rows(cosine_results),
+    mse = bind_rows(mse_results)
+  )
+}
 
 
 
