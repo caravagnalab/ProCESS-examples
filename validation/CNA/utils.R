@@ -1,61 +1,106 @@
 library(IRanges)
 library(GenomicRanges)
 
-
-reciprocal_overlap <- function(pred, truth, threshold = 0.5) {
-  hits <- findOverlaps(pred, truth)
-  keep <- c()
-  for (i in seq_along(hits)) {
-    q <- queryHits(hits)[i]
-    s <- subjectHits(hits)[i]
-    inter_len <- width(pintersect(pred[q], truth[s]))
-    ro1 <- inter_len / width(pred[q])
-    ro2 <- inter_len / width(truth[s])
-    if (ro1 >= threshold && ro2 >= threshold) {
-      keep <- c(keep, i)
-    }
-  }
-  hits[keep]
-}
-
-
-calculate_metrics <- function(gt, df_caller){
-  gt_gr <- GRanges(seqnames = gt$chrom,
-                      ranges = IRanges(start = gt$start,
-                                       end = gt$end),
-                      cn = gt$cn)
-  
-  caller_gr <- GRanges(seqnames = df_caller$chrom,
-                     ranges = IRanges(start = df_caller$start,
-                                      end = df_caller$end),
-                     cn = df_caller$cn)
-  
-  # Find overlaps
-  matched <- reciprocal_overlap(caller_gr, gt_gr, threshold = 0.5)
-  TP <- length(matched)                     
-  FP <- length(caller_gr) - length(unique(queryHits(matched)))
-  FN <- length(gt_gr) - length(unique(subjectHits(matched))) 
-  precision <- TP / (TP + FP)
-  recall    <- TP / (TP + FN)
-  f1_score  <- 2 * precision * recall / (precision + recall)
-  
-  return(list("precision"=precision,"recall"=recall,"f1_score"=f1_score))
-  
-}
-
-
 color_by_state = c("INFERRED_Major1"='steelblue',
                    "INFERRED_minor1"='indianred',
                    "INFERRED_CN"='seagreen')
 
 fill_by_match = c('match'= alpha('gainsboro', .03),
                   'no match subclone'= alpha('cadetblue3', .08),
-                  'match subclone'= alpha('goldenrod', .08),
+                  'match subclone'= alpha('lightsalmon', .08),
                   'no match' = alpha('indianred', .08),
-                  'subclonal' = alpha('goldenrod', .08))
+                  'subclonal' = alpha('lightsalmon', .08),
+                  'clonal' = 'gainsboro')
 
 color_type <- c('clonal' = 'gainsboro', 'sub-clonal' = 'lightsalmon')
 color_process <- c('Major1'='steelblue', 'minor1'='indianred', 'Major2'='steelblue1', 'minor2'="orangered")
+color_caller <- c('ascat' = 'palegreen4','cnvkit' = 'orange', 'sequenza' = 'steelblue')
+
+
+compute_CNA_metrics <- function(confusion_df) {
+  metrics_df <- confusion_df %>%
+    mutate(
+      precision = TP / (TP + FP),
+      recall = TP / (TP + FN),
+      f1 = 2 * precision * recall / (precision + recall)
+    )
+  
+  # Handle NaNs
+  metrics_df <- metrics_df %>%
+    mutate(
+      precision = ifelse(is.nan(precision), 0, precision),
+      recall = ifelse(is.nan(recall), 0, recall),
+      f1 = ifelse(is.nan(f1), 0, f1)
+    )
+  
+  # Genome-wide metrics
+  genome_total <- confusion_df %>%
+    summarise(
+      TP = sum(TP),
+      FP = sum(FP),
+      FN = sum(FN),
+      chr = "genome"
+    ) %>%
+    mutate(
+      precision = TP / (TP + FP),
+      recall = TP / (TP + FN),
+      f1 = 2 * precision * recall / (precision + recall)
+    ) %>%
+    mutate(
+      precision = ifelse(is.nan(precision), 0, precision),
+      recall = ifelse(is.nan(recall), 0, recall),
+      f1 = ifelse(is.nan(f1), 0, f1)
+    )
+  
+  bind_rows(metrics_df, genome_total)
+}
+
+
+# Select a chromosome
+compute_confusion_matrix <- function(predicted, truth, delta = 10000, delta_merge = NULL) {
+  # Step 0: Sort inputs
+  predicted <- sort(predicted)
+  truth <- sort(truth)
+  
+  # Step 1: Recursively merge predicted breakpoints
+  if (!is.null(delta_merge) && length(predicted) > 1) {
+    changed <- TRUE
+    while (changed) {
+      diffs <- diff(predicted)
+      close_pairs <- which(diffs <= delta_merge)
+      if (length(close_pairs) == 0) {
+        changed <- FALSE
+      } else {
+        # Merge first close pair (can be done recursively or all at once, we'll go greedy)
+        i <- close_pairs[1]
+        new_val <- mean(predicted[i:(i+1)])
+        predicted <- c(predicted[-c(i, i+1)], new_val)
+        predicted <- sort(predicted)
+      }
+    }
+  }
+  
+  # Step 2: Matching logic
+  matched_truth <- logical(length(truth))
+  matched_pred <- logical(length(predicted))
+  
+  for (i in seq_along(predicted)) {
+    diffs <- abs(truth - predicted[i])
+    # Find unmatched truth within delta
+    candidates <- which(diffs <= delta & !matched_truth)
+    if (length(candidates) > 0) {
+      best_match <- candidates[which.min(diffs[candidates])]
+      matched_truth[best_match] <- TRUE
+      matched_pred[i] <- TRUE
+    }
+  }
+  
+  TP <- sum(matched_pred)
+  FP <- sum(!matched_pred)
+  FN <- sum(!matched_truth)
+  
+  dplyr::tibble(TP = TP, FP = FP, FN = FN)
+}
 
 absolute_to_relative_coordinates <- function(muts, reference = CNAqc::chr_coordinates_GRCh38, centromere = F){
   vfrom = reference$from
@@ -73,6 +118,24 @@ absolute_to_relative_coordinates <- function(muts, reference = CNAqc::chr_coordi
         centromere = centromere + vfrom[chr])
   }
 }
+
+relative_to_absolute_coordinates <- function(muts, reference = CNAqc::chr_coordinates_GRCh38, centromere = F){
+  vfrom = reference$from
+  names(vfrom) = reference$chr
+  if (!centromere){
+    muts %>%
+      mutate(
+        start = start - vfrom[chr],
+        end = end - vfrom[chr])
+  } else if (centromere){
+    muts %>%
+      mutate(
+        start = start - vfrom[chr],
+        end = end - vfrom[chr],
+        centromere = centromere - vfrom[chr])
+  }
+}
+
 
 absolute_to_relative_coordinates_muts <- function(muts, reference = CNAqc::chr_coordinates_GRCh38){
   vfrom = reference$from
@@ -273,24 +336,6 @@ create_joint_segmentation = function(CNA_ProCESS, CNA_target, caller, chromosome
               'joint_segmentation_long'=joint_segmentation_shifted_longer))
 }
 
-## Shift segments
-shift_segments = function(CNA){
-  CNA_shifted = lapply(1:nrow(CNA), function(r){
-  chromosome = CNA[r,]$chr
-  from_chromosome = CNAqc:::get_reference('hg38') %>% filter(chr==chromosome) %>% pull(from)
-  
-  if ("original_from" %in% colnames(CNA)){
-    CNA[r,] %>% mutate(from = from + from_chromosome, to = to + from_chromosome,
-                       original_from = original_from + from_chromosome, original_to = original_to + from_chromosome)
-  }else{
-    CNA[r,] %>% mutate(from = from + from_chromosome, to = to + from_chromosome)
-  }
-  
-  })
-  CNA_shifted = Reduce(rbind, CNA_shifted)
-  CNA_shifted
-}
-
 ## Compute correctness 
 compute_correctness = function(df, caller) {
   if (caller %in% c('ascat', 'sequenza')){
@@ -311,24 +356,6 @@ compute_correctness = function(df, caller) {
   return(list('all'=all, 'clonal'=clonal))
 }
 
-## Expected BAF and DR functions
-expected_BAF = function(nA1, nB1, nA2, nB2, purity, ccf){
-  if (is.na(nA2) & is.na(nB2)){
-    nA2 = 0
-    nB2 = 0
-  }
-  nom = min(nA1*ccf + nA2*(1-ccf), nB1*ccf + nB2*(1-ccf))*purity + (1-purity)
-  den = ((nA1+nB1)*ccf + (nA2+nB2)*(1-ccf))*purity + 2*(1-purity)
-  nom/den
-}
-expected_DR = function(nA1, nB1, nA2, nB2, purity, ccf, ploidy){
-  if (is.na(nA2) & is.na(nB2)){
-    nA2 = 0
-    nB2 = 0
-  }
-  nom = ((nA1+nB1)*ccf + (nA2+nB2)*(1-ccf))*purity + 2*(1-purity)
-  nom/(ploidy*purity + 2*(1-purity))
-}
 
 ## True Ploidy
 compute_true_ploidy = function(CNA_ProCESS){
@@ -361,62 +388,6 @@ compute_true_ploidy = function(CNA_ProCESS){
   ploidy
 }
 
-## Theoretical vs inferred BAF and DR (ascat)
-theoretical_vs_inferred_BAF_DR = function(CNA_ProCESS,CNA_ascat,purity_number,ploidy,purity_ploidy){
-  already_seen_segment = c()
-  CNA_ProCESS = lapply(1:nrow(CNA_ProCESS), function(r){
-    chromosome = CNA_ProCESS[r,]$chr
-    from_chromosome = CNAqc:::get_reference('hg38') %>% filter(chr==chromosome) %>% pull(from)
-    CNA_ProCESS[r,] %>% mutate(from = from + from_chromosome, to = to + from_chromosome)
-  })
-  CNA_ProCESS = Reduce(rbind, CNA_ProCESS)
-  transposed_CNA_ProCESS= lapply(CNA_ProCESS$seg_id%>%unique(), function(s){
-    CNA_ProCESS_s = CNA_ProCESS %>% filter(seg_id==s)
-    if (nrow(CNA_ProCESS_s)>1){
-      data.frame("chr"=CNA_ProCESS_s[1,]$chr,
-                 "from"=CNA_ProCESS_s[1,]$from,
-                 "to"=CNA_ProCESS_s[1,]$to,
-                 "Major1"=CNA_ProCESS_s[1,]$major,
-                 "minor1"=CNA_ProCESS_s[1,]$minor,
-                 "Major2"=CNA_ProCESS_s[2,]$major,
-                 "minor2"=CNA_ProCESS_s[2,]$minor,
-                 "ratio"=CNA_ProCESS_s[1,]$ratio)
-    }else{
-      data.frame("chr"=CNA_ProCESS_s[1,]$chr,
-                 "from"=CNA_ProCESS_s[1,]$from,
-                 "to"=CNA_ProCESS_s[1,]$to,
-                 "Major1"=CNA_ProCESS_s[1,]$major,
-                 "minor1"=CNA_ProCESS_s[1,]$minor,
-                 "Major2"=NA,
-                 "minor2"=NA,
-                 "ratio"=CNA_ProCESS_s[1,]$ratio)
-    }
-  })
-  transposed_CNA_ProCESS = Reduce(rbind,transposed_CNA_ProCESS)
-  CNA_ascat = lapply(1:nrow(CNA_ascat), function(r){
-    chromosome = CNA_ascat[r,]$chr
-    from_chromosome = CNAqc:::get_reference('hg38') %>% filter(chr==chromosome) %>% pull(from)
-    CNA_ascat[r,] %>% mutate(from = from + from_chromosome, to = to + from_chromosome)
-  })
-  CNA_ascat = Reduce(rbind, CNA_ascat)
-  
-  simulated_baf_dr = lapply(1:nrow(transposed_CNA_ProCESS), function(r){
-    simulated_baf=expected_BAF(transposed_CNA_ProCESS[r,]$Major1, transposed_CNA_ProCESS[r,]$minor1, transposed_CNA_ProCESS[r,]$Major2, transposed_CNA_ProCESS[r,]$minor2, purity_number, transposed_CNA_ProCESS[r,]$ratio)
-    simulated_dr=expected_DR(transposed_CNA_ProCESS[r,]$Major1, transposed_CNA_ProCESS[r,]$minor1,transposed_CNA_ProCESS[r,]$Major2, transposed_CNA_ProCESS[r,]$minor2, purity_number, transposed_CNA_ProCESS[r,]$ratio, ploidy)
-    cbind(transposed_CNA_ProCESS[r,], data.frame('simulated_baf'=c(simulated_baf), 'simulated_dr'=c(simulated_dr)))
-  })
-  simulated_baf_dr = Reduce(rbind, simulated_baf_dr)
-  
-  inferred_baf_dr = lapply(1:nrow(CNA_ascat), function(r){
-    inferred_baf=expected_BAF(CNA_ascat[r,]$major, CNA_ascat[r,]$minor, 0, 0, purity_ploidy$AberrantCellFraction, 1)
-    inferred_dr=expected_DR(CNA_ascat[r,]$major, CNA_ascat[r,]$minor, 0, 0, purity_ploidy$AberrantCellFraction, 1, purity_ploidy$Ploidy)
-    cbind(CNA_ascat[r,], data.frame('inferred_baf'=c(inferred_baf), 'inferred_dr'=c(inferred_dr)))
-  })
-  inferred_baf_dr = Reduce(rbind,inferred_baf_dr)
-  
-  return(list('simulated_baf_dr' = simulated_baf_dr,'inferred_baf_dr_ascat' = inferred_baf_dr))
-}
-
 ## Compute segmentation correctness
 covered_genome = function(CNA_target, chromosome){
   chr_len = CNAqc:::get_reference('hg38') %>% filter(chr==chromosome) %>% pull(length)
@@ -424,154 +395,209 @@ covered_genome = function(CNA_target, chromosome){
   (covered / chr_len)*100
 }
 
-breakpoint_analysis = function(CNA_ProCESS, CNA_target, chromosome, th=1e7){
-  ProCESS_BP = CNA_ProCESS %>% filter(chr==chromosome) #%>% select(from, to)
-  
-  BP_f = ProCESS_BP$from %>% unique()
-  BP_t = ProCESS_BP$to %>% unique()
-  
-  CNA_target_c = CNA_target %>% filter(chr==chromosome)
-  BP_target_f = CNA_target_c$from %>% unique()
-  BP_target_t = CNA_target_c$to %>% unique()
-  
-  if (nrow(CNA_target_c)==0){
-    BP_df = data.frame(
-      'og_coord'=c(BP_f,BP_f),
-      'coord'=rep(NA, length(c(BP_f,BP_f))),
-      'dist'=rep(NA,length(c(BP_f,BP_f))),
-      'state'=rep('no bp',length(c(BP_f,BP_f)))
-    )
-  }else{
-  
-  BP_df = data.frame()
-  
-  for (bp in BP_f){
-    dist = min(abs(bp - BP_target_f))
-    coord = BP_target_f[which.min(abs(bp - BP_target_f))]
-    if (dist < th){
-      df = data.frame(
-        'og_coord'=bp,
-        'coord'=coord,
-        'dist'=dist,
-        'state'='matching'
-      )
-    }else{
-      df = data.frame(
-        'og_coord'=bp,
-        'coord'=NA,
-        'dist'=NA,
-        'state'='missed'
-      )
-    }
-    BP_df = rbind(BP_df, df)
-  }
-  
-  for (bp in BP_t){
-    dist = min(abs(bp - BP_target_t))
-    coord = BP_target_t[which.min(abs(bp - BP_target_t))]
-    if (dist < th){
-      df = data.frame(
-        'og_coord'=bp,
-        'coord'=coord,
-        'dist'=dist,
-        'state'='matching'
-      )
-    }else{
-      df = data.frame(
-        'og_coord'=bp,
-        'coord'=NA,
-        'dist'=NA,
-        'state'='missed'
-      )
-    }
-    BP_df = rbind(BP_df, df)
-  }
-  
-  for (bp in BP_target_f){
-    if (!(bp %in% BP_df$coord)){
-      df = data.frame(
-        'og_coord'=NA,
-        'coord'=bp,
-        'dist'=NA,
-        'state'='added'
-      )
-      BP_df = rbind(BP_df, df)
-    }
-  }
-  
-  for (bp in BP_target_t){
-    if (!(bp %in% BP_df$coord)){
-      df = data.frame(
-        'og_coord'=NA,
-        'coord'=bp,
-        'dist'=NA,
-        'state'='added'
-      )
-      BP_df = rbind(BP_df, df)
-    }
-  }
-  }
-  return(BP_df)
-}
-segmentation_analysis = function(CNA_ProCESS, CNA_target, chromosomes, th=1e7){
-  # Mean percentage of genome covered by segments
-  mean_covered_genome = lapply(chromosomes, function(c){
-    covered_genome(CNA_target, c)
-  }) %>% unlist() %>% mean()
-  
-  # Breakpoints
-  BP = lapply(chromosomes, function(chr){
-    #print(chr)
-    bp = breakpoint_analysis(CNA_ProCESS, CNA_target, chr, th=th)
-    bp$chromosome = chr
-    bp
-  })
-  BP = Reduce(rbind, BP)
-  
-  # % of missed breakpoints (on total)
-  missed_bp = (BP %>% filter(state == 'missed') %>% nrow()) / (BP %>% filter(state %in% c('missed','matching')) %>% nrow()) * 100
-  # % of added breakpoints (on total)
-  added_bp = (BP %>% filter(state == 'added') %>% nrow()) #/ (BP %>% filter(state %in% c('missed','matching')) %>% nrow()) * 100
-  # average distance
-  av_dist = mean(BP %>% filter(state == 'matching') %>% pull(dist))
-  
-  summary_df = data.frame(
-    'missed_bp'=missed_bp,
-    'added_bp'=added_bp,
-    'av_distance'=av_dist
+remove_centromeric_signal_gr <- function(signal_df, centromere_df, callable_regions_df = NULL) {
+  # 1. Convert signal to GRanges with metadata
+  signal_gr <- GRanges(
+    seqnames = signal_df$chr,
+    ranges = IRanges(start = signal_df$from, end = signal_df$to),
+    major = signal_df$major,
+    minor = signal_df$minor,
+    ratio = signal_df$ratio,
+    type = signal_df$type,
   )
   
-  return(list('summary'=summary_df, 'breakpoints' = BP))
+  # 2. Convert centromeres to GRanges
+  centromere_gr <- GRanges(
+    seqnames = centromere_df$chr,
+    ranges = IRanges(start = centromere_df$centromerStart,
+                     end = centromere_df$centromerEnd)
+  )
+  
+  # 3. Subtract centromere regions from signal
+  split_gr <- GenomicRanges::setdiff(signal_gr, centromere_gr)
+  
+  # 4. (Optional) Intersect with callable regions
+  if (!is.null(callable_regions_df)) {
+    callable_gr <- GRanges(
+      seqnames = callable_regions_df$chr,
+      ranges = IRanges(start = callable_regions_df$start,
+                       end = callable_regions_df$end)
+    )
+    split_gr <- GenomicRanges::intersect(split_gr, callable_gr, ignore.strand = TRUE)
+  }
+  
+  # 5. Restore metadata if any segments remain
+  if (length(split_gr) != 0) {
+    hits <- findOverlaps(split_gr, signal_gr, type = "within")
+    
+    if (length(hits) != 0) {
+      split_gr$major <- signal_gr$major[subjectHits(hits)]
+      split_gr$minor <- signal_gr$minor[subjectHits(hits)]
+      split_gr$ratio <- signal_gr$ratio[subjectHits(hits)]
+      split_gr$type  <- signal_gr$type[subjectHits(hits)]
+      
+      result_df <- as.data.frame(split_gr) %>%
+        transmute(
+          chr = as.character(seqnames),
+          from = start,
+          to = end,
+          major,
+          minor,
+          ratio,
+          type,
+          seg_id = paste0(chr, ":", from, ":", to)
+        )
+      
+      return(result_df)  
+    }
+    
+    return(signal_df)
+  } else {
+    return(signal_df)
+  }
 }
-my_blank_genome = function (ref = "GRCh38", genomic_coords, chromosomes = paste0("chr", 
-                                                                                 c(1:22, "X", "Y")), label_chr = -0.5, cex = 1) 
-{
-  reference_coordinates = CNAqc:::get_reference(ref, genomic_coords) %>% 
-    filter(chr %in% chromosomes)
-  low = min(reference_coordinates$from)
-  upp = max(reference_coordinates$to)
-  p1 = ggplot2::ggplot(reference_coordinates) + CNAqc:::my_ggplot_theme(cex = cex) + 
-    ggplot2::geom_segment(ggplot2::aes(x = centromerStart, 
-                                       xend = centromerEnd, y = 0, yend = Inf), size = 0, 
-                          color = "black", linetype = 8)
-  p1 = p1 + ggplot2::geom_rect(data = reference_coordinates, 
-                               ggplot2::aes(xmin = from, xmax = from, ymin = 0, ymax = Inf), 
-                               alpha = 0, colour = "grey", size=0)
-  p1 = p1 + ggplot2::geom_hline(yintercept = 0, size = 1, colour = "gainsboro") + 
-    ggplot2::geom_hline(yintercept = 1, size = 0.3, colour = "black", 
-                        linetype = "dashed") + ggplot2::labs(x = "Chromosome", 
-                                                             y = "Major/ minor allele") + ggpubr::rotate_y_text() + 
-    ggplot2::scale_x_continuous(breaks = c(0, reference_coordinates$centromerStart, 
-                                           upp), labels = c("", gsub(pattern = "chr", replacement = "", 
-                                                                     reference_coordinates$chr), ""))+
-    theme(
-      panel.grid.major=element_blank(),
-      panel.grid.minor=element_blank(),
-    ) 
-  return(p1)
+
+convert_centromeres_to_relative <- function(centromere_df) {
+  centromere_df %>%
+    mutate(
+      centromerStart = centromerStart - from + 1,
+      centromerEnd = centromerEnd - from + 1
+    ) %>%
+    select(chr, centromerStart, centromerEnd)
 }
 
-
-
-
-
+filter_genomic_signal <- function(signal_df, centromere_df, callable_regions_df = NULL) {
+  
+  # Convert signal dataframe to GRanges
+  signal_gr <- GRanges(
+    seqnames = signal_df$chr,
+    ranges = IRanges(start = signal_df$from, end = signal_df$to),
+    major = signal_df$major,
+    ratio = signal_df$ratio,
+    type = signal_df$type,
+    minor = signal_df$minor
+  )
+  
+  # Convert centromere dataframe to GRanges
+  centromere_gr <- GRanges(
+    seqnames = centromere_df$chr,
+    ranges = IRanges(start = centromere_df$centromerStart, end = centromere_df$centromerEnd)
+  )
+  
+  # Step 1: Remove centromeric regions from signal
+  # Find overlaps between signal and centromeres
+  overlaps <- findOverlaps(signal_gr, centromere_gr)
+  
+  if (length(overlaps) > 0) {
+    # Split signal regions that overlap with centromeres
+    signal_minus_centromere <- setdiff(signal_gr, centromere_gr)
+    
+    # For segments that were split, we need to preserve the metadata
+    # Find which original segments were affected
+    affected_indices <- unique(queryHits(overlaps))
+    
+    # Create a list to store all final segments
+    final_segments <- list()
+    
+    # Add unaffected segments
+    unaffected_segments <- signal_gr[-affected_indices]
+    if (length(unaffected_segments) > 0) {
+      final_segments <- append(final_segments, list(unaffected_segments))
+    }
+    
+    # Process affected segments
+    for (i in affected_indices) {
+      original_segment <- signal_gr[i]
+      
+      # Find the parts of this segment that don't overlap with centromeres
+      non_centromeric_parts <- setdiff(original_segment, centromere_gr)
+      
+      if (length(non_centromeric_parts) > 0) {
+        # Preserve original metadata for all split parts
+        mcols(non_centromeric_parts) <- mcols(original_segment)
+        final_segments <- append(final_segments, list(non_centromeric_parts))
+      }
+    }
+    
+    # Combine all segments
+    if (length(final_segments) > 0) {
+      # Flatten the list and combine GRanges objects
+      all_ranges <- unlist(GRangesList(final_segments))
+      filtered_signal <- all_ranges
+    } else {
+      filtered_signal <- GRanges()
+    }
+  } else {
+    filtered_signal <- signal_gr
+  }
+  
+  # Step 2: If callable_regions_df is provided, intersect with callable regions
+  if (!is.null(callable_regions_df)) {
+    callable_gr <- GRanges(
+      seqnames = callable_regions_df$chr,
+      ranges = IRanges(start = callable_regions_df$start, end = callable_regions_df$end)
+    )
+    
+    # Find overlaps between filtered signal and callable regions
+    overlaps_callable <- findOverlaps(filtered_signal, callable_gr)
+    
+    if (length(overlaps_callable) > 0) {
+      # Get the overlapping parts while preserving metadata
+      callable_parts <- list()
+      
+      for (i in unique(queryHits(overlaps_callable))) {
+        original_segment <- filtered_signal[i]
+        
+        # Find all callable regions that overlap with this segment
+        overlapping_callable_indices <- subjectHits(overlaps_callable)[queryHits(overlaps_callable) == i]
+        overlapping_callable <- callable_gr[overlapping_callable_indices]
+        
+        # Get intersection of this segment with callable regions
+        intersected_parts <- intersect(original_segment, overlapping_callable)
+        
+        if (length(intersected_parts) > 0) {
+          # Preserve metadata from original segment
+          mcols(intersected_parts) <- mcols(original_segment)
+          callable_parts <- append(callable_parts, list(intersected_parts))
+        }
+      }
+      
+      # Combine all callable parts
+      if (length(callable_parts) > 0) {
+        filtered_signal <- unlist(GRangesList(callable_parts))
+      } else {
+        filtered_signal <- GRanges()
+      }
+    } else {
+      filtered_signal <- GRanges()
+    }
+  }
+  
+  # Convert back to dataframe
+  if (length(filtered_signal) > 0) {
+    result_df <- data.frame(
+      chr = as.character(seqnames(filtered_signal)),
+      from = start(filtered_signal),
+      to = end(filtered_signal),
+      major = mcols(filtered_signal)$major,
+      ratio = mcols(filtered_signal)$ratio,
+      type = mcols(filtered_signal)$type,
+      minor = mcols(filtered_signal)$minor,
+      stringsAsFactors = FALSE
+    )
+  } else {
+    # Return empty dataframe with correct structure
+    result_df <- data.frame(
+      chr = character(0),
+      from = numeric(0),
+      to = numeric(0),
+      major = numeric(0),
+      ratio = numeric(0),
+      type = character(0),
+      minor = numeric(0),
+      stringsAsFactors = FALSE
+    )
+  }
+  
+  return(result_df)
+}
