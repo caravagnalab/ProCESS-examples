@@ -23,12 +23,12 @@ process_exposures_list <- list()
 
 for (spn_id in spn) {
   exposure_sbs <- tryCatch({
-    get_sbs_exposures(spn = spn_id, base_path = base_path)
+    get_exposures_by_context(spn = spn_id, base_path = base_path, context = "SBS")
   }, error = function(e) {
     warning("Failed for ", spn_id, ": ", e$message)
     return(NULL)
   })
-
+  
   process_exposures_list[[spn_id]] <- exposure_sbs
 }
 

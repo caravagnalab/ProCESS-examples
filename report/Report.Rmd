@@ -42,7 +42,7 @@ metadata <- read.table(file = "SCOUT_metadata.csv",header = T,sep = "\t")
 <!-- Load the data  -->
 
 ```{r load_data, echo=FALSE, include=FALSE}
-sample_forest <- load_samples_forest(params$files$sample_forest)
+sample_forest <- load_sample_forest(params$files$sample_forest)
 phylo_forest <- load_phylogenetic_forest(params$files$phylo_forest)
 files_cna <- list.files(params$cna_dir, full.names = T, pattern = '_cna.rds')
 sample_names <- sapply(files_cna, function(path) {
@@ -231,7 +231,11 @@ For `r params$spn` the following SBS and ID signatures are added to the simulate
 
 ```{r mutation_engine, echo=FALSE}
 exposure_table <- phylo_forest$get_exposures()
-reactable(exposure_table,filterable = FALSE, resizable = T,highlight = T,defaultPageSize = 10,
+df_sign <- get_exposure_ends(phylo_forest) %>% 
+    mutate(start_time = round(time),
+           end_time = round(end_time)-1) %>% 
+  select(start_time, end_time, signature, exposure, type)
+reactable(df_sign,filterable = FALSE, resizable = T,highlight = T,defaultPageSize = 10,
           bordered = TRUE, striped = TRUE, fullWidth = TRUE)
 ```
 

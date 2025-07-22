@@ -14,7 +14,7 @@ m_engine <- MutationEngine(setup_code = "GRCh38",tumour_type = "COADREAD", conte
 
 
 mu_SNV = 1e-8
-mu_CNA = 1e-10
+mu_CNA = 2e-10
 mu_INDELs = 1e-9
 ##112707518-112846239 
 CNA_Clone2 = ProCESS::CNA(type = "D", "5",
@@ -25,7 +25,7 @@ m_engine$add_mutant(mutant_name = "Clone 1",
                     passenger_rates = c(SNV = mu_SNV, CNA = 0,indel=mu_INDELs),drivers = list(list("APC R1450*", allele = 1)))
 m_engine$add_mutant(mutant_name = "Clone 2",passenger_rates = c(SNV = mu_SNV, CNA = mu_CNA,indel=mu_INDELs),drivers = list(CNA_Clone2))
 mu_SNV = 1e-8
-mu_CNA = 1e-13
+mu_CNA = 1e-12
 m_engine$add_mutant(mutant_name = "Clone 3",passenger_rates = c(SNV = mu_SNV, CNA = mu_CNA,indel=mu_INDELs),drivers = list("TP53 R175H"))
 
 m_engine$add_mutant(mutant_name = "Clone 4",passenger_rates = c(SNV = mu_SNV, CNA = mu_CNA,indel=mu_INDELs),drivers = list(WGD,"PIK3CA R88Q"))

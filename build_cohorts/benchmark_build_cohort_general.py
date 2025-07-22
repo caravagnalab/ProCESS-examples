@@ -652,7 +652,7 @@ output_dir_combination="${output_base_dir}/{JOB_NAME}"
 
 config={CONFIG}
 nextflow run nf-core/sarek -r 3.5.1 --genome GATK.GRCh38 --input $input \
-    --step variant_calling --tools cnvkit,freebayes,strelka,haplotypecaller,ascat,mutect2 --joint_mutect2 true \
+    --step variant_calling --tools cnvkit,freebayes,strelka,ascat,mutect2 --joint_mutect2 true \
     --outdir $output_dir_combination -profile singularity -c $config
 """
 
@@ -965,9 +965,6 @@ if (__name__ == '__main__'):
 
     subprocess.run(cmd)
 
-    with open(tumour_type_file) as cancer_type_file:
-        cancer_type = cancer_type_file.read().strip()
-
     
     config_file = args.config
     if not os.path.exists(sarek_dir):
@@ -1167,6 +1164,9 @@ if (__name__ == '__main__'):
                     sequenza_launcher = sequenza_launcher_orig
                     
                     #tumourevo sh file and csv file
+                     with open(tumour_type_file) as cancer_type_file:
+                         cancer_type = cancer_type_file.read().strip()
+
                     variant_callers = ['freebayes', 'strelka', 'mutect2']
                     cn_caller = ['ascat', 'sequenza']
                     combinations = []

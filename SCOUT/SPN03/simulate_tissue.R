@@ -8,7 +8,7 @@ setwd(base)
 unlink("SPN03", recursive = TRUE)
 
 set.seed(12345)
-sim <- SpatialSimulation(name = 'SPN03', seed = 12345, save_snapshots = T)
+sim <- TissueSimulation(name = 'SPN03', seed = 12345, save_snapshots = T)
 sim$history_delta <- 1 
 sim$death_activation_level <- 50
 
@@ -91,8 +91,8 @@ t4 <- plot_tissue(sim) + geom_rect(xmin = bbox_lower_corner[1], xmax = bbox_uppe
                                    ymin = bbox_lower_corner[2], ymax = bbox_upper_corner[2],
                                    fill = NA, color = "black")
 
-forest <- sim$get_samples_forest()
-# plt_forest <- plot_forest(forest) %>%
-#   annotate_forest(forest, MRCAs = T, samples = T)
+forest <- sim$get_sample_forest()
+plt_forest <- plot_forest(forest) %>%
+   annotate_forest(forest, MRCAs = T, samples = T)
 
 forest$save("sample_forest.sff")

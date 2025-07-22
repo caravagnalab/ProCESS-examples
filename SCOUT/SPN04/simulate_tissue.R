@@ -9,7 +9,7 @@ seed = 777
 set.seed(seed)
 
 # Prep simulation ####
-sim <- SpatialSimulation("SPN04", width=1e3, height=1e3, seed = seed, save_snapshots = TRUE)
+sim <- TissueSimulation("SPN04", width=1e3, height=1e3, seed = seed, save_snapshots = TRUE)
 sim$history_delta <- 1
 sim$death_activation_level <- 50
 
@@ -73,12 +73,13 @@ x_center = 470
 y_center = 470
 d = 35
 bbox = list(lower_corner=c(x_center-d,y_center-d), upper_corner=c(x_center+d,y_center+d))
-sim$sample_cells("SPN04_1.2", bbox$lower_corner, bbox$upper_corner)
+sim$sample_cells("SPN04_2.1", bbox$lower_corner, bbox$upper_corner)
 t2 <- plot_tissue(sim, num_of_bins = 300)
 
 # Save results ####
 # Forest
-forest <- sim$get_samples_forest()
+
+forest <- sim$get_sample_forest()
 plot_forest(forest) %>% 
   annotate_forest(forest, MRCAs = TRUE, samples = TRUE)
 forest$save(paste0(outdir,"sample_forest.sff"))
