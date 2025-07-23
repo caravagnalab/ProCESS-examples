@@ -226,6 +226,9 @@ for (spn in names(ground_truth)) {
 
 sankey_df <- prepare_sankey_data(ground_truth_nested, sparsesig_aligned, sigprof_aligned)
 
+# Substitution: SPN##_X.1 -> SPN##_1.X
+sankey_df$Sample_ID <- gsub("^(SPN\\d+)_([0-9]+)\\.1$", "\\1_1.\\2", sankey_df$Sample_ID)
+
 saveRDS(sankey_df, file = "validation/sankey_signatures_sbs.rds")
 
 sankey_df <- sankey_df %>%
