@@ -16,7 +16,7 @@ m_engine$set_germline_subject("NA18940")
 
 mu_SNV = 1e-9
 mu_ID = 1e-10
-mu_CNA = 1e-10
+mu_CNA = 1e-12
 
 driver_Clone1 = list("IDH1 R132C")
 driver_Clone2 = CNA(type='A', chr='8', chr_pos=46000001, len=99138636)
@@ -39,7 +39,7 @@ m_engine$add_mutant(mutant_name = "Clone 3",
 
 # Mutational Signatures ####
 m_engine$add_exposure(time = 0, coefficients = c(SBS5 = 0.5, SBS1 = 0.2, SBS18 = 0.3, ID1 = 0.5, ID2 = 0.5))
-m_engine$add_exposure(time = treatment_info$treatment_start, coefficients = c(SBS5 = 0.4, SBS1 = 0.1, SBS18 = 0.2, SBS25 = 0.3, ID1 = 0.5, ID2 = 0.5))
+m_engine$add_exposure(time = treatment_info$treatment_start, coefficients = c(SBS25 = 1, ID1 = 0.5, ID2 = 0.5))
 m_engine$add_exposure(time = treatment_info$treatment_end, coefficients = c(SBS5 = 0.5, SBS1 = 0.2, SBS18 = 0.3, ID1 = 0.5, ID2 = 0.5))
 
 # Phylo forest ######
