@@ -2,7 +2,7 @@ process BCFTOOLS_VIEW {
     tag { "${status} ${caller} chr${chromosome}" }
 
     input:
-    tuple val(row), val(chromosome), val(caller), val(status), path(vcf_path), path(vcf_tbi_path)
+    tuple val(row), val(chromosome), val(caller), val(status), val(mut_type), file(vcf_path), file(vcf_tbi_path)
 
     output:
     tuple val(row), val(chromosome), val(caller), path("*.vcf.gz"),	emit:chr_vcf
@@ -22,6 +22,12 @@ process BCFTOOLS_VIEW {
 
     if (caller=="mutect2"){
       out_vcf = "chr${chromosome}_${row.spn}.vcf.gz"
+    } else if (caller=="strelka" && status == "somatic"){
+      if (mut_type=="snv"){
+        out_vcf = "chr${chromosome}_${row.sample}.snv.vcf.gz"
+      } else{
+        out_vcf = "chr${chromosome}_${row.sample}.indel.vcf.gz"
+      }
     } else {
       out_vcf = "chr${chromosome}_${row.sample}.vcf.gz"
     }

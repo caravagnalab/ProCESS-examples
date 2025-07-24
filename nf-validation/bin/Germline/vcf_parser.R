@@ -1,3 +1,4 @@
+library(dplyr)
 parse_HaplotypeCaller = function(file, out_file = '', save = TRUE){
   vcf = vcfR::read.vcfR(file)
   tb = vcfR::vcfR2tidy(vcf)

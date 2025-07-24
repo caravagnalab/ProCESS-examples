@@ -1,37 +1,28 @@
-
-process_seq_results <- function(gt_path, spn, purity, coverage, chromosome, base_path, outdir) {
+library(dplyr)
+process_seq_results <- function(spn, purity, coverage, chromosome, base_path, outdir,rds_path,sample_id) {
   # Construct the output folder path
   combination = paste0(coverage, "x_", purity, "p")
   #combination <- paste0("purity_", purity, "_coverage_", coverage, "x")
-  folder_path <- file.path(outdir, spn, combination, "process")
-  dir.create(folder_path, recursive = TRUE, showWarnings = TRUE)
+  #folder_path <- file.path(outdir, spn, combination, "process")
+  #dir.create(folder_path, recursive = TRUE, showWarnings = TRUE)
   
   # Load sequencing results
   message("Reading sequencing results...")
-  seq_res <- readRDS(gt_path)
+  seq_res <- readRDS(rds_path)
   
   # Filter out germinal mutations
   message("Filtering out germinal mutations...")
   seq_res <- seq_res %>% dplyr::filter(classes!="germinal")
-  
-  # Extract sample names from column headers
-  samples <- str_replace(colnames(seq_res)[grepl(".VAF", colnames(seq_res))], ".VAF", "")
-  
-  # Iterate through each sample and process mutations
-  for (sample in samples) {
-    message(paste0("Parsing sample ", sample, "..."))
-    sample_path <- file.path(folder_path, sample)
-    dir.create(sample_path, recursive = TRUE, showWarnings = TRUE)
-    
-    for (mutation in c("SNV", "INDEL")) {
-      message(paste0("Parsing ", mutation, " mutations..."))
-      mut_path <- file.path(sample_path, mutation)
-      dir.create(mut_path, recursive = TRUE, showWarnings = TRUE)
-      
-      message(paste0("Parsing chr", chromosome, "..."))
-      process_sample_mutation_chromosome(sample, mutation, chromosome, seq_res, mut_path)
-    }
-  }
+  message(paste0("Parsing sample ", sample_id, "..."))
+
+  for (mutation in c("SNV", "INDEL")) {
+    message(paste0("Parsing ", mutation, " mutations..."))
+    mut_path <- file.path(sample_id, mutation)
+    dir.create(mut_path, recursive = TRUE, showWarnings = TRUE)
+
+    message(paste0("Parsing chr", chromosome, "..."))
+    process_sample_mutation_chromosome(sample_id, mutation, chromosome, seq_res, mut_path)
+  }  
 }
 
 process_sample_mutation_chromosome <- function(sample, mutation, chromosome, seq_res, mut_path) {

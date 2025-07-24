@@ -3,62 +3,27 @@ library(vcfR)
 
 COLS_TO_KEEP <- c("chr", "from", "to", "ref","alt","mutationID","NV","DP","VAF","FILTER")
 
-
-process_strelka_results = function(gt_path, spn, purity, coverage, chromosome, base_path, outdir) {
+#function(spn, purity, coverage, chromosome, base_path, outdir,vcf_path, sample_id) {
+process_strelka_results = function(spn, purity, coverage, chromosome, base_path, outdir,vcf_path,sample_id,mut_type) {
   # Extract purity and coverage values from the file path
   # spn <- gsub(".*SCOUT/(SPN[0-9]+).*", "\\1", gt_path)
   # purity <- gsub(".*purity_([0-9.]+).*", "\\1", gt_path)
   # coverage <- gsub(".*coverage_([0-9]+).*", "\\1", gt_path)
   combination = paste0(coverage, "x_", purity, "p")
+
+ 
+  message(paste0("Parsing sample ", sample_id, "..."))
   
-  sample_names = list.files(file.path(outdir, spn, combination, "process"), full.names = F)
-  folder_path <- file.path(outdir, spn, combination, "strelka")
-  dir.create(folder_path, recursive = T, showWarnings = T)
   
-  for (sample in sample_names) {
-    message(paste0("Parsing sample ", sample, "..."))
-    
-    sample_path <- file.path(folder_path, sample)
-    dir.create(sample_path, recursive = TRUE, showWarnings = FALSE)
-    
-    #vcf_folder = file.path(strelka_vcfs_dir, paste0(sample, "_vs_normal_sample"))
-    #vcf_folder = paste0("/orfeo/cephfs/scratch/cdslab/shared/SCOUT/",spn,"/sarek/",coverage,"x_",purity,"p/variant_calling/strelka/", sample, "_vs_normal_sample/")
-    # vcf_files = list.files(vcf_folder, full.names = T)
-    # vcf_files = vcf_files[!grepl(".tbi", vcf_files)]
-    
-    for (mutation in c("SNV", "INDEL")) {
-      message(paste0("Parsing ", mutation, " mutations..."))
-      mut_path <- file.path(sample_path, mutation)
-      dir.create(mut_path, recursive = TRUE, showWarnings = FALSE)
-      
-      if (mutation == "SNV") {
-        vcf_path = get_sarek_vcf_file(spn, sample, coverage, purity, caller = "strelka", type = "tumour", basedir = base_path)$snvs_vcf
-      } else {
-        vcf_path = get_sarek_vcf_file(spn, sample, coverage, purity, caller = "strelka", type = "tumour", basedir = base_path)$indels_vcf
-      }
-      
-      vcf = vcfR::read.vcfR(vcf_path)
-      
-      message(paste0("Parsing ", chromosome, "..."))
-      strelka_res = get_strelka_res(vcf, sample_id = sample, filter_mutations = F, chromosome = paste0("chr", chromosome), mut_type = mutation)
-      
-      # Save the processed mutation data
-      file_name <- file.path(mut_path, paste0("chr", chromosome, ".rds"))
-      saveRDS(strelka_res, file_name)
-      
-      # chromosomes = unique(vcfR::getCHROM(vcf))
-      # 
-      # # Process each chromosome in parallel
-      # parallel::mclapply(chromosomes, function(chromosome) {
-      #   message(paste0("Parsing ", chromosome, "..."))
-      #   strelka_res = get_strelka_res(vcf, sample_id = sample, filter_mutations = F, chromosome = chromosome, mut_type = mutation)
-      #   
-      #   # Save the processed mutation data
-      #   file_name <- file.path(mut_path, paste0(chromosome, ".rds"))
-      #   saveRDS(strelka_res, file_name)
-      # }, mc.cores = 1)  # Utilize 4 CPU cores
-    }
-  }
+  
+  mut_path <- file.path(sample_id, mut_type)
+  dir.create(mut_path, recursive = TRUE, showWarnings = FALSE)
+
+  vcf = vcfR::read.vcfR(vcf_path)
+  message(paste0("Parsing ", chromosome, "..."))
+  strelka_res = get_strelka_res(vcf, sample_id = sample_id, filter_mutations = F, chromosome = paste0("chr", chromosome), mut_type = mut_type)
+  file_name <- file.path(mut_path, paste0("chr", chromosome, ".rds"))
+  saveRDS(strelka_res, file_name)
 }
 
 retrieve_ref_alt = function(row, mut_type) {

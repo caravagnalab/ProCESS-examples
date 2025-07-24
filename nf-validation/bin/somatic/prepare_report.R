@@ -9,19 +9,21 @@ source("utils/utils.R")
 source("utils/plot_utils.R")
 
 option_list <- list(make_option(c("--spn_id"), type = "character", default = 'SPN04'),
+		    make_option(c("--base_path"), type = "character", default = '/orfeo/scratch/cdslab/shared/SCOUT/'), ## the folder where process data are
                     make_option(c("--purity"), type = "character", default = '0.3'),
-                    make_option(c("--coverage"), type = "character", default = '50'))
+                    make_option(c("--coverage"), type = "character", default = '50'),
+		    make_option(c("--input_dir"), type = "character", default = '')) ## where the first part of validation script has been run
 
 opt_parser <- OptionParser(option_list = option_list)
 opt <- parse_args(opt_parser)
-data_dir = '/orfeo/scratch/cdslab/shared/SCOUT/'
+data_dir = opt$base_path
 spn_id = opt$spn_id
 coverage = opt$coverage
 purity = opt$purity
-
+validation_dir = opt$input_dir
 # gender_file <- read.table(file = paste0(data_dir,spn_id,"/process/subject_gender.txt"),header = FALSE,col.names = "gender")
 # gender <- gender_file$gender
-gender = get_process_gender(spn = spn_id)
+gender = get_process_gender(spn = spn_id,base_path=data_dir)
 if (gender=="XX"){
   chromosomes = c(paste0('chr',1:22), 'chrX')
 } else {
@@ -35,8 +37,8 @@ mut_types = c("INDEL", "SNV")
 comb = list(PI = purity, COV = coverage)
 samples = get_sample_names(spn = spn_id)
 
-input_dir <-  paste0(data_dir,spn_id,"/validation/somatic/")
-outdir <- paste0(data_dir,spn_id,"/validation/somatic/report")
+input_dir <-  paste0(validation_dir,"/somatic/")
+outdir <- paste0(validation_dir,"/somatic/report")
 dir.create(outdir, recursive = T, showWarnings = F)
 
 # Preparing report
@@ -44,7 +46,6 @@ message("Parsing combination: purity=", purity, ", cov=", coverage)
 caller = "mutect2"
 sample_id = samples[1]
 mut_type = "SNV"
-caller =
 for (caller in callers) {
   message("  Using caller: ", caller)
   for (mut_type in mut_types) {

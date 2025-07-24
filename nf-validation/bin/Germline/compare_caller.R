@@ -13,18 +13,22 @@ source('../../getters/sarek_getters.R')
 source('../../getters/process_getters.R')
 
 option_list <- list( 
-  make_option(c("-s", "--SPN"), type="character", default='SPN03', help="SPN name")
+  make_option(c("-s", "--SPN"), type="character", default='SPN03', help="SPN name"),
+  make_option(c("-b", "--basedir"), type="character", default='/orfeo/scratch/cdslab/shared/SCOUT/', help="Base directory path"),
+  make_option(c("-d", "--outdir"), type="character", default='validation', help="Output directory path")
 )
 
 
 param <- parse_args(OptionParser(option_list=option_list))
-dir <- '/orfeo/scratch/cdslab/shared/SCOUT/'
+dir <- params$outdir #'/orfeo/scratch/cdslab/shared/SCOUT/'
 spn <- param$SPN
-vcf <- paste0(dir, spn, "/validation/germline/vcf")
-output <- paste0(dir, spn, "/validation/germline/rds")
-report <- paste0(dir, spn, "/validation/germline/report")
-dir.create(output, recursive = T, showWarnings = F)
-dir.create(report, recursive = T, showWarnings = F)
+basedir <- params$basedir
+vcf <- paste0(basedir, "/germline/normal_sample/")
+output <- paste0(outdir, "/germline/normal_sample/")
+report <- paste0(outdir, "/germline/report")
+#dir.create(output, recursive = T, showWarnings = F)
+#dir.create(report, recursive = T, showWarnings = F)
+#"${params.outdir}/germline/${row.sample}/${caller}/vcf"
 
 tool <- c('haplotypecaller', 'freebayes', 'strelka')
 list_tool <- list()
@@ -34,7 +38,7 @@ for (t in tool){
   print(t)
   vcf_list = lapply(1:22, FUN = function(chr){
     print(chr)
-    rds_file = paste0(output, '/chr', chr, '_normal_sample.', t, '.rds')
+    rds_file = paste0(output, t, '/rds/chr', chr, '_normal_sample.', t, '.rds')
     
     if (!file.exists(rds_file)){
       if (t == 'haplotypecaller'){
