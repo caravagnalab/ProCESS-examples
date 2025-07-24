@@ -4,6 +4,7 @@ library(dplyr)
 
 dir <- getwd()
 outdir <- "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/SPN04/process/"
+#outdir <- "/orfeo/cephfs/scratch/cdslab/gsantacatterina/ProCESS-examples/SCOUT/SPN04/test/"
 setwd(outdir)
 seed = 777
 set.seed(seed)
@@ -59,13 +60,14 @@ v <- sim$var("Clone 3")
 condition <- v <= 100
 sim$run_until(condition)
 
-sim$update_rates("Clone 3",rates = c(growth = .05, death=.000))
+sim$update_rates("Clone 3",rates = c(growth = .1, death=.000))
 sim$run_up_to_time(sim$get_clock() + 40)
+sim$update_rates("Clone 3",rates = c(growth = .5, death=.000))
+sim$run_up_to_size("Clone 3", 80000)
 treatment_end <- sim$get_clock()
 
 # Relapse ####
-sim$update_rates("Clone 3",rates = c(growth = .5, death=.001))
-sim$run_up_to_size("Clone 3", 60000)
+sim$run_up_to_size("Clone 3", 100000)
 
 
 # Sample B ####
@@ -74,8 +76,12 @@ sim$run_up_to_size("Clone 3", 60000)
 # bbox <- sim$search_sample(c("Clone 3" = ncells), n_w, n_h)
 # sim$sample_cells("SPN04_2.1", bbox$lower_corner, bbox$upper_corner)
 # t2 <- plot_tissue(sim, num_of_bins = 300)
-x_center = 500
-y_center = 350
+x_center = 340
+y_center = 500
+d = 23
+
+x_center = 370
+y_center = 370
 d = 23
 bbox = list(lower_corner=c(x_center-d,y_center-d), upper_corner=c(x_center+d,y_center+d))
 sim$sample_cells("SPN04_2.1", bbox$lower_corner, bbox$upper_corner)
@@ -91,5 +97,6 @@ forest$save(paste0(outdir,"sample_forest.sff"))
 
 # Treatment Info
 treatment_info <- list(treatment_start=treatment_start, treatment_end=treatment_end)
-plot_muller(sim)
+plot_muller(sim) +
+  ggplot2::geom_vline(xintercept = c(treatment_start, treatment_end))
 saveRDS(treatment_info, "treatment_info.rds")
