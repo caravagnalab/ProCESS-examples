@@ -892,7 +892,7 @@ if (__name__ == '__main__'):
                     },
                'tumour': {
                     'max_coverage': 200,
-                    'purities': [0.3,0.6,0.9]
+                    'purities': [0.9,0.3,0.6]
                     }
                 }
 
