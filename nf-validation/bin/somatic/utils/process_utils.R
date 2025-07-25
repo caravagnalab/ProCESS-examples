@@ -17,11 +17,11 @@ process_seq_results <- function(spn, purity, coverage, chromosome, base_path, ou
 
   for (mutation in c("SNV", "INDEL")) {
     message(paste0("Parsing ", mutation, " mutations..."))
-    mut_path <- file.path(sample_id, mutation)
+    mut_path <- file.path(mutation)
     dir.create(mut_path, recursive = TRUE, showWarnings = TRUE)
 
     message(paste0("Parsing chr", chromosome, "..."))
-    process_sample_mutation_chromosome(sample_id, mutation, chromosome, seq_res, mut_path)
+    process_sample_mutation_chromosome(sample_id,mutation, chromosome, seq_res, mut_path)
   }  
 }
 

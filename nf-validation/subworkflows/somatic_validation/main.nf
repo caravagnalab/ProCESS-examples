@@ -11,11 +11,11 @@ workflow SOMATIC_VALIDATION {
     main:
     t_sample_ch
         .flatMap { row ->
-            def chromosomes = (21..22).collect { it.toString() } + ['X']
+            def chromosomes = (1..22).collect { it.toString() } + ['X']
             if (row.sex == 'XY') {
                 chromosomes += 'Y'
             }
-            def callers = ['mutect2', 'strelka']
+            def callers = ['mutect2', 'strelka','freebayes']
             def status = "somatic"
             chromosomes.collectMany { chr ->
                 callers.collect { caller ->
@@ -35,11 +35,11 @@ workflow SOMATIC_VALIDATION {
                 def snv_tbi = "${row.directory}/${row.spn}/sarek/${row.coverage}x_${row.purity}p/variant_calling/${caller}/${row.sample}_vs_normal_sample/${row.sample}_vs_normal_sample.strelka.somatic_snvs.vcf.gz.tbi"
                 def indel_vcf = "${row.directory}/${row.spn}/sarek/${row.coverage}x_${row.purity}p/variant_calling/${caller}/${row.sample}_vs_normal_sample/${row.sample}_vs_normal_sample.strelka.somatic_indels.vcf.gz"
                 def indel_tbi = "${row.directory}/${row.spn}/sarek/${row.coverage}x_${row.purity}p/variant_calling/${caller}/${row.sample}_vs_normal_sample/${row.sample}_vs_normal_sample.strelka.somatic_indels.vcf.gz.tbi"
-                def mut_type_indels = "indel"
-                def mut_type_snv = "snv" 
+                def mut_type_indels = "INDEL"
+                def mut_type_snv = "SNV" 
                 return [
-                    [row, chr, caller, status, mut_type_indels, file(snv_vcf), file(snv_tbi)],
-                    [row, chr, caller, status, mut_type_snv,file(indel_vcf), file(indel_tbi)]
+                    [row, chr, caller, status, mut_type_snv, file(snv_vcf), file(snv_tbi)],
+                    [row, chr, caller, status, mut_type_indels,file(indel_vcf), file(indel_tbi)]
                 ]
             } else if (caller=="freebayes") { //freebayes/SPN01_1.2_vs_normal_sample/SPN01_1.2_vs_normal_sample.freebayes.vcf.gz
                 def vcf_path = "${row.directory}/${row.spn}/sarek/${row.coverage}x_${row.purity}p/variant_calling/${caller}/${row.sample}_vs_normal_sample/${row.sample}_vs_normal_sample.freebayes.vcf.gz"
@@ -99,16 +99,16 @@ workflow SOMATIC_VALIDATION {
         .set { process_somatic_jobs_ch }
 
 
-    viewed_vcfs=BCFTOOLS_VIEW(somatic_jobs_ch)
+    //viewed_vcfs=BCFTOOLS_VIEW(somatic_jobs_ch)
 
-    //BCFTOOLS_VIEW(somatic_jobs_ch)
-    //SOMATIC_PREPROCESS(BCFTOOLS_VIEW.out.chr_vcf)
+    BCFTOOLS_VIEW(somatic_jobs_ch)
+    SOMATIC_PREPROCESS(BCFTOOLS_VIEW.out.chr_vcf)
 
     PROCESS_PREPROCESS(process_somatic_jobs_ch)
 
-    //r_output = SOMATIC_PREPROCESS.out.rds
+    r_output = SOMATIC_PREPROCESS.out.rds
     
     emit:
-    viewed_vcfs
-    //r_output
+    //viewed_vcfs
+    r_output
 }

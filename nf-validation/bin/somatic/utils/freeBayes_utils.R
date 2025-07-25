@@ -349,13 +349,14 @@ get_freeBayes_res = function(vcf, sample_id, filter_mutations = FALSE, chromosom
 }
 
 
-process_freebayes_results = function(gt_path, 
-                                     spn, 
+process_freebayes_results = function(spn, 
                                      purity, 
                                      coverage, 
                                      chromosome, 
                                      base_path, 
-                                     outdir, 
+                                     outdir,
+                                     vcf_path,
+                                     sample_id,
                                      pass_quality, 
                                      min_vaf, 
                                      max_normal_vaf) {
@@ -363,89 +364,25 @@ process_freebayes_results = function(gt_path,
   # Extract purity and coverage values from the file path
   combination = paste0(coverage, "x_", purity, "p")
   
-  sample_names = list.files(file.path(outdir, spn, combination, "process"), full.names = F)
-  folder_path <- file.path(outdir, spn, combination, "freebayes")
-  dir.create(folder_path, recursive = T, showWarnings = T)
+  vcf = vcfR::read.vcfR(vcf_path)
   
-  for (sample in sample_names) {
-    message(paste0("Parsing sample ", sample, "..."))
+  message(paste0("Parsing ", chromosome, "..."))
+  
+  for (mutation in c("SNV", "INDEL")) {
+    message(paste0("Parsing ", mutation, " mutations..."))
+    dir.create(mutation, recursive = TRUE, showWarnings = FALSE)
     
-    sample_path <- file.path(folder_path, sample)
-    dir.create(sample_path, recursive = TRUE, showWarnings = FALSE)
-    
-    #vcf_folder = file.path(freebayes_vcfs_dir, paste0(sample, "_vs_normal_sample"))
-    #vcf_folder = paste0("/orfeo/cephfs/scratch/cdslab/shared/SCOUT/",spn,"/sarek/",coverage,"x_",purity,"p/variant_calling/freebayes/", ")
-    # vcf_files = list.files(vcf_folder, full.names = T)
-    # vcf_path = vcf_files[!grepl(".tbi", vcf_files)]
-    
-    vcf_path = get_sarek_vcf_file(spn, sample, coverage, purity, caller = "freebayes", type = "tumour", basedir = base_path)$vcf
-    vcf = vcfR::read.vcfR(vcf_path)
-    
-    message(paste0("Parsing ", chromosome, "..."))
-    
-    mutation = "INDEL"
-    for (mutation in c("SNV", "INDEL")) {
-      message(paste0("Parsing ", mutation, " mutations..."))
-      mut_path <- file.path(sample_path, mutation)
-      dir.create(mut_path, recursive = TRUE, showWarnings = FALSE)
-      
-      mut_data = get_freeBayes_res(
-        vcf, 
-        sample, 
-        filter_mutations = FALSE, 
-        chromosome = paste0("chr", chromosome), 
-        mut_type = mutation, 
-        pass_quality = pass_quality, 
-        min_vaf = min_vaf, 
-        max_normal_vaf = max_normal_vaf
-      )
-      
-      # if (mutation == "SNV") {
-      #   mut_data = caller_res %>% 
-      #     dplyr::filter(nchar(ref) == 1 & nchar(alt) == 1)
-      # } else if (mutation == "INDEL") {
-      #   mut_data = caller_res %>% 
-      #     dplyr::filter(nchar(ref) != 1 | nchar(alt) != 1)
-      # }
-      
-      # Save the processed mutation data
-      file_name <- file.path(mut_path, paste0("chr", chromosome, ".rds"))
-      saveRDS(mut_data, file_name)  
-    }
-    
-    # chromosomes = unique(vcfR::getCHROM(vcf))
-    # 
-    # # Process each chromosome in parallel
-    # parallel::mclapply(chromosomes, function(chromosome) {
-    #   message(paste0("Parsing ", chromosome, "..."))
-    #   caller_res = get_freeBayes_res(
-    #     vcf, 
-    #     sample, 
-    #     filter_mutations = FALSE, 
-    #     chromosome = chromosome, 
-    #     mut_type = NULL, 
-    #     pass_quality = pass_quality, 
-    #     min_vaf = min_vaf, 
-    #     max_normal_vaf = max_normal_vaf
-    #   )
-    #   
-    #   for (mutation in c("SNV", "INDEL")) {
-    #     message(paste0("Parsing ", mutation, " mutations..."))
-    #     mut_path <- file.path(sample_path, mutation)
-    #     dir.create(mut_path, recursive = TRUE, showWarnings = FALSE)
-    #     
-    #     if (mutation == "SNV") {
-    #       mut_data = caller_res %>% 
-    #         dplyr::filter(nchar(ref) == 1 & nchar(alt) == 1)
-    #     } else if (mutation == "INDEL") {
-    #       mut_data = caller_res %>% 
-    #         dplyr::filter(nchar(ref) != 1 | nchar(alt) != 1)
-    #     }
-    #     
-    #     # Save the processed mutation data
-    #     file_name <- file.path(mut_path, paste0(chromosome, ".rds"))
-    #     saveRDS(mut_data, file_name)  
-    #   }
-    # }, mc.cores = 1)  # Utilize 4 CPU cores
+    mut_data = get_freeBayes_res(
+      vcf, 
+      sample, 
+      filter_mutations = FALSE, 
+      chromosome = paste0("chr", chromosome), 
+      mut_type = mutation, 
+      pass_quality = pass_quality, 
+      min_vaf = min_vaf, 
+      max_normal_vaf = max_normal_vaf
+    )
+    file_name <- file.path(mutation, paste0("chr", chromosome, ".rds"))
+    saveRDS(mut_data, file_name)  
   }
 }

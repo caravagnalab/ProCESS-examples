@@ -16,13 +16,13 @@ process_strelka_results = function(spn, purity, coverage, chromosome, base_path,
   
   
   
-  mut_path <- file.path(sample_id, mut_type)
-  dir.create(mut_path, recursive = TRUE, showWarnings = FALSE)
+  #mut_path <- file.path(sample_id, mut_type)
+  dir.create(mut_type, recursive = TRUE, showWarnings = FALSE)
 
   vcf = vcfR::read.vcfR(vcf_path)
   message(paste0("Parsing ", chromosome, "..."))
   strelka_res = get_strelka_res(vcf, sample_id = sample_id, filter_mutations = F, chromosome = paste0("chr", chromosome), mut_type = mut_type)
-  file_name <- file.path(mut_path, paste0("chr", chromosome, ".rds"))
+  file_name <- file.path(mut_type, paste0("chr", chromosome, ".rds"))
   saveRDS(strelka_res, file_name)
 }
 

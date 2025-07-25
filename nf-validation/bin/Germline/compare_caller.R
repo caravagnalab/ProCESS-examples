@@ -9,14 +9,14 @@ library(patchwork)
 
 source('vcf_parser.R')
 source('utils.R')
-source('../../getters/sarek_getters.R')
-source('../../getters/process_getters.R')
+source('../getters/sarek_getters.R')
+source('../getters/process_getters.R')
 
-option_list <- list( 
-  make_option(c("-s", "--SPN"), type="character", default='SPN03', help="SPN name"),
-  make_option(c("-b", "--basedir"), type="character", default='/orfeo/scratch/cdslab/shared/SCOUT/', help="Base directory path"),
-  make_option(c("-d", "--outdir"), type="character", default='validation', help="Output directory path")
-)
+# option_list <- list( 
+#   make_option(c("-s", "--SPN"), type="character", default='SPN03', help="SPN name"),
+#   # make_option(c("-b", "--basedir"), type="character", default='/orfeo/scratch/cdslab/shared/SCOUT/', help="Base directory path"),
+#   make_option(c("-o", "--outdir"), type="character", default='validation', help="Output directory path")
+# )
 
 
 param <- parse_args(OptionParser(option_list=option_list))
@@ -24,8 +24,8 @@ dir <- params$outdir #'/orfeo/scratch/cdslab/shared/SCOUT/'
 spn <- param$SPN
 basedir <- params$basedir
 vcf <- paste0(basedir, "/germline/normal_sample/")
-output <- paste0(outdir, "/germline/normal_sample/")
-report <- paste0(outdir, "/germline/report")
+#output <- paste0(basedir, "/germline/normal_sample/")
+#report <- paste0(outdir, "/germline/report")
 #dir.create(output, recursive = T, showWarnings = F)
 #dir.create(report, recursive = T, showWarnings = F)
 #"${params.outdir}/germline/${row.sample}/${caller}/vcf"
@@ -36,25 +36,11 @@ list_tool_pass <- list()
 
 for (t in tool){
   print(t)
-  vcf_list = lapply(1:22, FUN = function(chr){
+  
+  vcf_list = lapply(21:22, FUN = function(chr){
     print(chr)
-    rds_file = paste0(output, t, '/rds/chr', chr, '_normal_sample.', t, '.rds')
-    
-    if (!file.exists(rds_file)){
-      if (t == 'haplotypecaller'){
-        vcf_file = get_sarek_vcf_file(spn = spn, type = 'normal', caller = 'haplotypecaller', coverage = 50, purity = .3)$vcf
-        rds_vcf = parse_HaplotypeCaller(file = vcf_file, out_file = rds_file, save = T)[[paste0(spn, '_normal_sample')]]$mutations
-      } else if (t == 'freebayes') {
-        vcf_file = get_sarek_vcf_file(spn = spn, type = 'normal', caller = 'freebayes', coverage = 50, purity = .3)$vcf
-        rds_vcf = parse_freebayes(file = vcf_file, out_file = rds_file, save = T, cutoff = 0.3)[[paste0(spn, '_normal_sample')]]$mutations
-      } else if (t == 'strelka'){
-        vcf_file = get_sarek_vcf_file(spn = spn, type = 'normal', caller = 'strelka', coverage = 50, purity = .3)$variants_vcf
-        rds_vcf = parse_strelka(file = vcf_file, out_file = rds_file, save = T)[[paste0(spn, '_normal_sample')]]$mutations
-      }
-    } else  {
-      rds_vcf = readRDS(rds_file)[[paste0(spn, '_normal_sample')]]$mutations    
-    }
-    
+    rds_file = paste0(output, t, '/rds/chr', chr, '_normal_sample.rds')
+    rds_vcf = readRDS(rds_file)[[paste0(spn, '_normal_sample')]]$mutations    
     rds_vcf = rds_vcf %>% 
       dplyr::select(chr, from, to, ref, alt, NV, DP, BAF, QUAL, FILTER) %>% 
       dplyr::mutate(mutationID = paste(chr,from, sep = ':'))
@@ -65,13 +51,9 @@ for (t in tool){
   list_tool_pass[[t]] = bind_rows(vcf_list) %>% dplyr::filter(FILTER == "PASS" & !is.na(FILTER))
 }
 
-process_normal <- readRDS(get_mutations(spn = spn, type = 'normal')) %>% 
-  filter(classes =='germinal') %>% 
-  dplyr::mutate(chr = paste0('chr', chr),
-                mutationID = paste(chr,chr_pos, sep = ':')) %>% 
-  dplyr::rename(BAF = normal_sample.VAF,
-         DP = normal_sample.coverage,
-         NV = normal_sample.occurrences)
+process_normal_rds_path <- paste0(output,"process/normal_sample.rds")
+process_normal <- readRDS(process_normal_rds_path) %>% 
+  filter(chr%in%c("chr21","chr22"))
 
 N = 1e5
 DP_list = list(process_normal$DP %>% sample(1e5), list_tool_pass$freebayes$DP %>% sample(1e5), list_tool_pass$haplotypecaller$DP %>% sample(1e5), list_tool_pass$strelka$DP%>% sample(1e5))
@@ -145,7 +127,7 @@ all_baf <- bind_rows(baf_comparison_haplotypecaller %>% mutate(tool = 'haplotype
                      baf_comparison_strelka %>% mutate(tool = 'strelka'), 
                      baf_comparison_freebayes %>% mutate(tool = 'freebayes')) %>% mutate(spn = spn)
 
-saveRDS(object = list(report_metrics=all_metric, baf_metric = all_baf), file = paste0(report,'/normal_metrics.rds'))
+saveRDS(object = list(report_metrics=all_metric, baf_metric = all_baf), file = 'normal_metrics.rds')
 
 print('start plotting')
 x = list(
@@ -191,4 +173,4 @@ report_plot <- DP_density + theme(legend.position = 'none') + DP_ecdf + theme(le
   plot_layout(design = design, guides = 'collect') +
   plot_annotation(title)
 
-ggsave(plot = report_plot, filename = paste0(report,'/normal.png'), dpi = 500, width = 11, height = 12, units = 'in')
+ggsave(plot = report_plot, filename = 'normal.png', dpi = 500, width = 11, height = 12, units = 'in')
