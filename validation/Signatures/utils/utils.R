@@ -19,7 +19,7 @@ align_sparsesig_res <- function(sparse_list) {
         
         # Assign proper rownames consistently
         n_samples <- nrow(mat)
-        sample_ids <- paste0(spn, "_1.", seq_len(n_samples))
+        sample_ids <- get_sample_names(spn) #paste0(spn, "_1.", seq_len(n_samples))
         rownames(mat) <- sample_ids
         
         # Normalize rows to proportions

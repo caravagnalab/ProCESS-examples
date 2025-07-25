@@ -4,18 +4,14 @@ library(ProCESS)
 library(optparse)
 library(tidyr)
 library(ggplot2)
-library(future.apply)
-library(progressr)
 source("../../getters/sarek_getters.R")
 source("../../getters/process_getters.R")
 source("utils.R")
 
-option_list <- list(make_option(c("--spn_id"), type = "character", default = 'SPN04'),
-                    make_option(c("--coverages"), type = "character", default = '50, 100'),
+option_list <- list(make_option(c("--spn_id"), type = "character", default = 'SPN01'),
+                    make_option(c("--coverages"), type = "character", default = '50'),
                     make_option(c("--purities"), default = '0.6, 0.9, 0.3')
 )
-
-colors = c('ascat' = 'coral2', 'sequenza' = 'darkslategray4', 'cnvkit' = 'maroon')
 
 opt_parser <- OptionParser(option_list = option_list)
 opt <- parse_args(opt_parser)
@@ -61,7 +57,7 @@ df_metric <- df_metric %>% mutate(fga = round(fga),
 plt <- df_metric %>% 
   ggplot() + 
   geom_point(aes(x = sample, y = as.numeric(true_purity) - as.numeric(purity), col = tool)) +
-  scale_color_manual(values = colors) +
+  scale_color_manual(values = color_caller) +
   geom_hline(aes(yintercept = 0)) +
   ylab('true_purity - inferred_purity') +
   theme_bw() +
@@ -70,7 +66,7 @@ plt <- df_metric %>%
 df_metric %>% 
   ggplot() + 
   geom_point(aes(x = sample, y = as.numeric(true_ploidy) - as.numeric(ploidy), col = tool)) + 
-  scale_color_manual(values = colors) +
+  scale_color_manual(values = color_caller) +
   geom_hline(aes(yintercept = 0)) +
   ylab('true_ploidy - inferred_ploidy') +
   theme_bw() +
@@ -79,21 +75,15 @@ df_metric %>%
 df_metric %>% 
   ggplot() + 
   geom_point(aes(x = sample, y = correctness_clonal, col = tool)) + 
-  scale_color_manual(values = colors) +
+  scale_color_manual(values = color_caller) +
   ylab('% correctness') +
   theme_bw() +
   facet_grid(as.numeric(coverage)  ~ as.numeric(true_purity))  +
   
-df_metric %>% 
-  ggplot() + 
-  geom_point(aes(x = sample, y = bp_distance, col = tool)) + 
-  scale_color_manual(values = colors) +
-  ylab('breakpoint distance') +
-  theme_bw() +
-  facet_grid(as.numeric(coverage)  ~ as.numeric(true_purity)) + 
-  plot_layout(nrow = 4) +
+  plot_layout(nrow = 3) +
   plot_annotation(title = spn_id) + plot_layout(guides = 'collect')
 
+plt
 ggsave(filename = file.path(data_dir, spn_id, 'validation/cna/report', paste0(spn_id, '.pdf')), plot = plt, dpi = 400, height = 12, width = 12, units = 'in')
 
 

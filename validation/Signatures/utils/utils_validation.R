@@ -1,4 +1,97 @@
+# Align columns for cosine/MSE
+align_matrices <- function(inferred, simulated) {
+  all_sigs <- union(colnames(inferred), colnames(simulated))
+  
+  for (sig in setdiff(all_sigs, colnames(inferred))) {
+    inferred[[sig]] <- rep(0, nrow(inferred))
+  }
+  for (sig in setdiff(all_sigs, colnames(simulated))) {
+    simulated[[sig]] <- rep(0, nrow(inferred))
+  }
+  
+  # Fill missing columns with 0
+  inferred_full <- inferred[, all_sigs, drop = FALSE]
+  simulated_full <- simulated[, all_sigs, drop = FALSE]
+  
+  
+  # Order columns the same way
+  inferred_full <- inferred_full[, sort(colnames(inferred_full))]
+  simulated_full <- simulated_full[, sort(colnames(simulated_full))]
+  
+  return(list(inferred = as.matrix(inferred_full),
+              simulated = as.matrix(simulated_full)))
+}
+
+compute_cosine_mse <- function(inferred, simulated) {
+  aligned <- align_matrices(inferred, simulated)
+  inf_mat <- aligned$inferred
+  sim_mat <- aligned$simulated
+  
+  # Compute per-row cosine similarity and MSE
+  cosine <- mapply(function(x, y) cosine(x, y), 
+                   split(inf_mat, row(inf_mat)), 
+                   split(sim_mat, row(sim_mat)))
+  mse <- rowMeans((inf_mat - sim_mat)^2)
+  
+  return(data.frame(
+    sample = rownames(inf_mat),
+    cosine = cosine,
+    mse = mse
+  ))
+}
+
+
 ### Validation of exposures ###
+per_sample_metrics <- function(inferred_df, simulated_df) {
+  # Get union of all signatures
+  all_sigs <- union(colnames(inferred_df), colnames(simulated_df))
+  
+  # Order columns the same
+  inferred_df <- inferred_df[, sort(colnames(inferred_df))]
+  simulated_df <- simulated_df[, sort(colnames(simulated_df))]
+  
+  # Per sample metrics
+  results <- data.frame()
+  
+  for (sample in rownames(simulated_df)) {
+    inferred_active <- names(inferred_df[which(inferred_df[sample, ] > 0)])
+    simulated_active <- names(simulated_df[which(simulated_df[sample, ] > 0)])
+    
+    TP <- length(intersect(inferred_active, simulated_active))
+    FP <- length(setdiff(inferred_active, simulated_active))
+    FN <- length(setdiff(simulated_active, inferred_active))
+    
+    precision <-  TP / (TP + FP)
+    recall <- TP / (TP + FN)
+    f1 <- ifelse(!is.na(precision) & !is.na(recall) & (precision + recall) > 0,
+                 2 * precision * recall / (precision + recall), NA)
+    
+    results <- rbind(results, data.frame(
+      sample = sample,
+      TP = TP,
+      FP = FP,
+      FN = FN,
+      precision = precision,
+      recall = recall,
+      f1 = f1
+    ))
+  }
+  
+  return(results)
+}
+
+summary_stats <- function(df) {
+  data.frame(
+    metric = c("precision", "recall", "f1"),
+    mean = c(mean(df$precision, na.rm = TRUE),
+             mean(df$recall, na.rm = TRUE),
+             mean(df$f1, na.rm = TRUE)),
+    sd = c(sd(df$precision, na.rm = TRUE),
+           sd(df$recall, na.rm = TRUE),
+           sd(df$f1, na.rm = TRUE))
+  )
+}
+
 
 compute_mse <- function(inferred_mat, ground_truth_mat) {
   inferred_mat <- as.matrix(inferred_mat)

@@ -1,10 +1,11 @@
 # Sankey plot #
 
-generate_sankey_sbs <- function(spn_id, cov = NULL, pur = NULL) {
+generate_sankey_sbs <- function(sankey_df, spn_id, cov = NULL, pur = NULL) {
+  color <- get_colors_for(sankey_df$Signature %>% unique(), pal_name = 'Set3')
   df_spn <- sankey_df %>% filter(SPN == spn_id)
   
-  if (!is.null(cov)) df_spn <- df_spn %>% filter(Coverage == cov)
-  if (!is.null(pur)) df_spn <- df_spn %>% filter(Purity == pur)
+  if (!is.null(cov)) df_spn <- df_spn %>% filter(Coverage == paste0('coverage_', cov))
+  if (!is.null(pur)) df_spn <- df_spn %>% filter(Purity == paste0('purity_', pur))
   
   # Prepare data
   long_df <- df_spn %>%
@@ -32,8 +33,9 @@ generate_sankey_sbs <- function(spn_id, cov = NULL, pur = NULL) {
   if (!is.null(cov)) title_text <- paste0(title_text, ", cov=", cov)
   if (!is.null(pur)) title_text <- paste0(title_text, ", pur=", pur)
   
+  
   ggplot(long_df,
-         aes(x = Method, stratum = Signature, alluvium = alluvium,
+         aes(x = factor(as.factor(Method), levels = c('SigProfiler', 'ProCESS', 'SparseSignatures')), stratum = Signature, alluvium = alluvium,
              y = Exposure, fill = Signature)) +
     geom_flow(stat = "alluvium", lode.guidance = "frontback", color = "gray", alpha = 0.6) +
     geom_stratum(width = 1/3, color = "black") +
@@ -44,8 +46,8 @@ generate_sankey_sbs <- function(spn_id, cov = NULL, pur = NULL) {
       size = 3,
       color = "black"
     ) +
-    scale_fill_brewer(palette = "Set3") +
-    facet_wrap(~ Sample_ID, ncol = 3, scales = "free_y") +
+    scale_fill_manual(values = color) +
+    facet_wrap(~ Sample_ID, ncol = 2, scales = "free_y") +
     theme_minimal() +
     theme(
       legend.position = "none",
@@ -61,12 +63,27 @@ generate_sankey_sbs <- function(spn_id, cov = NULL, pur = NULL) {
     )
 }
 
+get_colors_for <- function(values, pal_name = "Set3") {
+  colors <- NULL
+  if (length(values) > 0) {
+    num_of_values <- values %>% length()
+    if (num_of_values < 3) {
+      colors <- RColorBrewer::brewer.pal(3, pal_name)
+      colors <- colors[seq_len(num_of_values)]
+    } else {
+      colors <- RColorBrewer::brewer.pal(num_of_values, pal_name)
+    }
+    names(colors) <- values
+  }
+  return(colors)
+}
 
-generate_sankey_id <- function(spn_id, cov = NULL, pur = NULL) {
+generate_sankey_id <- function(sankey_df, spn_id, cov = NULL, pur = NULL) {
+  color <- get_colors_for(sankey_df$Signature %>% unique(), pal_name = 'Set2')
   df_spn <- sankey_df %>% filter(SPN == spn_id)
 
-  if (!is.null(cov)) df_spn <- df_spn %>% filter(Coverage == cov)
-  if (!is.null(pur)) df_spn <- df_spn %>% filter(Purity == pur)
+  if (!is.null(cov)) df_spn <- df_spn %>% filter(Coverage == paste0('coverage_', cov))
+  if (!is.null(pur)) df_spn <- df_spn %>% filter(Purity == paste0('purity_', pur))
 
   # Prepare data
   long_df <- df_spn %>%
@@ -106,8 +123,8 @@ generate_sankey_id <- function(spn_id, cov = NULL, pur = NULL) {
       size = 3,
       color = "black"
     ) +
-    scale_fill_brewer(palette = "Set3") +
-    facet_wrap(~ Sample_ID, ncol = 4, scales = "free_y") +
+    scale_fill_manual(values = color) +
+    facet_wrap(~ Sample_ID, ncol = 2, scales = "free_y") +
     theme_minimal() +
     theme(
       legend.position = "none",
@@ -123,7 +140,7 @@ generate_sankey_id <- function(spn_id, cov = NULL, pur = NULL) {
     )
 }
 
-
+tool_col = c('SigProfiler' = 'steelblue', 'SparseSignatures' = 'orange')
 plot_cosine_similarity <- function(data,
                                    x = "Tool",
                                    y = "CosineSimilarity",
@@ -211,6 +228,10 @@ plot_mse_per_signature <- function(data,
   shapeq <- sym(shape_var)
   facet_row_q <- sym(facet_row)
   facet_col_q <- sym(facet_col)
+  
+  if (color_var == 'Tool'){
+    color = tool_col
+  }
 
   coverage_labeller <- as_labeller(function(x) paste0("Coverage: ", x))
 
@@ -220,8 +241,9 @@ plot_mse_per_signature <- function(data,
                labeller = labeller(
                  !!facet_col := label_value,
                  !!facet_row := coverage_labeller
-               )) +
+               ), scales = 'free_x') +
     scale_shape_manual(values = shape_values) +
+    scale_color_manual(values = color) +
     theme_bw(base_size = 14) +
     theme(
       legend.position = "right",

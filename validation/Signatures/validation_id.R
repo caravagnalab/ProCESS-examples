@@ -1,73 +1,84 @@
-setwd(setwd("/orfeo/cephfs/scratch/cdslab/shared/SCOUT/")
-
-pkgs <- c("ProCESS", "tidyverse", "ggplot2", "caret", "ggtext", "reshape2", "lsa", "Metrics", 
-"ggalluvial", "patchwork")
+pkgs <- c("ProCESS", "tidyverse", "ggplot2", 
+          "caret", "ggtext", "reshape2", 
+          "lsa", "Metrics", "ggalluvial", 
+          "patchwork")
 sapply(pkgs, require, character.only = TRUE)
 
-#setwd("/orfeo/cephfs/scratch/cdslab/shared/SCOUT/")
-
-source("getters/process_getters.R")
-source("getters/tumourevo_getters.R")
-source("validation/signatures/utils/utils_getters.R")
-source("validation/signatures/utils/utils_validation.R")
-source("validation/signatures/utils/utils.R")
-source("validation/signatures/utils/utils_plots.R")
+source("../../getters/process_getters.R")
+source("../../getters/tumourevo_getters.R")
+source("utils/utils_getters.R")
+source("utils/utils_validation.R")
+source("utils/utils.R")
+source("utils/utils_plots.R")
 
 
 ##### Use getters to get a pairs of RACES and tumourevo data #####
-
 ### Get ProCESS exposure data ###
-
 base_path <- "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/"
-spn <- c("SPN01", "SPN03", "SPN04")
-context <- "ID"
-
-process_exposures_list <- list()
-
-for (spn_id in spn) {
-  exposure_id <- tryCatch({
-    get_exposures_by_context(spn = spn_id, base_path = base_path, context = context)
-  }, error = function(e) {
-    warning("Failed for ", spn_id, ": ", e$message)
-    return(NULL)
-  })
-
-  process_exposures_list[[spn_id]] <- exposure_id
-}
-
-### Load tumourevo signature data ###
-
-base_path <- "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/"
-spn_list <- c("SPN01", "SPN03", "SPN04")
 coverage_list <- c(50)
 purity_list <- c(0.9)
 dataset <- "SCOUT"
-context <- 'ID83'
+spn <- c("SPN01", "SPN02", "SPN03")
+context <- 'ID'
+if (context == 'ID'){
+  context_sig = 'ID83'
+}
 vcf_caller <- "mutect2"
 cna_caller <- "ascat"
 
-tumourevo_signature_res <- list()
-
-# Iterate over all combinations
-for (spn in spn_list) {
-  tumourevo_signature_res[[spn]] <- list()
+# gt
+ground_truth_nested <- list()
+for (spn_id in spn) {
+  print(spn_id)
+  
+  if (is.null(ground_truth_nested[[spn_id]])) {
+    ground_truth_nested[[spn_id]] <- list()
+  }
   
   for (cov in coverage_list) {
-    tumourevo_signature_res[[spn]][[paste0("coverage_", cov)]] <- list()
+    print(cov)
+    coverage_key <- paste0("coverage_", cov)
+    
+    if (is.null(ground_truth_nested[[spn_id]][[coverage_key]])) {
+      ground_truth_nested[[spn_id]][[coverage_key]] <- list()
+    }
     
     for (pur in purity_list) {
-      message("Processing ", spn, " | Coverage: ", cov, " | Purity: ", pur)
+      print(pur)
+      
+      purity_key <- paste0("purity_", pur)
+      gt_exposure <-  get_process_exposures(spn = spn_id, 
+                                            coverage = cov,
+                                            purity = pur)
+      ground_truth_nested[[spn_id]][[coverage_key]][[purity_key]] <- gt_exposure[[context]]  %>%
+        tibble::column_to_rownames("Sample_ID") %>% 
+        as.matrix()
+    }
+  }
+}
+
+
+### Load tumourevo signature data ###
+tumourevo_signature_res <- list()
+for (spn_id in spn) {
+  tumourevo_signature_res[[spn_id]] <- list()
+  
+  for (cov in coverage_list) {
+    tumourevo_signature_res[[spn_id]][[paste0("coverage_", cov)]] <- list()
+    
+    for (pur in purity_list) {
+      message("Processing ", spn_id, " | Coverage: ", cov, " | Purity: ", pur)
       
       result <- tryCatch({
         # Get SigProfiler paths
         sigprofiler <- get_tumourevo_signatures(
-          spn = spn,
+          spn = spn_id,
           coverage = cov,
           purity = pur,
           vcf_caller = vcf_caller,
           cna_caller = cna_caller,
           tool = "SigProfiler",
-          context = context,  # ID83!
+          context = context_sig,  # ID83!
           base_path = base_path
         )
         
@@ -97,135 +108,94 @@ for (spn in spn_list) {
       
       # Store result if successful
       if (!is.null(result)) {
-        tumourevo_signature_res[[spn]][[paste0("coverage_", cov)]][[paste0("purity_", pur)]] <- result
+        tumourevo_signature_res[[spn_id]][[paste0("coverage_", cov)]][[paste0("purity_", pur)]] <- result
       }
     }
   }
 }
 
-### Summarize Signatures across combinations ###
-
-spn_list <- c("SPN01", "SPN03", "SPN04")
-coverage <- c(50)
-purity_values <- c(0.9)
-
-ground_truth <- list()
-
-for (spn in spn_list) {
-  if (spn %in% names(process_exposures_list)) {
-    gt <- process_exposures_list[[spn]] %>%
-      tibble::column_to_rownames("Sample_ID") %>%
-      as.matrix()
-    
-    ground_truth[[spn]] <- gt
-  } else {
-    warning(paste("Missing ground truth for", spn))
-  }
-}
 
 sigprof_aligned <- align_sigprofiler_res(tumourevo_signature_res)
 
-ground_truth_nested <- list()
-
-for (spn in names(ground_truth)) {
-  if (is.null(ground_truth_nested[[spn]])) {
-    ground_truth_nested[[spn]] <- list()
-  }
-  
-  for (cov in coverage) {
-    coverage_key <- paste0("coverage_", cov)
-    
-    if (is.null(ground_truth_nested[[spn]][[coverage_key]])) {
-      ground_truth_nested[[spn]][[coverage_key]] <- list()
-    }
-    
-    for (purity in purity_values) {
-      purity_key <- paste0("purity_", purity)
-      ground_truth_nested[[spn]][[coverage_key]][[purity_key]] <- ground_truth[[spn]]
-    }
-  }
-}
-
-
 ### Compare exposures of estimated and true signatures  ###
-
 sankey_df <- prepare_sankey_data_id(ground_truth_nested, sigprof_aligned)
 
-saveRDS(sankey_df, file = "validation/sankey_signatures_id.rds")
-
-# Plot sankey for each SPN
-
-sankey_df <- sankey_df %>%
-  dplyr::mutate(
-    Coverage = as.numeric(gsub("coverage_", "", Coverage)),
-    Purity = as.numeric(gsub("purity_", "", Purity))
-  ) %>% 
-  dplyr::filter(Coverage == 50, Purity == 0.9, SPN == "SPN01")
-
-
-spns <- c("SPN01")
-sankey_plots <- lapply(spns, function(spn) generate_sankey_id(spn, cov = 50, pur = 0.9))
-
-wrapped_sankey <- wrap_plots(sankey_plots, ncol = 1)
-wrapped_sankey
-
-saveRDS(wrapped_sankey, file = "validation/sankey_SPN01_50x_0.9p_id.rds")
-ggsave("validation/sankey_SPN01_50x_0.9p_id.pdf", plot = wrapped_sankey, width = 12, height = 5, units = "in")
-
-
-## Exposure validation ##
-
-# Align exposure data
-
-aligned_exposures <- list(
-  SigProfiler = list()
-)
-
-spn_list <- names(ground_truth_nested)
-
-for (spn in spn_list) {
-  coverage_list <- names(ground_truth_nested[[spn]])
-
-  for (coverage in coverage_list) {
-    purity_list <- names(ground_truth_nested[[spn]][[coverage]])
-
-    for (purity in purity_list) {
-      # Access exposure matrices
-      gt <- ground_truth_nested[[spn]][[coverage]][[purity]]
-      sigprof <- sigprof_aligned[[spn]][[coverage]][[purity]]
-
-      # Find shared signatures
-      shared_sigprof <- intersect(colnames(gt), colnames(sigprof))
-
-      # Subset to shared signatures
-      gt_sigprof <- gt[, shared_sigprof, drop = FALSE]
-      sigprof <- sigprof[, shared_sigprof, drop = FALSE]
-
-      # Create unique key for storage
-      key <- paste(spn, coverage, purity, sep = "_")
-
-      # Store aligned pairs
-      aligned_exposures$SigProfiler[[key]] <- list(gt = gt_sigprof, tool = sigprof)
+plots <- list()
+for (spn_id in spn){
+  for (cov in coverage_list){
+    for (pur in purity_list){
+      sankey_plots <- generate_sankey_id(sankey_df = sankey_df, spn_id = spn_id, cov = cov, pur = pur)
+      plots[[paste0('coverage_',cov, "_purity_", pur)]][[spn_id]] <- sankey_plots
     }
   }
 }
 
+plots_all <- list()
+for (cov in coverage_list){
+  for (pur in purity_list){
+    plots_all[[paste0('coverage_',cov, "_purity_", pur)]] <- wrap_plots(plots[[paste0('coverage_',cov, "_purity_", pur)]], nrow = length(spn)) 
+  }
+}
+plots_all$coverage_50_purity_0.9
 
-## Calculate exposures metrics ##
+## Exposure validation ##
+metrics_sample <- tibble()
+metrics_spn <- tibble()
+cosine_mse <- tibble()
+for (spn_id in spn) {
+  
+  for (cov in coverage_list) {
+    c <- paste0("coverage_", cov)
+    
+    for (pur in purity_list) {
+      p <- paste0("purity_", pur)
+      inf_sig_sigprofiler <- sigprof_aligned[[spn_id]][[c]][[p]] 
+      sim_sig <- ground_truth_nested[[spn_id]][[c]][[p]]  %>% as.data.frame()
+      
 
-metrics <- compute_exposure_metrics(aligned_exposures)
+      sample_metrics_sigprofiler <- per_sample_metrics(inferred_df = inf_sig_sigprofiler, simulated_df = sim_sig) %>% 
+        mutate(caller = 'SigProfiler', spn = spn_id, coverage = cov, purity = pur)
+      summary_sigprofiler <- summary_stats(sample_metrics_sigprofiler) %>% mutate(caller = 'SigProfiler', spn = spn_id, coverage = cov, purity = pur)
+      
+      cosine_mse_sigprofiler <- compute_cosine_mse(inferred = inf_sig_sigprofiler, simulated = sim_sig) %>% 
+        mutate(caller = 'SigProfiler', spn = spn_id, coverage = cov, purity = pur)
 
-saveRDS(metrics, file = "validation/metrics_SPNs_id.rds")
+      metrics_sample <- bind_rows(metrics_sample, sample_metrics_sigprofiler)
+      metrics_spn <- bind_rows(metrics_spn, summary_sigprofiler)
+      
+      cosine_mse <- bind_rows(cosine_mse, cosine_mse_sigprofiler)
+    }
+  }
+}
 
-# Generate final plot
-p_cosine <- plot_cosine_similarity(metrics[["cosine"]])
-p_mse <- plot_mse_per_signature(metrics[["mse"]])
+col_spn <- c('SPN01' = 'steelblue', 'SPN02' ='seagreen', 'SPN03' ='goldenrod', 
+             'SPN04' ='coral', 'SPN06' ='palevioletred', 'SPN07' ='indianred3')
 
-bottom_plots <- p_cosine + p_mse +
-  plot_layout(guides = "collect") &
-  theme(legend.position = "right")
+### Generate final plots ###
+cosine_mse_plot <- cosine_mse %>% 
+  #pivot_longer(cols = c(mse, cosine)) %>% 
+  ggplot() +
+  geom_boxplot(aes(x = spn, y = cosine, col = spn)) +
+  scale_color_manual(values = col_spn) +
+  facet_grid(coverage~purity) + 
+  ggtitle(paste0('Simulated vs inferred exposures per sample')) + 
+  theme_bw() +
+  cosine_mse %>% 
+  #pivot_longer(cols = c(mse, cosine)) %>% 
+  ggplot() +
+  geom_boxplot(aes(x = spn, y = mse, col = spn)) +
+  scale_color_manual(values = col_spn) +
+  facet_grid(coverage~purity) + 
+  theme_bw()  +
+  plot_layout(ncol = 2, guides = 'collect')
+  
+metric_plot <- metrics_sample %>% 
+  pivot_longer(cols = c(precision, recall)) %>% 
+  ggplot() +
+  geom_col(aes(x = name, y = value, fill = spn),position=position_dodge()) +
+  scale_fill_manual(values = col_spn) +
+  facet_grid(coverage~purity) + 
+  ggtitle(paste0('Simulated vs inferred SBS signature')) +
+  theme_bw() 
 
-bottom_plots
-
-ggsave("validation/validation_SPNs_50x_0.9p_id.pdf", plot = bottom_plots, width = 16, height = 5, units = "in")
-
+wrap_plots(metric_plot, cosine_mse_plot, nrow = 2) 
