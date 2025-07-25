@@ -236,7 +236,7 @@ cosine_mse_plot <- cosine_mse %>% ggplot() +
   geom_boxplot(aes(x = caller, y = cosine, col = spn)) +
   scale_color_manual(values = col_spn) +
   facet_grid(coverage~purity) + 
-  ggtitle(paste0('Simulated vs inferred exposures per sample')) + 
+  ggtitle(paste0('Simulated vs inferred SBS exposures per sample')) + 
   theme_bw() + 
 
 cosine_mse %>% ggplot() +
