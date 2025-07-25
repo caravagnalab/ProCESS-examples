@@ -5,10 +5,12 @@ seed <- 12345
 set.seed(seed)
 
 outdir <- "/orfeo/scratch/cdslab/shared/SCOUT/SPN04/process/"
+
 forest <- load_sample_forest(paste0(outdir,"sample_forest.sff"))
 treatment_info <- readRDS(paste0(outdir,"treatment_info.rds"))
 
 setwd("/orfeo/scratch/cdslab/shared/SCOUT/")
+#setwd(outdir)
 # Set tumour type and gender
 
 m_engine <- MutationEngine(setup_code = "GRCh38", tumour_type = "AML", context_sampling = 20)
@@ -47,9 +49,14 @@ print("Mutation engine created")
 phylo_forest <- m_engine$place_mutations(forest, num_of_preneoplatic_SNVs=800, num_of_preneoplatic_indels=200)
 phylo_forest$save(paste0(outdir,"phylo_forest.sff"))
 
+print("Saving cna")
 dir.create(paste0(outdir,"cna_data"))
 sample_names <- phylo_forest$get_samples_info()[["name"]]
-lapply(sample_names,function(s){
+print(sample_names)
+
+for (s in sample_names) {
   cna <- phylo_forest$get_bulk_allelic_fragmentation(s)
+  print(paste0(outdir,"cna_data/",s,"_cna.rds"))
   saveRDS(file=paste0(outdir,"cna_data/",s,"_cna.rds"),object=cna)
-})
+}
+
