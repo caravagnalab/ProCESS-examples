@@ -176,81 +176,12 @@ sigprof_aligned <- align_sigprofiler_res(tumourevo_signature_res)
 ### Compare exposure of estimated and true signatures  ###
 sankey_df <- prepare_sankey_data_sbs(ground_truth_nested, sparsesig_aligned, sigprof_aligned)
 
-<<<<<<< HEAD
 plots <- list()
 for (spn_id in spn){
   for (cov in coverage_list){
     for (pur in purity_list){
       sankey_plots <- generate_sankey_sbs(sankey_df = sankey_df, spn_id = spn_id, cov = cov, pur = pur)
       plots[[paste0('coverage_',cov, "_purity_", pur)]][[spn_id]] <- sankey_plots
-=======
-sankey_df <- prepare_sankey_data(ground_truth_nested, sparsesig_aligned, sigprof_aligned)
-
-# Substitution: SPN##_X.1 -> SPN##_1.X
-sankey_df$Sample_ID <- gsub("^(SPN\\d+)_([0-9]+)\\.1$", "\\1_1.\\2", sankey_df$Sample_ID)
-
-saveRDS(sankey_df, file = "validation/sankey_signatures_sbs.rds")
-
-sankey_df <- sankey_df %>%
-  dplyr::mutate(
-    Coverage = as.numeric(gsub("coverage_", "", Coverage)),
-    Purity = as.numeric(gsub("purity_", "", Purity))
-  ) %>% 
-  dplyr::filter(Coverage == 50, Purity == 0.9)
-
-
-spns <- c("SPN01")
-sankey_plots <- lapply(spns, function(spn) generate_sankey_sbs(spn, cov = 50, pur = 0.9))
-
-wrapped_sankey <- wrap_plots(sankey_plots, ncol = 1)
-wrapped_sankey
-
-saveRDS(wrapped_sankey, file = "validation/sankey_SPN01_50x_0.9p_sbs.rds")
-ggsave("validation/sankey_SPN01_50x_0.9p_sbs.pdf", plot = wrapped_sankey, width = 12, height = 5, units = "in")
-
-
-
-### Exposure validation ###
-
-# Align exposure data
-
-aligned_exposures <- list(
-  SparseSignatures = list(),
-  SigProfiler = list()
-)
-
-spn_list <- names(ground_truth_nested)
-
-for (spn in spn_list) {
-  coverage_list <- names(ground_truth_nested[[spn]])
-
-  for (coverage in coverage_list) {
-    purity_list <- names(ground_truth_nested[[spn]][[coverage]])
-
-    for (purity in purity_list) {
-      # Access exposure matrices
-      gt <- ground_truth_nested[[spn]][[coverage]][[purity]]
-      sparse <- sparsesig_aligned[[spn]][[coverage]][[purity]]
-      sigprof <- sigprof_aligned[[spn]][[coverage]][[purity]]
-
-      # Find shared signatures
-      shared_sparse <- intersect(colnames(gt), colnames(sparse))
-      shared_sigprof <- intersect(colnames(gt), colnames(sigprof))
-
-      # Subset to shared signatures
-      gt_sparse <- gt[, shared_sparse, drop = FALSE]
-      sparse <- sparse[, shared_sparse, drop = FALSE]
-
-      gt_sigprof <- gt[, shared_sigprof, drop = FALSE]
-      sigprof <- sigprof[, shared_sigprof, drop = FALSE]
-
-      # Create unique key for storage
-      key <- paste(spn, coverage, purity, sep = "_")
-
-      # Store aligned pairs
-      aligned_exposures$SparseSignatures[[key]] <- list(gt = gt_sparse, tool = sparse)
-      aligned_exposures$SigProfiler[[key]]     <- list(gt = gt_sigprof, tool = sigprof)
->>>>>>> 4d0c19519efbff18dbcd6c28e31b0b55d23837e2
     }
   }
 }
