@@ -3,7 +3,7 @@ nextflow.enable.dsl=2
 include { BCFTOOLS_VIEW } from '../../modules/bcftools/view/main.nf'
 include { GERMLINE_PREPROCESS } from '../../modules/preprocessing/germline_callers/main.nf'
 include { PROCESS_GERMLINE_PREPROCESS } from '../../modules/preprocessing/process/normal/main.nf'
-//include { GENERATE_GERMLINE_REPORT }    from '../../modules/germline_report/main.nf'
+include { GENERATE_GERMLINE_REPORT }    from '../../modules/germline_report/main.nf'
 
 workflow GERMLINE_VALIDATION {
 
@@ -69,9 +69,11 @@ workflow GERMLINE_VALIDATION {
         .distinct()
         .set { spn_ch }
     
-    //GENERATE_GERMLINE_REPORT(spn_ch)
-    //report_germline = GENERATE_GERMLINE_REPORT.out.metrics_germline_report
+    GENERATE_GERMLINE_REPORT(spn_ch)
+    report_germline = GENERATE_GERMLINE_REPORT.out.metrics_germline_report
+    
     emit:
+    report_germline
     // viewed_vcfs
-    r_output
+    // r_output
 }

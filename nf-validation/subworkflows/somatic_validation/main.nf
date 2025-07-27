@@ -105,10 +105,21 @@ workflow SOMATIC_VALIDATION {
     SOMATIC_PREPROCESS(BCFTOOLS_VIEW.out.chr_vcf)
 
     PROCESS_PREPROCESS(process_somatic_jobs_ch)
-
+    
+    processed_output = PROCESS_PREPROCESS.out.rds
     r_output = SOMATIC_PREPROCESS.out.rds
+    
+    
+    // Prepare input for final report
+    t_sample_ch
+        .map { row -> tuple(row.spn, row.coverage, row.purity) }
+        .distinct()
+        .set { spn_coverage_purity_ch }
+        
+    GENERATE_SOMATIC_REPORT_SINGLE_COMBINATION(report_input_ch)
+    report_somatic = GENERATE_SOMATIC_REPORT_SINGLE_COMBINATION.out.metrics_somatic_report
     
     emit:
     //viewed_vcfs
-    r_output
+    report_somatic
 }

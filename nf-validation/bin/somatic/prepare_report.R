@@ -4,10 +4,10 @@ options(bitmapType='cairo')
 require(tidyverse)
 library(optparse)
 
-source("${projectDir}/bin/getters/sarek_getters.R")
-source("${projectDir}/bin/getters/process_getters.R")
-source("${projectDir}/bin/somatic/utils/utils.R")
-source("${projectDir}/bin/somatic/utils/plot_utils.R")
+source("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/nf-validation/bin/getters/sarek_getters.R")
+source("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/nf-validation//bin/getters/process_getters.R")
+source("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/nf-validation//bin/somatic/utils/utils.R")
+source("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/nf-validation//bin/somatic/utils/plot_utils.R")
 
 # option_list <- list(make_option(c("--spn_id"), type = "character", default = 'SPN04'),
 # 		    make_option(c("--base_path"), type = "character", default = '/orfeo/scratch/cdslab/shared/SCOUT/'), ## the folder where process data are
@@ -17,11 +17,9 @@ source("${projectDir}/bin/somatic/utils/plot_utils.R")
 
 # opt_parser <- OptionParser(option_list = option_list)
 # opt <- parse_args(opt_parser)
-spn_id <- "${row.spn}"
-#basedir <- "${params.outdir}"
-#basedir_somatic <- paste0(basedir, "/somatic/") #normal_sample/")
-coverage = "${row.coverage}"
-purity = "${row.purity}"
+spn_id <- "SPN01"
+coverage = 50
+purity = 0.9
 data_dir <- "/orfeo/scratch/cdslab/shared/SCOUT/"
 # gender_file <- read.table(file = paste0(data_dir,spn_id,"/process/subject_gender.txt"),header = FALSE,col.names = "gender")
 # gender <- gender_file$gender
@@ -41,8 +39,7 @@ samples = get_sample_names(spn = spn_id)
 
 validation_dir <- "${params.outdir}"
 input_dir <-  paste0(validation_dir,"/somatic/")
-outdir <- paste0(validation_dir,"/somatic/report")
-dir.create(outdir, recursive = T, showWarnings = F)
+
 
 # Preparing report
 message("Parsing combination: purity=", purity, ", cov=", coverage)
@@ -91,14 +88,14 @@ for (caller in callers) {
                         sample_info = sample_info, 
                         min_vaf = min_vaf)
     
-    results_folder_path = file.path(caller, mut_type)
+    results_folder_path = file.path(caller, "report",mut_type)
     dir.create(results_folder_path, recursive = T)
     metrics_path = file.path(results_folder_path, "metrics.rds")
     saveRDS(list(report_metrics=report$report_metrics, vaf_comparison=report$vaf_comparison), metrics_path)
     
     filename = paste(spn_id, combination, caller, mut_type, sep = '_')
-    # file_path = file.path(outdir, filename)
-    # ggsave(paste0(file_path, '.png'), plot = report$report_plot, width = 18, height = 18, units = "in", dpi = 400)
+    file_path = file.path(results_folder_path, filename)
+    ggsave(paste0(file_path, '.png'), plot = report$report_plot, width = 18, height = 18, units = "in", dpi = 400)
     message("        Report done!")
   }
 }
