@@ -3,3 +3,6 @@ SPN01,normal_sample,50,0.9,/orfeo/cephfs/scratch/cdslab/shared/SCOUT/,0,XY
 SPN01,SPN01_1.1,50,0.9,/orfeo/cephfs/scratch/cdslab/shared/SCOUT/,1,XY
 SPN01,SPN01_1.2,50,0.9,/orfeo/cephfs/scratch/cdslab/shared/SCOUT/,1,XY
 SPN01,SPN01_1.3,50,0.9,/orfeo/cephfs/scratch/cdslab/shared/SCOUT/,1,XY
+SPN01,SPN01_1.1,50,0.6,/orfeo/cephfs/scratch/cdslab/shared/SCOUT/,1,XY
+SPN01,SPN01_1.2,50,0.6,/orfeo/cephfs/scratch/cdslab/shared/SCOUT/,1,XY
+SPN01,SPN01_1.3,50,0.6,/orfeo/cephfs/scratch/cdslab/shared/SCOUT/,1,XY

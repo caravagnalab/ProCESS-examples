@@ -1,7 +1,9 @@
 process PROCESS_PREPROCESS {
 
     tag { "${row.sample}_${caller}_chr${chromosome}" }
-
+    container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
+        'docker://lvaleriani/process_validation:v1' :
+        'docker.io/lvaleriani/process_validation:v1' }"
     input:
     tuple val(row), val(chromosome), val(caller), path(rds_file)
 

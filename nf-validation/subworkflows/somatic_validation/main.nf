@@ -3,6 +3,10 @@ nextflow.enable.dsl=2
 include { BCFTOOLS_VIEW } from '../../modules/bcftools/view/main.nf'
 include { SOMATIC_PREPROCESS } from '../../modules/preprocessing/callers/main.nf'
 include { PROCESS_PREPROCESS } from '../../modules/preprocessing/process/main.nf'
+include { GENERATE_SOMATIC_REPORT_SINGLE_COMBINATION } from '../../modules/somatic_report_single_combination/main.nf'
+include { GENERATE_SOMATIC_REPORT_ALL_CALLER } from '../../modules/somatic_report_all_caller/main.nf'
+
+
 workflow SOMATIC_VALIDATION {
 
     take:
@@ -116,10 +120,14 @@ workflow SOMATIC_VALIDATION {
         .distinct()
         .set { spn_coverage_purity_ch }
         
-    GENERATE_SOMATIC_REPORT_SINGLE_COMBINATION(report_input_ch)
-    report_somatic = GENERATE_SOMATIC_REPORT_SINGLE_COMBINATION.out.metrics_somatic_report
+    GENERATE_SOMATIC_REPORT_SINGLE_COMBINATION(spn_coverage_purity_ch)
+    report_somatic_single_combination = GENERATE_SOMATIC_REPORT_SINGLE_COMBINATION.out.metrics_somatic_report
+
+    GENERATE_SOMATIC_REPORT_ALL_CALLER(spn_coverage_purity_ch)
+    report_somatic_all_callers = GENERATE_SOMATIC_REPORT_ALL_CALLER.out.metrics_somatic_all_caller_report
     
     emit:
     //viewed_vcfs
-    report_somatic
+    report_somatic_single_combination
+    report_somatic_all_callers
 }

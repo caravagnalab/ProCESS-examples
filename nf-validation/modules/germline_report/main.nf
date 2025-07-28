@@ -1,5 +1,8 @@
 process GENERATE_GERMLINE_REPORT {
     tag "generate_report"
+    container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
+        'docker://lvaleriani/process_validation:v1' :
+        'docker.io/lvaleriani/process_validation:v1' }"
 
     input:
     val spn         // a map: caller → list of rds files

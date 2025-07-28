@@ -1,23 +1,19 @@
-
 rm(list = ls())
 options(bitmapType='cairo')
 require(tidyverse)
 library(optparse)
 
-source("../../getters/process_getters.R")
-source("utils/utils.R")
-source("utils/plot_utils.R")
+source("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/nf-validation/bin/getters/sarek_getters.R")
+source("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/nf-validation//bin/getters/process_getters.R")
+source("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/nf-validation//bin/somatic/utils/utils.R")
+source("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/nf-validation//bin/somatic/utils/plot_utils.R")
 
-option_list <- list(make_option(c("--spn_id"), type = "character", default = 'SPN04'),
-                    make_option(c("--purity"), type = "character", default = '0.6'),
-                    make_option(c("--coverage"), type = "character", default = '50'))
 
-opt_parser <- OptionParser(option_list = option_list)
-opt <- parse_args(opt_parser)
-data_dir = '/orfeo/scratch/cdslab/shared/SCOUT/'
-spn_id = opt$spn_id
-coverage = opt$coverage
-purity = opt$purity
+spn_id <- "SPN01"
+coverage = 50
+purity = 0.9
+data_dir <- "/orfeo/scratch/cdslab/shared/SCOUT/"
+
 
 # gender_file <- read.table(file = paste0(data_dir,spn_id,"/process/subject_gender.txt"),header = FALSE,col.names = "gender")
 # gender <- gender_file$gender
@@ -46,13 +42,14 @@ samples = get_sample_names(spn = spn_id)
 
 #path_to_seq <- paste0(data_dir,spn_id,"/sequencing/tumour/purity_",purity,"/data/mutations/seq_results_muts_merged_coverage_",coverage,"x.rds")
 
-input_dir <-  paste0(data_dir,spn_id,"/validation/somatic/")
-outdir <- paste0(data_dir,spn_id,"/validation/somatic/report")
-dir.create(outdir, recursive = T, showWarnings = F)
+validation_dir <- "/orfeo/cephfs/scratch/cdslab/ggandolfi/prj_races/validate_nextflow/results/"
+input_dir <-  paste0(validation_dir,"/somatic/")
+#outdir <- paste0(data_dir,spn_id,"/validation/somatic/report")
+#dir.create(outdir, recursive = T, showWarnings = F)
 
 # Preparing report
 message("Parsing combination: purity=", purity, ", cov=", coverage)
-#sample_id = samples[1]
+sample_id = samples[1]
 mut_type = "INDEL"
 
 for (mut_type in mut_types) {
@@ -62,7 +59,7 @@ for (mut_type in mut_types) {
   # Single lapply to get both ground truth and caller results
   results = lapply(samples, function(sample_id) {
     # Get ground truth
-    process_folder_path <- file.path(input_dir, spn_id, combination, "process", sample_id, mut_type)  
+    process_folder_path <- file.path(input_dir, combination, "process", sample_id, mut_type)  
     gt_res = lapply(chromosomes, function(chromosome){
       gt_path = file.path(process_folder_path, paste0(chromosome,".rds"))
       readRDS(gt_path)
@@ -73,7 +70,7 @@ for (mut_type in mut_types) {
     # Get caller results for this sample
     caller_res_list = lapply(callers, function(caller) {
       print(paste("Processing caller:", caller, "for sample:", sample_id))
-      caller_folder_path = file.path(input_dir, spn_id, combination, caller, sample_id, mut_type)
+      caller_folder_path = file.path(input_dir, combination, caller, sample_id, mut_type)
       caller_res = lapply(chromosomes, function(chromosome) {
         caller_path = file.path(caller_folder_path, paste0(chromosome,".rds"))
         readRDS(caller_path) %>% 
@@ -104,9 +101,10 @@ for (mut_type in mut_types) {
                                    sample_info = sample_info, 
                                    min_vaf = min_vaf, 
                                    only_pass = TRUE)
-  
-  filename = paste(spn_id, combination, "allCaller", mut_type, sep = '_')
-  file_path = file.path(outdir, filename)
+  results_folder_path = file.path("allCaller", mut_type)
+  dir.create(results_folder_path, recursive = T)
+  filename = paste(combination, "allCaller", mut_type, sep = '_')
+  file_path = file.path(results_folder_path, filename)
   ggsave(paste0(file_path, '.png'), plot = report_plot, width = 15, height = 20, units = "in", dpi = 400)
   
   # Get Metrics multi-caller by sample
@@ -139,8 +137,8 @@ for (mut_type in mut_types) {
   })
   names(metrics) = names(caller_res_list)
   
-  results_folder_path = file.path(input_dir, spn_id, combination, "allCaller", mut_type)
-  dir.create(results_folder_path, recursive = T)
+
+
   metrics_path = file.path(results_folder_path, "metrics.rds")
   saveRDS(metrics, metrics_path)
   
