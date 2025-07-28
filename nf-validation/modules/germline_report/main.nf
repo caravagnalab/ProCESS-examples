@@ -1,17 +1,17 @@
 process GENERATE_GERMLINE_REPORT {
-    tag "generate_report"
+    tag "${meta.spn}-generate_report"
     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
         'docker://lvaleriani/process_validation:v1' :
         'docker.io/lvaleriani/process_validation:v1' }"
 
     input:
-    val spn         // a map: caller → list of rds files
+    tuple val(meta), val(rds_list), val(caller), path(process_rds)
 
     output:
-    tuple val(spn), path("*rds"),	emit:metrics_germline_rds
-    tuple val(spn), path("*png"),	emit:metrics_germline_report
+    tuple val(meta), path("*rds"),	emit:metrics_germline_rds
+    tuple val(meta), path("*png"),	emit:metrics_germline_report
     
-    publishDir "${params.outdir}/germline/report/", mode: 'copy'
+    publishDir "${params.outdir}/${meta.spn}/germline/report/", mode: 'copy'
 
     script:
     """
@@ -31,34 +31,39 @@ process GENERATE_GERMLINE_REPORT {
     source("${projectDir}/bin/getters/sarek_getters.R")
     source("${projectDir}/bin/getters/process_getters.R")
 
-    spn <- "${spn}"
+    spn <- "${meta.spn}"
     basedir <- "${params.outdir}"
-    basedir_germline <- paste0(basedir, "/germline/normal_sample/")
 
-    
-    tool <- c('haplotypecaller', 'freebayes', 'strelka')
+    tool = substr("$caller", 2, nchar("$caller")-1)
+    tool = strsplit(tool, ", ")[[1]]
+
+    rds_per_tool = strsplit("$rds_list", '], ') %>% unlist()
+    rds_tool = lapply(1:length(rds_per_tool), FUN = function(i){
+      rds = rds_per_tool[[i]] %>% 
+            stringr::str_replace_all('\\\\[', '') %>% 
+            stringr::str_replace_all('\\\\]', '') %>% 
+            strsplit(', ') %>% 
+            unlist()
+    })
+    names(rds_tool) = tool
+
     list_tool <- list()
     list_tool_pass <- list()
     
     for (t in tool){
-      print(t)
-      
-      vcf_list = lapply(21:22, FUN = function(chr){
-        print(chr)
-        rds_file = paste0(basedir_germline, t, '/rds/chr', chr, '_normal_sample.rds')
-        rds_vcf = readRDS(rds_file)[[paste0(spn, '_normal_sample')]]\$mutations    
-        rds_vcf = rds_vcf %>% 
-          dplyr::select(chr, from, to, ref, alt, NV, DP, BAF, QUAL, FILTER) %>% 
-          dplyr::mutate(mutationID = paste(chr,from, sep = ':'))
-        return(rds_vcf)
-      })
-      
-      list_tool[[t]] =  bind_rows(vcf_list)
-      list_tool_pass[[t]] = bind_rows(vcf_list) %>% dplyr::filter(FILTER == "PASS" & !is.na(FILTER))
+        tmp_list_tool = rds_tool[[t]]
+        vcf_list = lapply(tmp_list_tool, FUN = function(rds){
+            rds_vcf = readRDS(rds)[[paste0(spn, '_normal_sample')]]\$mutations    
+            rds_vcf = rds_vcf %>% 
+              dplyr::select(chr, from, to, ref, alt, NV, DP, BAF, QUAL, FILTER) %>% 
+              dplyr::mutate(mutationID = paste(chr,from, sep = ':'))
+            return(rds_vcf)
+        })
+        list_tool[[t]] =  bind_rows(vcf_list)
+        list_tool_pass[[t]] = bind_rows(vcf_list) %>% dplyr::filter(FILTER == "PASS" & !is.na(FILTER))
     }
-    
-    process_normal_rds_path <- paste0(basedir_germline,"process/normal_sample.rds")
-    process_normal <- readRDS(process_normal_rds_path)
+
+    process_normal <- readRDS("$process_rds")
     
     N = 1e5
     DP_list = list(process_normal\$DP %>% sample(1e5), list_tool_pass\$freebayes\$DP %>% sample(1e5), list_tool_pass\$haplotypecaller\$DP %>% sample(1e5), list_tool_pass\$strelka\$DP%>% sample(1e5))
@@ -145,7 +150,6 @@ process GENERATE_GERMLINE_REPORT {
     upset_plot = ggplotify::as.ggplot(upset_plot)
     
     
-    
     metric_plot <- all_metric %>% 
       pivot_longer(cols = c(Accuracy, Sensitivity, Precision, Recall, F1_Score)) %>% 
       ggplot() +
@@ -179,7 +183,5 @@ process GENERATE_GERMLINE_REPORT {
       plot_annotation(title)
     
     ggsave(plot = report_plot, filename = 'normal.png', dpi = 500, width = 11, height = 12, units = 'in')
-
     """
 }
-

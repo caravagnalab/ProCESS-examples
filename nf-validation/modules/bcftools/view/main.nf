@@ -1,20 +1,20 @@
 process BCFTOOLS_VIEW {
-    tag { "${status} ${caller} chr${chromosome}" }
+    tag { "${meta.spn}-${status}-${caller}-chr${chromosome}" }
 
     input:
-    tuple val(row), val(chromosome), val(caller), val(status), val(mut_type), file(vcf_path), file(vcf_tbi_path)
+    tuple val(meta), val(chromosome), val(caller), val(status), val(mut_type), file(vcf_path), file(vcf_tbi_path)
 
     output:
-    tuple val(row), val(chromosome), val(caller), val(mut_type), path("*.vcf.gz"),	emit:chr_vcf
+    tuple val(meta), val(chromosome), val(caller), val(mut_type), path("*.vcf.gz"),	emit: chr_vcf
     // path ""
     // path "results/${row.spn}/validation/germline/vcf/chr${chromosome}_normal_sample.${caller}.vcf.gz"
 
     // publishDir "${params.outdir}/${status}/vcf", mode: 'copy'
     publishDir { 
         if (status == 'somatic') {
-            return "${params.outdir}/somatic/${row.coverage}x_${row.purity}p/${caller}/vcf"
+            return "${params.outdir}/${meta.spn}/somatic/${meta.coverage}x_${meta.purity}p/${caller}/vcf"
         } else if (status == 'germline') {
-            return "${params.outdir}/germline/${row.sample}/${caller}/vcf"
+            return "${params.outdir}/${meta.spn}/germline/${meta.sample}/${caller}/vcf"
         }
     },     mode: 'copy'
 
@@ -22,18 +22,18 @@ process BCFTOOLS_VIEW {
 
     if (caller=="mutect2"){
       //out_vcf = "chr${chromosome}_${row.spn}.vcf.gz"
-      out_vcf = "chr${chromosome}_${row.spn}.vcf"
+      out_vcf = "chr${chromosome}_${meta.spn}.vcf"
     } else if (caller=="strelka" && status == "somatic"){
       if (mut_type=="SNV"){
         //out_vcf = "chr${chromosome}_${row.sample}.snv.vcf.gz"
-        out_vcf = "chr${chromosome}_${row.sample}.snv.vcf"
+        out_vcf = "chr${chromosome}_${meta.sample}.snv.vcf"
       } else{
         //out_vcf = "chr${chromosome}_${row.sample}.indel.vcf.gz"
-        out_vcf = "chr${chromosome}_${row.sample}.indel.vcf"
+        out_vcf = "chr${chromosome}_${meta.sample}.indel.vcf"
       }
     } else {
       //out_vcf = "chr${chromosome}_${row.sample}.vcf.gz"
-      out_vcf = "chr${chromosome}_${row.sample}.vcf"
+      out_vcf = "chr${chromosome}_${meta.sample}.vcf"
     }
 
     """

@@ -1,16 +1,16 @@
 process PROCESS_GERMLINE_PREPROCESS {
 
-    tag { "${row.sample}_${caller}_chr${chromosome}" }
+    tag { "${meta.spn}_${caller}" }
     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
         'docker://lvaleriani/process_validation:v1' :
         'docker.io/lvaleriani/process_validation:v1' }"
 
     input:
-    tuple val(row), val(caller), path(rds_file)
+    tuple val(meta), val(caller), path(rds_file)
 
     output:
-    tuple val(row), val(caller),path("*.rds"),	emit: rds
-    publishDir "${params.outdir}/germline/${row.sample}/${caller}/", mode: 'copy'
+    tuple val(meta), val(caller), path("*.rds"), emit: rds
+    publishDir "${params.outdir}/${meta.spn}/germline/${meta.sample}/${caller}/", mode: 'copy'
 
     script:
     """
@@ -27,6 +27,6 @@ process PROCESS_GERMLINE_PREPROCESS {
         dplyr::rename(BAF = normal_sample.VAF,
                DP = normal_sample.coverage,
                NV = normal_sample.occurrences)
-    saveRDS(process_normal,paste0("${row.sample}",".rds"))
+    saveRDS(process_normal,paste0("${meta.spn}",".rds"))
     """
 }

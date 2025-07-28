@@ -1,0 +1,109 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "",
+    "title": "nf-locate - params.input schema",
+    "description": "Schema for the file provided with params.input",
+    "type": "array",
+    "items": {
+        "type": "object",
+        "properties": {
+            "spn": {
+                "errorMessage": "SPN ID",
+                "meta": ["spn"],
+                "anyOf": [
+                    {
+                        "type": "string",
+                        "pattern": "^\\S+$"
+                    },
+                    {
+                        "type": "integer"
+                    }
+                ]
+            },
+            "sample": {
+                "errorMessage": "Sample ID",
+                "meta": ["sample"],
+                "anyOf": [
+                    {
+                        "type": "string",
+                        "pattern": "^\\S+$"
+                    },
+                    {
+                        "type": "string",
+                        "maxLength": 0
+                    }
+                ]
+            },
+            "coverage": {
+                "errorMessage": "Coverage",
+                "meta": ["coverage"],
+                "anyOf": [
+                    {
+                        "type": "integer",
+                        "pattern": "^\\S+\\.(50|100|150|200)$"
+                    },
+                    {
+                        "type": "string",
+                        "maxLength": 0
+                    }
+                ]
+            },
+            "purity": {
+                "errorMessage": "Purity",
+                "meta": ["purity"],
+                "anyOf": [
+                    {
+                        "type": "number",
+                        "pattern": "^\\S+\\.(0.3|0.6|0.9)$"
+                    },
+                    {
+                        "type": "string",
+                        "maxLength": 0
+                    }
+                ],
+                "format": "file-path",
+                "exists": true
+            },
+            "directory": {
+                "errorMessage": "Path",
+                "anyOf": [
+                    {
+                        "type": "string",
+                        "pattern": "^\\S+$"
+                    },
+                    {
+                        "type": "string",
+                        "maxLength": 0
+                    }
+                ],
+                "format": "path",
+                "exists": true
+            },
+            "type": {
+                "errorMessage": "type",
+                "meta": ["type"],
+                "anyOf": [
+                    {
+                        "type": "integer",
+                        "pattern": "^\\S+\\.(0|1)$"
+                    },
+                    {
+                        "type": "string",
+                        "maxLength": 0
+                    }
+                ]
+            },
+        "sex": {
+                "errorMessage": "sex",
+                "meta": ["sex"],
+                "anyOf": [
+                    {
+                        "type": "string",
+                        "pattern": "^\\S+$"
+                    }
+                ]
+            }
+        },
+        "required": ["spn", "sample", "coverage", "purity", "directory", "type", "sex"]
+    }
+}
