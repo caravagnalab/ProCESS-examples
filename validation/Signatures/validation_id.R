@@ -178,7 +178,7 @@ cosine_mse_plot <- cosine_mse %>%
   geom_boxplot(aes(x = spn, y = cosine, col = spn)) +
   scale_color_manual(values = col_spn) +
   facet_grid(coverage~purity) + 
-  ggtitle(paste0('Simulated vs inferred exposures per sample')) + 
+  ggtitle(paste0('Simulated vs inferred ID exposures per sample')) + 
   theme_bw() +
   cosine_mse %>% 
   #pivot_longer(cols = c(mse, cosine)) %>% 
@@ -195,7 +195,7 @@ metric_plot <- metrics_sample %>%
   geom_col(aes(x = name, y = value, fill = spn),position=position_dodge()) +
   scale_fill_manual(values = col_spn) +
   facet_grid(coverage~purity) + 
-  ggtitle(paste0('Simulated vs inferred SBS signature')) +
+  ggtitle(paste0('Simulated vs inferred ID signature')) +
   theme_bw() 
 
 wrap_plots(metric_plot, cosine_mse_plot, nrow = 2) 

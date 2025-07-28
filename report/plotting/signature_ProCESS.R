@@ -61,7 +61,8 @@ plot_exposure_evolution <- function(sample_forest,phylo_forest,snapshot){
   
   sign_muller <- sign_1 + muller + theme(legend.position = 'right') + plot_layout(nrow = 2)
   
-  sign_tree <- plot_forest(sample_forest,color_map = color_map_clones) + 
+  sign_tree <- plot_forest(sample_forest,color_map = color_map_clones) %>% 
+    annotate_forest(forest = phylo_forest, samples = T, MRCAs = T, drivers = F, add_driver_label = F) + 
     theme(legend.position = 'left') + 
     ggplot2::guides(size = "none",
                     shape = "none",
