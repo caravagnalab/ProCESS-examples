@@ -20,4 +20,5 @@ workflow {
     // Trigger germline subworkflow
     GERMLINE_VALIDATION(samples_ch_normal)
     SOMATIC_VALIDATION(samples_ch_tumour)
+    
 }

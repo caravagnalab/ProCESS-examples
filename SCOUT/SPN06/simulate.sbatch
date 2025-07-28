@@ -12,6 +12,6 @@ image="/orfeo/cephfs/scratch/cdslab/shared/SCOUT/process_1.1.0.sif"
 
 base="/orfeo/cephfs/scratch/cdslab/ahaghighi/packages/ProCESS-examples/SCOUT/SPN06"
 
-singularity exec --bind /orfeo:/orfeo --no-home $image Rscript $base/simulate_tissue.R
-singularity exec --bind /orfeo:/orfeo --no-home $image Rscript $base/simulate_mutation.R
+singularity exec --bind /orfeo:/orfeo --no-home $image Rscript $base/simulate_tissue_new.R
+singularity exec --bind /orfeo:/orfeo --no-home $image Rscript $base/simulate_mutation_new.R
 

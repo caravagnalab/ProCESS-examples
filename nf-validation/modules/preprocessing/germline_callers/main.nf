@@ -3,7 +3,7 @@ process GERMLINE_PREPROCESS {
     tag { "${row.sample}_${caller}_chr${chromosome}" }
 
     input:
-    tuple val(row), val(chromosome), val(caller), path(vcf_file)
+    tuple val(row), val(chromosome), val(caller), val(mut_type), path(vcf_file)
 
     output:
     // tuple val(meta), path("*.rds"),                            emit: rds

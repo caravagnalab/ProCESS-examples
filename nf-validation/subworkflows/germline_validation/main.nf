@@ -2,7 +2,8 @@ nextflow.enable.dsl=2
 
 include { BCFTOOLS_VIEW } from '../../modules/bcftools/view/main.nf'
 include { GERMLINE_PREPROCESS } from '../../modules/preprocessing/germline_callers/main.nf'
-// include { run_rscript }    from '../modules/run_rscript.nf'
+include { PROCESS_GERMLINE_PREPROCESS } from '../../modules/preprocessing/process/normal/main.nf'
+include { GENERATE_GERMLINE_REPORT }    from '../../modules/germline_report/main.nf'
 
 workflow GERMLINE_VALIDATION {
 
@@ -42,11 +43,37 @@ workflow GERMLINE_VALIDATION {
         }
         .set { normal_jobs_ch }
 
+    normal_sample_ch
+        .flatMap { row ->
+            def callers = ['process']
+            def status = "germline"
+            callers.collect { caller ->
+                [row, caller, status]
+            }
+        }
+        .map { row, caller, status ->
+            def rds_path = "${row.directory}/${row.spn}/sequencing/normal/purity_1/data/mutations/seq_results_muts_merged_coverage_30x.rds"
+            return [row, caller, file(rds_path)]
+        }
+        .set { process_germline_jobs_ch }
     BCFTOOLS_VIEW(normal_jobs_ch)
     GERMLINE_PREPROCESS(BCFTOOLS_VIEW.out.chr_vcf)
+    
+    PROCESS_GERMLINE_PREPROCESS(process_germline_jobs_ch)
+    processed_output = PROCESS_GERMLINE_PREPROCESS.out.rds
     r_output = GERMLINE_PREPROCESS.out.rds 
-
+    
+    // Ensure both sides are done before generating report
+    normal_sample_ch
+        .map { row -> row.spn }
+        .distinct()
+        .set { spn_ch }
+    
+    GENERATE_GERMLINE_REPORT(spn_ch)
+    report_germline = GENERATE_GERMLINE_REPORT.out.metrics_germline_report
+    
     emit:
+    report_germline
     // viewed_vcfs
-    r_output
+    // r_output
 }
