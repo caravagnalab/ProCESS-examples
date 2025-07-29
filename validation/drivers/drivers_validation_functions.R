@@ -33,22 +33,43 @@ get_process_seq = function(path = '/orfeo/cephfs/scratch/cdslab/shared/SCOUT',
 
 # 1. preprocessing of data: selecting process drivers
 
-get_process_drivers_ids = function(process_seq_res) {
-  process_drivers = process_seq_res %>% 
-    dplyr::filter(classes == 'driver') %>% 
-    dplyr::mutate(chr = paste0('chr', chr)) %>% 
-    dplyr::mutate(mut_id = paste0(chr, ':', chr_pos, '_', ref, '>', alt))
-  
-  process_drivers_ids = process_drivers$mut_id
-  return(process_drivers_ids)
+# get_process_drivers_ids = function(process_seq_res) {
+#   process_drivers = process_seq_res %>% 
+#     dplyr::filter(classes == 'driver') %>% 
+#     dplyr::mutate(chr = paste0('chr', chr)) %>% 
+#     # dplyr::mutate(mut_id = paste0(chr, ':', chr_pos, '_', ref, '>', alt))
+#     dplyr::mutate(mut_id = paste0(chr, ':', chr_pos))
+#   
+#   process_drivers_ids = process_drivers$mut_id
+#   return(process_drivers_ids)
+# }
+
+get_process_drivers_codes = function(phylo_forest) {
+  phylo_forest$get_driver_mutations() %>% 
+    dplyr::filter(type == 'SID') %>% 
+    dplyr::mutate(code = gsub(' ', '_p.', code)) %>% 
+    dplyr::pull(code)
 }
 
-# this will be needed later --> filter the process results to keep only drivers
-get_process_drivers = function(process_seq_res) {
+
+# this will be needed later --> filter the process results to keep only drivers -- get both mut ids and codes
+get_process_drivers = function(process_seq_res, phylo_forest) {
   process_drivers = process_seq_res %>% 
-    dplyr::filter(classes == 'driver') %>% 
-    dplyr::mutate(chr = paste0('chr', chr)) %>% 
-    dplyr::mutate(mut_id = paste0(chr, ':', chr_pos, '_', ref, '>', alt))
+    dplyr::filter(classes == 'driver') 
+    # dplyr::mutate(chr = paste0('chr', chr)) %>% 
+    # dplyr::mutate(mut_id = paste0(chr, ':', chr_pos, '_', ref, '>', alt))
+    # dplyr::mutate(mut_id = paste0(chr, ':', chr_pos))
+  dr = phylo_forest$get_driver_mutations() %>% 
+    dplyr::filter(type == 'SID') %>% 
+    dplyr::mutate(code = gsub(' ', '_p.', code))
+  
+  process_drivers = full_join(process_drivers, dr, by = join_by(
+    'chr' == 'chr', 
+    'chr_pos' == 'start', 
+    'ref' == 'ref', 
+    'alt' == 'alt'
+  ))
+  
   return(process_drivers)
 }
 
@@ -58,14 +79,16 @@ get_process_drivers = function(process_seq_res) {
 get_process_drivers_in_tumourevo = function(tumourevo_mutations, process_drivers_ids) {
   lapply(names(tumourevo_mutations), function(x) {
     tumourevo_mutations[[x]][[1]]$mutations %>% 
-      dplyr::mutate(mut_id = paste0(chr, ':', from, '_', ref, '>', alt)) %>% 
-      dplyr::filter(mut_id %in% process_drivers_ids) %>% 
+      # dplyr::mutate(mut_id = paste0(chr, ':', from, '_', ref, '>', alt)) %>% 
+      # dplyr::mutate(mut_id = paste0(chr, ':', from)) %>% 
+      # dplyr::filter(mut_id %in% process_drivers_ids) %>% 
+      dplyr::filter(driver_label %in% process_drivers_ids) %>% 
       dplyr::mutate(sample = x) %>% 
       dplyr::mutate(origin = 'tumourevo')
   }) %>% 
     dplyr::bind_rows()
 } %>% 
-  dplyr::select(mut_id, SYMBOL, VAF, sample, origin) %>%
+  dplyr::select(driver_label, SYMBOL, VAF, sample, origin) %>%
   tidyr::pivot_wider(names_from = c(sample, origin), names_sep = '-', values_from = VAF)
 
 
@@ -77,14 +100,14 @@ create_true_drivers_table = function(process_drivers,
   
   process_drivers = process_drivers %>% 
     dplyr::ungroup() %>% 
-    dplyr::select(mut_id, dplyr::ends_with('VAF')) %>% 
+    dplyr::select(code, dplyr::ends_with('VAF')) %>% 
     dplyr::rename_with(~ gsub('.VAF', '-process', .x))
   
   process_in_tumourevo = get_process_drivers_in_tumourevo(tumourevo_mutations, process_drivers_ids)
   
   # function to create the heatmap
-  true_drivers = full_join(process_in_tumourevo, process_drivers, by = 'mut_id') %>% 
-    tibble::column_to_rownames('mut_id')
+  true_drivers = full_join(process_in_tumourevo, process_drivers, by = join_by('driver_label' == 'code')) %>% 
+    tibble::column_to_rownames('driver_label')
   return(true_drivers)
   
 }
@@ -192,27 +215,42 @@ plot_drivers_heatmap = function(true_drivers_table,
 
 # select tumourevo drivers ids
 
-get_tumourevo_drivers_ids = function(tumourevo_mutations) {
+# get_tumourevo_drivers_ids = function(tumourevo_mutations) {
+#   lapply(names(tumourevo_mutations), function(x) {
+#     tumourevo_mutations[[x]][[1]]$mutations %>% 
+#       dplyr::mutate(mut_id = paste0(chr, ':', from, '_', ref, '>', alt)) %>% 
+#       dplyr::filter(is_driver, VAF > 0) %>% 
+#       dplyr::mutate(sample = x) %>% 
+#       dplyr::select(mut_id, driver_label, sample, is_driver, VAF) %>% 
+#       dplyr::rename(is_driver_tumourevo = is_driver)
+#   }) %>% 
+#     dplyr::bind_rows() %>% 
+#     dplyr::pull(mut_id) %>% 
+#     unique
+# }
+
+get_tumourevo_drivers_codes = function(tumourevo_mutations) {
   lapply(names(tumourevo_mutations), function(x) {
     tumourevo_mutations[[x]][[1]]$mutations %>% 
-      dplyr::mutate(mut_id = paste0(chr, ':', from, '_', ref, '>', alt)) %>% 
+      # dplyr::mutate(mut_id = paste0(chr, ':', from, '_', ref, '>', alt)) %>% 
       dplyr::filter(is_driver, VAF > 0) %>% 
       dplyr::mutate(sample = x) %>% 
-      dplyr::select(mut_id, driver_label, sample, is_driver, VAF) %>% 
+      dplyr::select(driver_label, sample, is_driver, VAF) %>% 
       dplyr::rename(is_driver_tumourevo = is_driver)
   }) %>% 
     dplyr::bind_rows() %>% 
-    dplyr::pull(mut_id) %>% 
+    dplyr::pull(driver_label) %>% 
     unique
 }
 
-get_all_drivers_process = function(process_seq_res, all_drivers) {
-  process_drivers_all = process_seq_res %>% 
+
+get_all_drivers_process = function(process_drivers, all_drivers) {
+  process_drivers_all = process_drivers %>% 
     dplyr::mutate(chr = paste0('chr', chr)) %>% 
-    dplyr::mutate(mut_id = paste0(chr, ':', chr_pos, '_', ref, '>', alt)) %>% 
-    dplyr::filter(mut_id %in% all_drivers) %>% 
+    # dplyr::mutate(mut_id = paste0(chr, ':', chr_pos, '_', ref, '>', alt)) %>% 
+    dplyr::filter(code %in% all_drivers) %>%
     dplyr::ungroup() %>% 
-    dplyr::select(mut_id, classes, ends_with('VAF')) %>% 
+    dplyr::select(code, classes, ends_with('VAF')) %>% 
     reshape2::melt() %>% 
     dplyr::rename(sample = variable) %>% 
     dplyr::rename(VAF = value) %>% 
@@ -226,11 +264,11 @@ get_all_drivers_process = function(process_seq_res, all_drivers) {
 get_all_drivers_tumourevo = function(tumourevo_mutations, all_drivers) {
   lapply(names(tumourevo_mutations), function(x) {
     tumourevo_mutations[[x]][[1]]$mutations %>% 
-      dplyr::mutate(mut_id = paste0(chr, ':', from, '_', ref, '>', alt)) %>% 
-      dplyr::filter(mut_id %in% all_drivers) %>% 
+      # dplyr::mutate(mut_id = paste0(chr, ':', from, '_', ref, '>', alt)) %>% 
+      dplyr::filter(driver_label %in% all_drivers) %>% 
       dplyr::mutate(sample = x) %>% 
       # dplyr::filter(VAF > 0) %>%
-      dplyr::select(mut_id, driver_label, sample, is_driver, VAF) %>% 
+      dplyr::select(driver_label, sample, is_driver, VAF) %>% 
       dplyr::rename(is_driver_tumourevo = is_driver)
   }) %>% 
     dplyr::bind_rows()
@@ -239,14 +277,15 @@ get_all_drivers_tumourevo = function(tumourevo_mutations, all_drivers) {
 merge_drivers = function(all_dr_process, all_drivers_tumourevo) {
   all_drivers = dplyr::full_join(all_dr_process, all_drivers_tumourevo, 
                                  suffix = c('_process', '_tumourevo'), 
-                                 by = join_by('mut_id' == 'mut_id', 
+                                 by = join_by('code' == 'driver_label', 
                                               'sample' == 'sample')) %>% 
-    dplyr::mutate(is_driver_process = ifelse(VAF_process == 0, FALSE, is_driver_process), 
+    dplyr::rename(driver_label = code) %>% 
+    dplyr::mutate(is_driver_process = ifelse((VAF_process == 0 | is.na(VAF_process)), FALSE, is_driver_process), 
                   is_driver_tumourevo = ifelse(VAF_tumourevo == 0, FALSE, is_driver_tumourevo)) %>% 
     dplyr::mutate(driver_class = 
                     dplyr::case_when(
                       (is_driver_process == FALSE & 
-                         is_driver_tumourevo == FALSE) ~ 'Not a driver', 
+                         is_driver_tumourevo == FALSE) ~ 'Not a driver in sample', 
                       (is_driver_process == TRUE &
                          is_driver_tumourevo == FALSE) ~ 'Process True - Tumourevo False', 
                       (is_driver_process == FALSE &
@@ -262,7 +301,7 @@ merge_drivers = function(all_dr_process, all_drivers_tumourevo) {
 colors = setNames(nm = c("Process False - Tumourevo True", 
                          "Process True - Tumourevo False", 
                          "Process True - Tumourevo True", 
-                         'Not a driver'),
+                         'Not a driver in sample'),
                   object = c('goldenrod', 
                              'indianred4', 
                              'forestgreen', 
@@ -296,15 +335,16 @@ plot_drivers = function(x,
 }
 
 
-discovery_rate_plot = function(x) {
+discovery_rate_plot = function(x, colors) {
   x %>% 
-    dplyr::filter(driver_class != 'Not a driver') %>% 
+    dplyr::filter(driver_class != 'Not a driver in sample') %>%
     ggplot2::ggplot(ggplot2::aes(
       sample,
       fill = driver_class
     )) + 
   ggplot2::geom_histogram(stat = 'count', position = 'dodge') +
-  ggplot2::theme_light()
+  ggplot2::theme_light() + 
+  ggplot2::scale_fill_manual(values = colors)
   
 }
   

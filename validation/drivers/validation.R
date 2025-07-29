@@ -1,3 +1,4 @@
+rm(list=ls())
 .libPaths(new = '/u/area/vgazziero/R/rstudio_4_4')
 
 # drivers validation
@@ -29,7 +30,7 @@ library(optparse)
 
 # command line arguments 
 
-option_list <- list(make_option(c("--spn_id"), type = "character", default = 'SPN07'),
+option_list <- list(make_option(c("--spn_id"), type = "character", default = 'SPN03'),
                     make_option(c("--purity"), type = "character", default = '0.9'),
                     make_option(c("--coverage"), type = "character", default = '50'), 
                     make_option(c("--caller"), type = "character", default = 'mutect2_ascat'), 
@@ -69,6 +70,9 @@ if (length(to_do) > 0) {
   
   samples = get_sample_names(spn = spn_id)
   
+  # load the phylogenetic forest
+  phylo_forest = load_phylogenetic_forest(get_phylo_forest(spn_id, data_dir))
+  
   # load data processed by tumourevo (and if they do not exist, kill the job)
   tumourevo_mutations = get_drivers_results(spn = spn_id, 
                                             samples = samples, 
@@ -93,10 +97,14 @@ if (length(to_do) > 0) {
   # if the heatmap has not been done, create it
   if ('real_drivers_vaf_comparison.rds' %in% to_do) {
     # get the mutation id of the process drivers
-    process_drivers_ids = get_process_drivers_ids(process_seq_res)
+    
+    # get_process_drivers_codes(pf)
+    
+    
+    process_drivers_ids = get_process_drivers_codes(phylo_forest)
     
     # filter the sequencing results to keep only driver mutations
-    process_drivers = get_process_drivers(process_seq_res)
+    process_drivers = get_process_drivers(process_seq_res, phylo_forest)
     
     true_drivers_table = create_true_drivers_table(process_drivers,
                                                    tumourevo_mutations, 
@@ -113,15 +121,24 @@ if (length(to_do) > 0) {
   
   # get tumourevo drivers ids
   if ('drivers_validation_difference.rds' %in% to_do){
-    process_drivers_ids = get_process_drivers_ids(process_seq_res)
-    tumourevo_drivers_ids = get_tumourevo_drivers_ids(tumourevo_mutations)
+    # process_drivers_ids = get_process_drivers_ids(process_seq_res)
+    # get drivers code in process
+    process_drivers_ids = get_process_drivers_codes(phylo_forest)
+    
+    # get drivers codes in tumourevo
+    # tumourevo_drivers_ids = get_tumourevo_drivers_ids(tumourevo_mutations)
+    tumourevo_drivers_ids = get_tumourevo_drivers_codes(tumourevo_mutations)
+    
     all_drivers = c(process_drivers_ids, tumourevo_drivers_ids) %>% unique
     
-    process_all_drs = get_all_drivers_process(process_seq_res, all_drivers)
+    process_drivers = get_process_drivers(process_seq_res, phylo_forest) 
+    process_all_drs = get_all_drivers_process(process_drivers, all_drivers)
+        # get_all_drivers_process(process_seq_res, all_drivers)
     
     tumourevo_all_drs = get_all_drivers_tumourevo(tumourevo_mutations, all_drivers)
     
-    all_drivers_table = merge_drivers(process_all_drs, tumourevo_all_drs)
+    all_drivers_table = merge_drivers(all_dr_process = process_all_drs,all_drivers_tumourevo =  tumourevo_all_drs)
+    
     plt = plot_drivers(all_drivers_table, colors = colors)
     saveRDS(plt, paste0(res_path, '/drivers_validation_difference.rds'))
   } else {
