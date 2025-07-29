@@ -18,7 +18,7 @@ base_path <- "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/"
 coverage_list <- c(50)
 purity_list <- c(0.9)
 dataset <- "SCOUT"
-spn <- c("SPN01", "SPN02", "SPN03")
+spn <- c("SPN01", "SPN04")
 context <- 'ID'
 if (context == 'ID'){
   context_sig = 'ID83'
@@ -81,13 +81,22 @@ for (spn_id in spn) {
           context = context_sig,  # ID83!
           base_path = base_path
         )
-        
+        bascule <- get_tumourevo_signatures(
+          spn = spn_id,
+          coverage = cov,
+          purity = pur,
+          vcf_caller = vcf_caller,
+          cna_caller = cna_caller,
+          tool = "BASCULE",
+          context = context_sig
+        )
         # Combine and load paths
         paths <- c(
           sigprofiler$COSMIC_exposure,
           sigprofiler$COSMIC_signatures,
           sigprofiler$denovo_exposure,
-          sigprofiler$denovo_signatures
+          sigprofiler$denovo_signatures,
+          bascule$refined_fit
         )
         
         data <- load_signature_data(paths)
@@ -96,7 +105,8 @@ for (spn_id in spn) {
           "SigProfiler_COSMIC_exposure",
           "SigProfiler_COSMIC_signatures",
           "SigProfiler_denovo_exposure",
-          "SigProfiler_denovo_signatures"
+          "SigProfiler_denovo_signatures",
+          "BASCULE_refined_fit"
         )
         
         data
@@ -116,15 +126,16 @@ for (spn_id in spn) {
 
 
 sigprof_aligned <- align_sigprofiler_res(tumourevo_signature_res)
+bascule_aligned <- align_bascule_res(tumourevo_signature_res,type=context)
 
 ### Compare exposures of estimated and true signatures  ###
-sankey_df <- prepare_sankey_data_id(ground_truth_nested, sigprof_aligned)
+sankey_df <- prepare_sankey_data_id(ground_truth_nested, bascule_aligned,sigprof_aligned)
 
 plots <- list()
 for (spn_id in spn){
   for (cov in coverage_list){
     for (pur in purity_list){
-      sankey_plots <- generate_sankey_id(sankey_df = sankey_df, spn_id = spn_id, cov = cov, pur = pur)
+      sankey_plots <- generate_sankey_sbs(sankey_df = sankey_df, spn_id = spn_id, cov = cov, pur = pur)
       plots[[paste0('coverage_',cov, "_purity_", pur)]][[spn_id]] <- sankey_plots
     }
   }
@@ -136,7 +147,7 @@ for (cov in coverage_list){
     plots_all[[paste0('coverage_',cov, "_purity_", pur)]] <- wrap_plots(plots[[paste0('coverage_',cov, "_purity_", pur)]], nrow = length(spn)) 
   }
 }
-plots_all$coverage_50_purity_0.9
+
 
 ## Exposure validation ##
 metrics_sample <- tibble()
@@ -149,21 +160,26 @@ for (spn_id in spn) {
     
     for (pur in purity_list) {
       p <- paste0("purity_", pur)
+      inf_sig_bascule <- bascule_aligned[[spn_id]][[c]][[p]] %>% as.data.frame()
       inf_sig_sigprofiler <- sigprof_aligned[[spn_id]][[c]][[p]] 
       sim_sig <- ground_truth_nested[[spn_id]][[c]][[p]]  %>% as.data.frame()
       
-
+      sample_metrics_bascule <- per_sample_metrics(inferred_df = inf_sig_bascule, simulated_df = sim_sig) %>% 
+        mutate(caller = 'BASCULE', spn = spn_id, coverage = cov, purity = pur)
       sample_metrics_sigprofiler <- per_sample_metrics(inferred_df = inf_sig_sigprofiler, simulated_df = sim_sig) %>% 
         mutate(caller = 'SigProfiler', spn = spn_id, coverage = cov, purity = pur)
       summary_sigprofiler <- summary_stats(sample_metrics_sigprofiler) %>% mutate(caller = 'SigProfiler', spn = spn_id, coverage = cov, purity = pur)
+      summary_bascule <- summary_stats(sample_metrics_bascule) %>% mutate(caller = 'BASCULE', spn = spn_id, coverage = cov, purity = pur)
       
       cosine_mse_sigprofiler <- compute_cosine_mse(inferred = inf_sig_sigprofiler, simulated = sim_sig) %>% 
         mutate(caller = 'SigProfiler', spn = spn_id, coverage = cov, purity = pur)
-
-      metrics_sample <- bind_rows(metrics_sample, sample_metrics_sigprofiler)
-      metrics_spn <- bind_rows(metrics_spn, summary_sigprofiler)
+      cosine_mse_bascule <- compute_cosine_mse(inferred = inf_sig_bascule, simulated = sim_sig) %>% 
+        mutate(caller = 'BASCULE', spn = spn_id, coverage = cov, purity = pur)
       
-      cosine_mse <- bind_rows(cosine_mse, cosine_mse_sigprofiler)
+      metrics_sample <- bind_rows(metrics_sample, sample_metrics_sigprofiler,sample_metrics_bascule)
+      metrics_spn <- bind_rows(metrics_spn, summary_sigprofiler,summary_bascule)
+      
+      cosine_mse <- bind_rows(cosine_mse, cosine_mse_sigprofiler,cosine_mse_bascule)
     }
   }
 }
@@ -171,31 +187,64 @@ for (spn_id in spn) {
 col_spn <- c('SPN01' = 'steelblue', 'SPN02' ='seagreen', 'SPN03' ='goldenrod', 
              'SPN04' ='coral', 'SPN06' ='palevioletred', 'SPN07' ='indianred3')
 
-### Generate final plots ###
-cosine_mse_plot <- cosine_mse %>% 
-  #pivot_longer(cols = c(mse, cosine)) %>% 
-  ggplot() +
-  geom_boxplot(aes(x = spn, y = cosine, col = spn)) +
+cosine_mse_plot <- cosine_mse %>% ggplot() +
+  geom_boxplot(aes(x = caller, y = cosine, col = spn)) +
   scale_color_manual(values = col_spn) +
   facet_grid(coverage~purity) + 
   ggtitle(paste0('Simulated vs inferred ID exposures per sample')) + 
-  theme_bw() +
-  cosine_mse %>% 
-  #pivot_longer(cols = c(mse, cosine)) %>% 
-  ggplot() +
-  geom_boxplot(aes(x = spn, y = mse, col = spn)) +
+  theme_bw() + 
+  
+  cosine_mse %>% ggplot() +
+  geom_boxplot(aes(x = caller, y = mse, col = spn)) +
   scale_color_manual(values = col_spn) +
   facet_grid(coverage~purity) + 
-  theme_bw()  +
-  plot_layout(ncol = 2, guides = 'collect')
-  
+  theme_bw() + 
+  plot_layout(guides = 'collect')
+
 metric_plot <- metrics_sample %>% 
-  pivot_longer(cols = c(precision, recall)) %>% 
   ggplot() +
-  geom_col(aes(x = name, y = value, fill = spn),position=position_dodge()) +
+  geom_col(aes(x = caller, y = recall, fill = spn),position=position_dodge()) +
   scale_fill_manual(values = col_spn) +
   facet_grid(coverage~purity) + 
   ggtitle(paste0('Simulated vs inferred ID signature')) +
-  theme_bw() 
+  theme_bw() + 
+  
+  metrics_sample %>% 
+  ggplot() +
+  geom_col(aes(x = caller, y = precision, fill = spn),position=position_dodge()) +
+  scale_fill_manual(values = col_spn) +
+  facet_grid(coverage~purity) + 
+  theme_bw() + 
+  plot_layout(guides = 'collect')
 
 wrap_plots(metric_plot, cosine_mse_plot, nrow = 2) 
+
+
+### Generate final plots ###
+# cosine_mse_plot <- cosine_mse %>% 
+#   #pivot_longer(cols = c(mse, cosine)) %>% 
+#   ggplot() +
+#   geom_boxplot(aes(x = spn, y = cosine, col = spn)) +
+#   scale_color_manual(values = col_spn) +
+#   facet_grid(coverage~purity) + 
+#   ggtitle(paste0('Simulated vs inferred ID exposures per sample')) + 
+#   theme_bw() +
+#   cosine_mse %>% 
+#   #pivot_longer(cols = c(mse, cosine)) %>% 
+#   ggplot() +
+#   geom_boxplot(aes(x = spn, y = mse, col = spn)) +
+#   scale_color_manual(values = col_spn) +
+#   facet_grid(coverage~purity) + 
+#   theme_bw()  +
+#   plot_layout(ncol = 2, guides = 'collect')
+#   
+# metric_plot <- metrics_sample %>% 
+#   pivot_longer(cols = c(precision, recall)) %>% 
+#   ggplot() +
+#   geom_col(aes(x = name, y = value, fill = spn),position=position_dodge()) +
+#   scale_fill_manual(values = col_spn) +
+#   facet_grid(coverage~purity) + 
+#   ggtitle(paste0('Simulated vs inferred ID signature')) +
+#   theme_bw() 
+# 
+# wrap_plots(metric_plot, cosine_mse_plot, nrow = 2) 
