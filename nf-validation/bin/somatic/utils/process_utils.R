@@ -1,11 +1,8 @@
 library(dplyr)
-process_seq_results <- function(spn, purity, coverage, chromosome, base_path, outdir,rds_path,sample_id) {
+process_seq_results <- function(spn, purity, coverage, chromosome, outdir,rds_path,sample_id) {
   # Construct the output folder path
   combination = paste0(coverage, "x_", purity, "p")
-  #combination <- paste0("purity_", purity, "_coverage_", coverage, "x")
-  #folder_path <- file.path(outdir, spn, combination, "process")
-  #dir.create(folder_path, recursive = TRUE, showWarnings = TRUE)
-  
+
   # Load sequencing results
   message("Reading sequencing results...")
   seq_res <- readRDS(rds_path)
@@ -15,25 +12,21 @@ process_seq_results <- function(spn, purity, coverage, chromosome, base_path, ou
   seq_res <- seq_res %>% dplyr::filter(classes!="germinal")
   message(paste0("Parsing sample ", sample_id, "..."))
 
-  for (mutation in c("SNV", "INDEL")) {
-    message(paste0("Parsing ", mutation, " mutations..."))
-    mut_path <- file.path(mutation)
-    dir.create(mut_path, recursive = TRUE, showWarnings = TRUE)
-
-    message(paste0("Parsing chr", chromosome, "..."))
-    process_sample_mutation_chromosome(sample_id,mutation, chromosome, seq_res, mut_path)
-  }  
+  mut_snv = process_sample_mutation_chromosome(sample_id,'SNV', chromosome, seq_res)
+  mut_indel = process_sample_mutation_chromosome(sample_id,'INDEL', chromosome, seq_res)
+  mut = list('SNV' = mut_snv, 'INDEL' = mut_indel)
+  saveRDS( object = mut, file = paste0("chr", chromosome, ".rds"))
 }
 
-process_sample_mutation_chromosome <- function(sample, mutation, chromosome, seq_res, mut_path) {
+process_sample_mutation_chromosome <- function(sample, mutation, chromosome, seq_res) {
   # Filter sequencing results for the current chromosome
   sample_data <- seq_res %>% dplyr::filter(chr == chromosome)
   
   # Further filter based on mutation type
   if (mutation == "SNV") {
-    sample_data <- sample_data %>% dplyr::filter(alt %in% c("A", "C", "T", "G"))
+    sample_data <- sample_data %>% dplyr::filter(alt %in% c("A", "C", "T", "G"), ref %in% c("A", "C", "T", "G") )
   } else if (mutation == "INDEL") {
-    sample_data <- sample_data %>% dplyr::filter(!(alt %in% c("A", "C", "T", "G")))
+    sample_data <- sample_data %>% dplyr::filter(!(alt %in% c("A", "C", "T", "G")) | !(ref %in% c("A", "C", "T", "G")))
   } else {
     stop("Mutation type not recognized")
   }
@@ -51,39 +44,5 @@ process_sample_mutation_chromosome <- function(sample, mutation, chromosome, seq
     dplyr::filter(NV != 0) %>% 
     dplyr::mutate(mutationID = paste0("chr", chr, ":", from, ":", ref, ":", alt))
   
-  # Save the processed mutation data
-  file_name <- file.path(mut_path, paste0("chr", chromosome, ".rds"))
-  saveRDS(seq_res_long, file_name)
+  return(seq_res_long)
 }
-
-# 
-# get_seq_res = function(gt_path, sample_id, chromosome, mut_type) {
-#   # Read ground truth
-#   message("reading seq res")
-#   seq_res = readRDS(gt_path)
-#   
-#   message("keeping desired chromosome")
-#   seq_res = seq_res %>% 
-#     dplyr::filter(classes!="germinal") %>% 
-#     dplyr::filter(chr == str_replace(chromosome, "chr", ""))
-#   
-#   if (mut_type == "SNV") {
-#     seq_res = seq_res %>% dplyr::filter(alt %in% c("A", "C", "T", "G"))
-#   } else if (mut_type == "INDEL") {
-#     seq_res = seq_res %>% dplyr::filter(!(alt %in% c("A", "C", "T", "G")))
-#   } else {
-#     stop("mut_type parameter not recognized")
-#   }
-#   
-#   if ("sample_name" %in% colnames(seq_res)){
-#     seq_res_long <- seq_res
-#   } else {
-#     seq_res_long <- seq_to_long(seq_res)
-#   }
-#   
-#   message("keeping SNVs and desired sample")
-#   seq_res_long %>%
-#     dplyr::filter(sample_name==sample_id) %>%
-#     dplyr::filter(NV!=0) %>% 
-#     dplyr::mutate(mutationID=paste0("chr",chr,":",from,":",ref,":",alt))
-# }

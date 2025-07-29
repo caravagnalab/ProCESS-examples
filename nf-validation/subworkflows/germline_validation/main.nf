@@ -56,8 +56,8 @@ workflow GERMLINE_VALIDATION {
         }
         .set { process_germline_jobs_ch }
 
-    BCFTOOLS_VIEW(normal_jobs_ch) // split vcf
-    GERMLINE_PREPROCESS(BCFTOOLS_VIEW.out.chr_vcf) // from vcf to rds
+    BCFTOOLS_VIEW(normal_jobs_ch) 
+    GERMLINE_PREPROCESS(BCFTOOLS_VIEW.out.chr_vcf) 
    
     GERMLINE_PREPROCESS.out.rds.map{meta, chr, caller, rds -> 
             meta = meta + [caller: caller]
@@ -71,7 +71,7 @@ workflow GERMLINE_VALIDATION {
            | groupTuple
            | set { vcf_caller_join }
      
-    PROCESS_GERMLINE_PREPROCESS(process_germline_jobs_ch) // read process input, 1 unique rds
+    PROCESS_GERMLINE_PREPROCESS(process_germline_jobs_ch)
     PROCESS_GERMLINE_PREPROCESS.out.rds.map{
         meta, type, rds -> [meta, rds]
     }.set{ process_rds }

@@ -3,26 +3,18 @@ library(vcfR)
 
 COLS_TO_KEEP <- c("chr", "from", "to", "ref","alt","mutationID","NV","DP","VAF","FILTER")
 
-#function(spn, purity, coverage, chromosome, base_path, outdir,vcf_path, sample_id) {
-process_strelka_results = function(spn, purity, coverage, chromosome, base_path, outdir,vcf_path,sample_id,mut_type) {
-  # Extract purity and coverage values from the file path
-  # spn <- gsub(".*SCOUT/(SPN[0-9]+).*", "\\1", gt_path)
-  # purity <- gsub(".*purity_([0-9.]+).*", "\\1", gt_path)
-  # coverage <- gsub(".*coverage_([0-9]+).*", "\\1", gt_path)
+process_strelka_results = function(spn, purity, coverage, chromosome, outdir,vcf_path,sample_id) {
   combination = paste0(coverage, "x_", purity, "p")
 
- 
   message(paste0("Parsing sample ", sample_id, "..."))
-  
-  
-  
-  #mut_path <- file.path(sample_id, mut_type)
-  dir.create(mut_type, recursive = TRUE, showWarnings = FALSE)
 
   vcf = vcfR::read.vcfR(vcf_path)
   message(paste0("Parsing ", chromosome, "..."))
-  strelka_res = get_strelka_res(vcf, sample_id = sample_id, filter_mutations = F, chromosome = paste0("chr", chromosome), mut_type = mut_type)
-  file_name <- file.path(mut_type, paste0("chr", chromosome, ".rds"))
+  strelka_res_snv = get_strelka_res(vcf, sample_id = sample_id, filter_mutations = F, chromosome = paste0("chr", chromosome), mut_type = 'SNV')
+  strelka_res_indel = get_strelka_res(vcf, sample_id = sample_id, filter_mutations = F, chromosome = paste0("chr", chromosome),  mut_type = 'INDEL')
+  strelka_res = list("SNV" = strelka_res_snv, "INDEL" = strelka_res_indel)
+
+  file_name <- file.path(paste0("chr", chromosome, ".rds"))
   saveRDS(strelka_res, file_name)
 }
 
@@ -115,7 +107,7 @@ parse_Strelka = function(vcf, sample_id, filter_mutations = FALSE, chromosome = 
         from = as.numeric(from),
         to = from + nchar(alt)) %>%
       dplyr::ungroup() %>%
-      dplyr::select(chr, from, to, ref, alt, dplyr::everything(), -ChromKey)
+      dplyr::select(chr, from, to, ref, alt, dplyr::everything(), ChromKey)
   }
   
   # Filter mutations if requested
@@ -140,13 +132,14 @@ parse_Strelka = function(vcf, sample_id, filter_mutations = FALSE, chromosome = 
   calls = lapply(
     samples_list,
     function(s) {
-      gt_field_s = gt_field %>% dplyr::filter(sample == s)
+      gt_field_s = gt_field %>% dplyr::filter(sample == s) %>% dplyr::rename(from = POS)
       
       fits = list()
       fits$sample = s
       
       # Join fix fields and genotype fields
-      mutations = dplyr::bind_cols(fix_field, gt_field_s) 
+      mutations = left_join(fix_field, gt_field_s)
+      #dplyr::bind_cols(fix_field, gt_field_s) 
       
       # Skip if no mutations after filtering
       if (nrow(mutations) == 0) {
@@ -181,7 +174,7 @@ parse_Strelka = function(vcf, sample_id, filter_mutations = FALSE, chromosome = 
 }
 
 get_strelka_res = function(vcf, sample_id, filter_mutations = FALSE, chromosome = NULL, mut_type = NULL) {
-  muts <- parse_Strelka(vcf = vcf, filter_mutations = FALSE, chromosome = chromosome, mut_type = mut_type)
+  muts <- parse_Strelka(vcf = vcf, filter_mutations = filter_mutations, chromosome = chromosome, mut_type = mut_type)
   
   muts$TUMOR$mutations <- muts$TUMOR$mutations %>%
     # dplyr::filter(chr == str_replace(chromosome, "chr", "")) %>% 

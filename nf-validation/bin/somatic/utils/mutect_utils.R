@@ -99,7 +99,7 @@ parse_mutect2 = function(vcf, sample_id, filter_mutations = FALSE, chromosome = 
   calls[[sample_id_vcf]]$mutations[,c(COLS_TO_KEEP)]
 }
 
-process_mutect2_results = function(spn, purity, coverage, chromosome, base_path, outdir,vcf_path, sample_id) {
+process_mutect2_results = function(spn, purity, coverage, chromosome, outdir, vcf_path, sample_id) {
 
   combination = paste0(coverage, "x_", purity, "p")
   print(combination)
@@ -110,30 +110,12 @@ process_mutect2_results = function(spn, purity, coverage, chromosome, base_path,
   vcf = vcfR::read.vcfR(vcf_path)
   caller_res = parse_mutect2(vcf = vcf, sample_id = sample_id, chromosome = paste0("chr", chromosome))
 
+  mut_data_snv = caller_res %>% dplyr::filter(nchar(ref) == 1 & nchar(alt) == 1)
+  mut_data_indel = caller_res %>% dplyr::filter(nchar(ref) != 1 | nchar(alt) != 1)
+  mut_data = list('SNV' = mut_data_snv, 'INDEL' = mut_data_indel)
 
-  for (mutation in c("SNV", "INDEL")) {
-    message(paste0("Parsing ", mutation, " mutations..."))
-    #mut_path <- file.path(sample_path, mutation)
-    #dir.create(mut_path, recursive = TRUE, showWarnings = FALSE)
-        
-    if (mutation == "SNV") {
-      mut_data = caller_res %>% 
-        dplyr::filter(nchar(ref) == 1 & nchar(alt) == 1)
-      dir.create(mutation, recursive = TRUE, showWarnings = FALSE)
-      file_name <- file.path(mutation, paste0(paste0("chr", chromosome), ".rds"))
-      saveRDS(mut_data, file_name)
-    } else if (mutation == "INDEL") {
-      mut_data = caller_res %>% 
-        dplyr::filter(nchar(ref) != 1 | nchar(alt) != 1)
-      dir.create(mutation, recursive = TRUE, showWarnings = FALSE)
-      file_name <- file.path(mutation, paste0(paste0("chr", chromosome), ".rds"))
-      saveRDS(mut_data, file_name)
-    }
-    
-    # Save the processed mutation data
-    #file_name <- file.path(mut_path, paste0(paste0("chr", chromosome), ".rds"))
-    #saveRDS(mut_data, file_name)
-  }
+  file_name <- file.path(paste0(paste0("chr", chromosome), ".rds"))
+  saveRDS(mut_data, file_name)
 }
 
 #process_mutect2_results = function(spn, purity, coverage, chromosome, base_path, outdir,vcf_path) {

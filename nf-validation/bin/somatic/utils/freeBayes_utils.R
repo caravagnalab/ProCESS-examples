@@ -367,22 +367,28 @@ process_freebayes_results = function(spn,
   vcf = vcfR::read.vcfR(vcf_path)
   
   message(paste0("Parsing ", chromosome, "..."))
-  
-  for (mutation in c("SNV", "INDEL")) {
-    message(paste0("Parsing ", mutation, " mutations..."))
-    dir.create(mutation, recursive = TRUE, showWarnings = FALSE)
-    
-    mut_data = get_freeBayes_res(
+  mut_data_snv = get_freeBayes_res(
       vcf, 
       sample, 
       filter_mutations = FALSE, 
       chromosome = paste0("chr", chromosome), 
-      mut_type = mutation, 
+      mut_type = 'SNV', 
       pass_quality = pass_quality, 
       min_vaf = min_vaf, 
       max_normal_vaf = max_normal_vaf
     )
-    file_name <- file.path(mutation, paste0("chr", chromosome, ".rds"))
-    saveRDS(mut_data, file_name)  
-  }
+
+  mut_data_indel = get_freeBayes_res(
+      vcf, 
+      sample, 
+      filter_mutations = FALSE, 
+      chromosome = paste0("chr", chromosome), 
+      mut_type = 'INDEL', 
+      pass_quality = pass_quality, 
+      min_vaf = min_vaf, 
+      max_normal_vaf = max_normal_vaf
+    )
+  mut_data = list('SNV' = mut_data_snv, 'INDEL' = mut_data_indel)
+  file_name <- file.path(paste0("chr", chromosome, ".rds"))
+  saveRDS(mut_data, file_name)  
 }
