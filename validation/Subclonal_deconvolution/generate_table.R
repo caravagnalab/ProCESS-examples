@@ -2,7 +2,7 @@ library(dplyr)
 library(tidyr)
 library(mobster)
 library(ggplot2)
-setwd('/u/cdslab/erivar00/scratch/GitHub/ProCESS-examples/')
+setwd("/u/cdslab/erivar00/scratch/GitHub/ProCESS-examples/")
 source("getters/process_getters.R")
 source("getters/tumourevo_getters.R")
 
@@ -13,69 +13,82 @@ tools = c("mobster", "pyclonevi", "viber")
 getwd()
 
 # Use getters here!!
-coverage = 100
+coverage = 50 # 100
 purity = 0.9
-vcf_caller = 'mutect2'
-cna_caller = "sequenza"
+vcf_caller = "mutect2"
+cna_caller = "ascat"
 spn = "SPN03"
 
-samples <- get_sample_names(SPN)
+samples = get_sample_names(spn)
+
 # Process ####
-mut_process = get_mutations(spn = spn, type = 'tumour', coverage = coverage, purity = purity)
-mut_process = readRDS(mut_process)
+mut_process = get_mutations(spn=spn, type="tumour", coverage=coverage, purity=purity)
+seq_results = readRDS(mut_process)
 
-mut_process = mut_process %>% 
-  mutate(mutation_id = paste0(spn, ":", chr, ":", chr_pos,  ":", alt))
+mut_process = seq_results %>% 
+  mutate(mutation_id = paste0(spn, ":", chr, ":", chr_pos,  ":", alt),
+         is_driver_process = classes=="driver",
+         causes = replace(causes, classes != 'driver', NA))
 
-mut_process$is_driver <- mut_process$classes == "driver"
+# View(mut_process)
 
-mut_process <- mut_process %>%
-  mutate(causes = replace(causes, classes != 'driver', NA))
 
-View(mut_process)
+## Sticks #####
 
-mut_process_new <- mut_process %>%
-  ungroup() %>% 
-  select(mutation_id, causes, is_driver, contains(".VAF")) %>%
+library(ProCESS)
+phylo_forest = load_phylogenetic_forest(get_phylo_forest(spn=spn)) # "/Users/elenab/Desktop/phylo_forest.sff")
+
+get_cell_id = function(mutation_object) {
+  tryCatch(
+    expr = { phylo_forest$get_first_occurrences(mutation_object)[[1]] },
+    error = function(e) return(NA)
+  )
+}
+
+mutations_with_cell = mut_process %>% 
+  filter(classes != "germinal") %>%
+  rowwise() %>%
+  mutate(cell_id=get_cell_id(Mutation(chr, chr_pos, ref, alt))) %>%
+  ungroup()
+
+relevant_branches = get_relevant_branches(phylo_forest)
+mutations_with_cell_branches = mutations_with_cell %>% left_join(relevant_branches)
+
+mut_process_new = mutations_with_cell_branches %>% 
+  ungroup() %>%
+  select(mutation_id, causes, is_driver, label, contains(".VAF")) %>%
   pivot_longer(
     cols = ends_with(".VAF"),
     names_to = "sample_id",
     names_pattern = "(.*)\\.VAF", # remove matching text "VAF" from the start of each variable name
     values_to = "vaf_process" # this is the VAF!
   ) %>%
-  mutate(sample_id = paste0(spn, "_", sample_id))
+  mutate(sample_id = paste0(spn, "_", sample_id)) %>% 
+  rename(cluster_id_process=label)
 # saveRDS(mut_process_new, paste0("/u/cdslab/erivar00/scratch/GitHub/subclonal_validation_data/mut_process_new_", spn, ".Rds"))
-
-spn = 'SPN04'
-# Use getters here!!
-mut_process_new = readRDS(paste0("/u/cdslab/erivar00/scratch/GitHub/subclonal_validation_data/mut_process_new_", spn, ".Rds"))
-View(mut_process_new)
-
-# library(ProCESS)
-# forest_path = get_phylo_forest(spn = spn)
-# phylo_forest = load_phylogenetic_forest(forest_path)
-# 
-# # forest_cna = phylo_forest$get_sampled_cell_CNAs()
-# # saveRDS(forest_cna, paste0("/u/cdslab/erivar00/scratch/GitHub/subclonal_validation_data/forest_cna_", spn, ".Rds"))
-# forest_cna = readRDS(paste0("/u/cdslab/erivar00/scratch/GitHub/subclonal_validation_data/forest_cna_", spn, ".Rds"))
-# View(forest_cna)
-# 
-# # forest_cells = phylo_forest$get_sampled_cell_mutations()
-# forest_cells = readRDS(paste0("/u/cdslab/erivar00/scratch/GitHub/subclonal_validation_data/forest_cells_mut_", spn, ".Rds"))
-# View(forest_cells)
-# # saveRDS(forest_cells, paste0("/u/cdslab/erivar00/scratch/GitHub/subclonal_validation_data/forest_cells_mut_", spn, ".Rds"))
 
 
 # PyClone ####
 tool = "pyclonevi"
-path_p = paste0(spn, "/tumourevo/", coverage, "x_", purity, "p_", vcf_caller, "_", cna_caller, "/subclonal_deconvolution/", tool, "/SCOUT/", spn, "/")
-input = read.delim(paste0(path_p,"SCOUT_", spn, "_pyclone_input.tsv"), sep="\t")
+# path_p = paste0(spn, "/tumourevo/", coverage, "x_", purity, "p_", vcf_caller, "_", cna_caller, "/subclonal_deconvolution/", tool, "/SCOUT/", spn, "/")
+
+pyclonevi_paths = get_tumourevo_subclonal(spn,
+                                          coverage=coverage,
+                                          purity=purity, 
+                                          vcf_caller=vcf_caller,
+                                          cna_caller=cna_caller,
+                                          sample=spn,
+                                          tool="pyclonevi")
+
+# input = read.delim(paste0(path_p,"SCOUT_", spn, "_pyclone_input.tsv"), sep="\t")
+input = read.delim(pyclonevi_paths$pyclone_input_tsv, sep="\t", row.names=1) %>% as_tibble()
 # View(input) # for each mutation_id there is a row for each sample in which it is present (i.e. 4 because even if vaf = 0 the row is present)
 
 # cluster = read.csv(paste0(path_p,"SCOUT_", spn, "_cluster_table.csv"), sep="\t")
 # View(cluster) # cluster per mutation_id, so there is a single row for each mutation (even if it is present in more samples)
 
-best_fit = read.delim(paste0(path_p,"SCOUT_", spn, "_best_fit.txt"))
+# best_fit = read.delim(paste0(path_p,"SCOUT_", spn, "_best_fit.txt"))
+best_fit = read.delim(pyclonevi_paths$best_fit_txt) %>% as_tibble()
 # View(best_fit) # like the input, with also cluster_id.
 
 # I think I need to take input and add cluster_id and cellular_prevalence which are inside pyclone
@@ -99,11 +112,11 @@ final_table = input %>%
     n_clones_tool = n_distinct(cluster_id_tool)
   )
 
-final_table <- final_table %>%
+final_table = final_table %>%
   group_by(cluster_id_tool, sample_id) %>%
   mutate(ccf_tool = mean(ccf_tool, na.rm = TRUE)) %>%
   ungroup()
-View(final_table)
+# View(final_table)
 
 final_table %>%
   distinct(cluster_id_tool, sample_id, ccf_tool)
@@ -119,36 +132,34 @@ final_table %>%
   distinct(cluster_id_tool, sample_id, ccf_tool) %>% nrow()
 
 #### Extract clonal cluster ####
-theta_long <- final_table %>%
-  group_by(sample_id, cluster_id_tool) %>%
-  summarize(mean_ccf = mean(ccf_tool, na.rm = TRUE), .groups = "drop")
-# 
-theta <- theta_long %>%
-  pivot_wider(
-    names_from = cluster_id_tool,
-    values_from = mean_ccf
-  ) %>%
-  select(-sample_id)
 
-max_colnames <- apply(theta, 1, function(row) {
-  names(row)[which(row == max(row))]
-}) # Extract all clusters which have max ccf for each sample (because in one sample there can be more than one cluster with ccf == 1)
-
-clonal_cluster = names(which.max(table(unlist(max_colnames)))) # extract the cluster which appear more frequently (i.e. possibly in all the samples)
-
-# theta <- as.data.frame(theta)
-# clonal_cluster = apply(theta, 1, which.max) # 1 indicates row so it finds the maximum column for each row, i.e. the top cluster for each sample
-# clonal_cluster = colnames(theta)[clonal_cluster] # takes the column name of theta for the indices found above, i.e. the top cluster for each sample
-# clonal_cluster = which.max(table(clonal_cluster)) %>% names # table(clonal_cluster) creates a table of frequencies of top cluster in the samples
+get_clonal_cluster = function(final_table) {
+  theta_long = final_table %>%
+    group_by(sample_id, cluster_id_tool) %>%
+    summarize(mean_ccf = mean(ccf_tool, na.rm = TRUE), .groups = "drop")
+  
+  theta = theta_long %>%
+    pivot_wider(
+      names_from = cluster_id_tool,
+      values_from = mean_ccf
+    ) %>%
+    select(-sample_id)
+  
+  max_colnames = apply(theta, 1, function(row) {
+    names(row)[which(row == max(row))]
+  }) # Extract all clusters which have max ccf for each sample (because in one sample there can be more than one cluster with ccf == 1)
+  
+  names(which.max(table(unlist(max_colnames)))) # extract the cluster which appear more frequently (i.e. possibly in all the samples)
+}
 
 final_table$is.clonal = FALSE
 
-final_table <- final_table %>%
-  mutate(is.clonal = ifelse(cluster_id_tool == clonal_cluster, TRUE, FALSE))
+final_table = final_table %>%
+  mutate(is.clonal = ifelse(cluster_id_tool == get_clonal_cluster(final_table), TRUE, FALSE))
 
 ### Join pyclonevi and process ####
-pyclone_join <- inner_join(mut_process_new, final_table, by = c("mutation_id", "sample_id"))
-View(pyclone_join)
+pyclone_join = inner_join(mut_process_new, final_table, by = c("mutation_id", "sample_id"))
+# View(pyclone_join)
 nrow(mut_process_new)
 nrow(final_table)
 nrow(pyclone_join)
