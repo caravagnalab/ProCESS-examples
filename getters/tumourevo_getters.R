@@ -317,7 +317,7 @@ get_tumourevo_signatures <- function(
 ) {
   
   # quality control
-  tool_list <- c("SigProfiler", "SparseSignatures")
+  tool_list <- c("SigProfiler", "SparseSignatures","BASCULE")
   if (!(tool %in% tool_list)) {
     stop("ERROR: wrong tool name!")
   }
@@ -365,6 +365,12 @@ get_tumourevo_signatures <- function(
     output[['best_params_config']] <- file.path(MAIN_PATH, "SCOUT_best_params_config.rds")
     output[['mut_counts']] <- file.path(MAIN_PATH, "SCOUT_mut_counts.rds")
     
+    return(output)
+  } else if (tool =="BASCULE") {
+    MAIN_PATH <- file.path(MAIN_PATH, tool, "SCOUT")
+    output <- list()
+    output[['refined_fit']] <- file.path(MAIN_PATH, "bascule_refined_fit.rds")
+    output[['base_fit']] <- file.path(MAIN_PATH, "bascule_fit.rds")
     return(output)
   } else {
     stop("ERROR: wrong tool name!")

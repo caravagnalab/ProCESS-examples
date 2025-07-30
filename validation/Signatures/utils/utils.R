@@ -77,6 +77,31 @@ align_sigprofiler_res <- function(sigprofiler_list) {
   return(aligned)
 }
 
+align_bascule_res <- function(bascule_list,type) {
+  aligned <- list()
+  
+  for (spn in names(bascule_list)) {
+    aligned[[spn]] <- list()
+    
+    for (coverage in names(bascule_list[[spn]])) {
+      aligned[[spn]][[coverage]] <- list()
+      
+      for (purity in names(bascule_list[[spn]][[coverage]])) {
+        df <- bascule_list[[spn]][[coverage]][[purity]][["BASCULE_refined_fit"]][["nmf"]][[context]]$exposure
+        df <- df %>% 
+          separate(col = samples,into = c("SPN","sample","timepoint"),sep = "\\.",remove = T) %>% 
+          mutate(Sample=paste(sample,timepoint,sep=".")) %>% 
+          select(sigs,value,Sample) %>% 
+          pivot_wider(names_from = sigs,id_cols = Sample,values_from = value) %>% 
+          column_to_rownames("Sample")
+        
+        aligned[[spn]][[coverage]][[purity]] <- df
+      }
+    }
+  }
+  
+  return(aligned)
+}
 
 ### Reshape data ###
 
@@ -134,6 +159,25 @@ extract_sparsesig_long <- function(sparsesig_aligned) {
   do.call(rbind, out)
 }
 
+extract_bascule_long <- function(bascule_aligned) {
+  out <- list()
+  
+  for (spn in names(bascule_aligned)) {
+    for (coverage in names(bascule_aligned[[spn]])) {
+      for (purity in names(bascule_aligned[[spn]][[coverage]])) {
+        df <- bascule_aligned[[spn]][[coverage]][[purity]]
+        
+        if (is.null(df)) next
+        
+        # df is samples x signatures matrix/data.frame, samples are rownames
+        long_df <- reshape_exposures_long(df, spn, coverage, purity, "BASCULE")
+        out[[paste(spn, coverage, purity, sep = "_")]] <- long_df
+      }
+    }
+  }
+  
+  do.call(rbind, out)
+}
 
 extract_sigprofiler_long <- function(sigprof_aligned) {
   out <- list()
@@ -155,12 +199,12 @@ extract_sigprofiler_long <- function(sigprof_aligned) {
 }
 
 
-prepare_sankey_data_sbs <- function(ground_truth_list, sparsesig_aligned, sigprof_aligned) {
+prepare_sankey_data_sbs <- function(ground_truth_list, bascule_aligned, sigprof_aligned) {
   gt_long <- extract_ground_truth_long(ground_truth_list)
-  sparsesig_long <- extract_sparsesig_long(sparsesig_aligned)
+  bascule_long <- extract_bascule_long(bascule_aligned)
   sigprof_long <- extract_sigprofiler_long(sigprof_aligned)
 
-  combined <- bind_rows(gt_long, sparsesig_long, sigprof_long)
+  combined <- bind_rows(gt_long, sigprof_long, bascule_long)
 
   # Filter to keep only exposures > 0
   combined <- combined %>% filter(Exposure > 0)
@@ -169,11 +213,12 @@ prepare_sankey_data_sbs <- function(ground_truth_list, sparsesig_aligned, sigpro
 }
 
 
-prepare_sankey_data_id <- function(ground_truth_list, sigprof_aligned) {
+prepare_sankey_data_id <- function(ground_truth_list, bascule_aligned, sigprof_aligned) {
   gt_long <- extract_ground_truth_long(ground_truth_list)
   sigprof_long <- extract_sigprofiler_long(sigprof_aligned)
+  bascule_long <- extract_bascule_long(bascule_aligned)
 
-  combined <- bind_rows(gt_long, sigprof_long)
+  combined <- bind_rows(gt_long, sigprof_long,bascule_long)
 
   # Filter to keep only exposures > 0
   combined <- combined %>% filter(Exposure > 0)

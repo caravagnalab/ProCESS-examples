@@ -1,7 +1,7 @@
 # Sankey plot #
 
 generate_sankey_sbs <- function(sankey_df, spn_id, cov = NULL, pur = NULL) {
-  color <- get_colors_for(sankey_df$Signature %>% unique(), pal_name = 'Set3')
+  color <- COSMIC_color_palette()#, get_colors_for(sankey_df$Signature %>% unique(), pal_name = 'Set3')
   df_spn <- sankey_df %>% filter(SPN == spn_id)
   
   if (!is.null(cov)) df_spn <- df_spn %>% filter(Coverage == paste0('coverage_', cov))
@@ -10,7 +10,7 @@ generate_sankey_sbs <- function(sankey_df, spn_id, cov = NULL, pur = NULL) {
   # Prepare data
   long_df <- df_spn %>%
     mutate(
-      Method = factor(Method, levels = c("ProCESS", "SparseSignatures", "SigProfiler")),
+      Method = factor(Method, levels = c("ProCESS", "BASCULE", "SigProfiler")),
       alluvium = interaction(Sample_ID, Signature)
     )
   
@@ -24,7 +24,7 @@ generate_sankey_sbs <- function(sankey_df, spn_id, cov = NULL, pur = NULL) {
       cum_exposure = cumsum(Exposure),
       ymin = cum_exposure - Exposure,
       ymid = ymin + Exposure / 2,
-      Method = factor(Method, levels = c("ProCESS", "SparseSignatures", "SigProfiler")),
+      Method = factor(Method, levels = c("ProCESS", "BASCULE", "SigProfiler")),
       label = paste0(Signature, "\n(", round(Exposure, 2), ")")
     ) %>%
     ungroup()
@@ -35,32 +35,45 @@ generate_sankey_sbs <- function(sankey_df, spn_id, cov = NULL, pur = NULL) {
   
   
   ggplot(long_df,
-         aes(x = factor(as.factor(Method), levels = c('SigProfiler', 'ProCESS', 'SparseSignatures')), stratum = Signature, alluvium = alluvium,
+         aes(x = factor(as.factor(Method), levels = c('SigProfiler', 'ProCESS', 'BASCULE')),
+             stratum = Signature, alluvium = alluvium,
              y = Exposure, fill = Signature)) +
     geom_flow(stat = "alluvium", lode.guidance = "frontback", color = "gray", alpha = 0.6) +
     geom_stratum(width = 1/3, color = "black") +
-    geom_text(
-      data = label_data,
-      aes(x = Method, y = ymid, label = label),
-      inherit.aes = FALSE,
-      size = 3,
-      color = "black"
-    ) +
-    scale_fill_manual(values = color) +
-    facet_wrap(~ Sample_ID, ncol = 2, scales = "free_y") +
+    # geom_text(
+    #   data = label_data,
+    #   aes(x = Method, y = ymid, label = label),
+    #   inherit.aes = FALSE,
+    #   size = 3,
+    #   color = "black"
+    # ) +
+    scale_fill_manual(values = color,drop=FALSE) +
+    facet_wrap(~ Sample_ID, nrow = 1, scales = "free_y") +
     theme_minimal() +
     theme(
-      legend.position = "none",
-      axis.text.x = element_text(size = 12),
-      axis.text.y = element_blank(),
-      axis.title = element_text(size = 12),
-      plot.title = element_text(size = 12, face = "plain")
+      legend.position = "bottom"
+      # axis.text.x = element_text(size = 12),
+      # axis.text.y = element_blank(),
+      # axis.title = element_text(size = 12),
+      # plot.title = element_text(size = 12, face = "plain")
     ) +
     labs(
       title = title_text,
       x = "Method",
       y = "Exposure"
     )
+}
+
+COSMIC_color_palette = function(seed=50,
+                                cosmic_process="/orfeo/cephfs/scratch/cdslab/shared/SCOUT/GRCh38/") {
+  COSMIC_sbs <- read.table(paste0(cosmic_process,"SBS_signatures.txt"),header = T) %>% colnames()
+  COSMIC_indels <-read.table(paste0(cosmic_process,"indel_signatures.txt"),header = T) %>% colnames()
+  catalogues = list(COSMIC_sbs[2:length(COSMIC_sbs)],COSMIC_indels[2:length(COSMIC_indels)])
+  sigs =  unlist(catalogues) %>% unique()
+  set.seed(seed)
+  return(Polychrome::createPalette(length(sigs), c("#6B8E23","#4169E1"), M=1000,
+                                   target="normal", range=c(15,80)) %>%
+           setNames(sigs))
 }
 
 get_colors_for <- function(values, pal_name = "Set3") {
@@ -79,7 +92,7 @@ get_colors_for <- function(values, pal_name = "Set3") {
 }
 
 generate_sankey_id <- function(sankey_df, spn_id, cov = NULL, pur = NULL) {
-  color <- get_colors_for(sankey_df$Signature %>% unique(), pal_name = 'Set2')
+  color <- COSMIC_color_palette()#, get_colors_for(sankey_df$Signature %>% unique(), pal_name = 'Set3')
   df_spn <- sankey_df %>% filter(SPN == spn_id)
 
   if (!is.null(cov)) df_spn <- df_spn %>% filter(Coverage == paste0('coverage_', cov))
@@ -88,7 +101,7 @@ generate_sankey_id <- function(sankey_df, spn_id, cov = NULL, pur = NULL) {
   # Prepare data
   long_df <- df_spn %>%
     mutate(
-      Method = factor(Method, levels = c("ProCESS", "SigProfiler")),
+      Method = factor(Method, levels = c("BASCULE", "ProCESS","SigProfiler")),
       alluvium = interaction(Sample_ID, Signature)
     )
 
@@ -101,8 +114,8 @@ generate_sankey_id <- function(sankey_df, spn_id, cov = NULL, pur = NULL) {
     mutate(
       cum_exposure = cumsum(Exposure),
       ymin = cum_exposure - Exposure,
-      ymid = ymin + Exposure / 2,
-      Method = factor(Method, levels = c("ProCESS", "SigProfiler")),
+      ymid = ymin + Exposure / 3,
+      Method = factor(Method, levels = c("SigProfiler","ProCESS","BASCULE")),
       label = paste0(Signature, "\n(", round(Exposure, 2), ")")
     ) %>%
     ungroup()
@@ -112,22 +125,23 @@ generate_sankey_id <- function(sankey_df, spn_id, cov = NULL, pur = NULL) {
   if (!is.null(pur)) title_text <- paste0(title_text, ", pur=", pur)
 
   ggplot(long_df,
-         aes(x = Method, stratum = Signature, alluvium = alluvium,
+         aes(x = Method,
+             stratum = Signature, alluvium = alluvium,
              y = Exposure, fill = Signature)) +
     geom_flow(stat = "alluvium", lode.guidance = "frontback", color = "gray", alpha = 0.6) +
     geom_stratum(width = 1/3, color = "black") +
-    geom_text(
-      data = label_data,
-      aes(x = Method, y = ymid, label = label),
-      inherit.aes = FALSE,
-      size = 3,
-      color = "black"
-    ) +
+    # geom_text(
+    #   data = label_data,
+    #   aes(x = Method, y = ymid, label = label),
+    #   inherit.aes = FALSE,
+    #   size = 3,
+    #   color = "black"
+    # ) +
     scale_fill_manual(values = color) +
     facet_wrap(~ Sample_ID, ncol = 2, scales = "free_y") +
     theme_minimal() +
     theme(
-      legend.position = "none",
+      legend.position = "bottom",
       axis.text.x = element_text(size = 12),
       axis.text.y = element_blank(),
       axis.title = element_text(size = 12),

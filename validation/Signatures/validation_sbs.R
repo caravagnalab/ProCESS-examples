@@ -17,7 +17,7 @@ base_path <- "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/"
 coverage_list <- c(50)
 purity_list <- c(0.9)
 dataset <- "SCOUT"
-spn <- c("SPN01", "SPN02", "SPN03")
+spn <- c("SPN01", "SPN04")
 context <- 'SBS'
 if (context == 'SBS'){
   context_sig = 'SBS96'
@@ -90,6 +90,15 @@ for (spn_id in spn) {
           context = context_sig
         )
         
+        bascule <- get_tumourevo_signatures(
+          spn = spn_id,
+          coverage = cov,
+          purity = pur,
+          vcf_caller = vcf_caller,
+          cna_caller = cna_caller,
+          tool = "BASCULE",
+          context = context_sig
+        )
         # Combine and load paths
         paths <- c(
           sparsesig$nmf_Lasso_out,
@@ -99,7 +108,8 @@ for (spn_id in spn) {
           sigprofiler$COSMIC_exposure,
           sigprofiler$COSMIC_signatures,
           sigprofiler$denovo_exposure,
-          sigprofiler$denovo_signatures
+          sigprofiler$denovo_signatures,
+          bascule$refined_fit
         )
         
         data <- load_signature_data(paths)
@@ -112,7 +122,8 @@ for (spn_id in spn) {
           "SigProfiler_COSMIC_exposure",
           "SigProfiler_COSMIC_signatures",
           "SigProfiler_denovo_exposure",
-          "SigProfiler_denovo_signatures"
+          "SigProfiler_denovo_signatures",
+          "BASCULE_refined_fit"
         )
         
         data
@@ -172,9 +183,11 @@ for (spn_id in spn) {
 sparsig_cosmic <- mapped_res
 sparsesig_aligned <- align_sparsesig_res(sparsig_cosmic)
 sigprof_aligned <- align_sigprofiler_res(tumourevo_signature_res)
-
+bascule_aligned <- align_bascule_res(tumourevo_signature_res)
 ### Compare exposure of estimated and true signatures  ###
-sankey_df <- prepare_sankey_data_sbs(ground_truth_nested, sparsesig_aligned, sigprof_aligned)
+# sankey_df <- prepare_sankey_data_sbs(ground_truth_nested, sparsesig_aligned, sigprof_aligned)
+sankey_df <- prepare_sankey_data_sbs(ground_truth_nested, bascule_aligned, sigprof_aligned)
+
 
 plots <- list()
 for (spn_id in spn){
@@ -204,26 +217,32 @@ for (spn_id in spn) {
     
     for (pur in purity_list) {
       p <- paste0("purity_", pur)
+      inf_sig_bascule <- bascule_aligned[[spn_id]][[c]][[p]] %>% as.data.frame()
       inf_sig_sparsesig <- sparsesig_aligned[[spn_id]][[c]][[p]] %>% as.data.frame()
       inf_sig_sigprofiler <- sigprof_aligned[[spn_id]][[c]][[p]] 
       sim_sig <- ground_truth_nested[[spn_id]][[c]][[p]]  %>% as.data.frame()
       
+      sample_metrics_bascule <- per_sample_metrics(inferred_df = inf_sig_bascule, simulated_df = sim_sig) %>% 
+        mutate(caller = 'BASCULE', spn = spn_id, coverage = cov, purity = pur)
       sample_metrics_sparsesig <- per_sample_metrics(inferred_df = inf_sig_sparsesig, simulated_df = sim_sig) %>% 
         mutate(caller = 'SparseSignatures', spn = spn_id, coverage = cov, purity = pur)
       sample_metrics_sigprofiler <- per_sample_metrics(inferred_df = inf_sig_sigprofiler, simulated_df = sim_sig) %>% 
         mutate(caller = 'SigProfiler', spn = spn_id, coverage = cov, purity = pur)
       summary_sparsesig <- summary_stats(sample_metrics_sparsesig) %>% mutate(caller = 'SparseSignatures', spn = spn_id, coverage = cov, purity = pur)
       summary_sigprofiler <- summary_stats(sample_metrics_sigprofiler) %>% mutate(caller = 'SigProfiler', spn = spn_id, coverage = cov, purity = pur)
+      summary_bascule <- summary_stats(sample_metrics_bascule) %>% mutate(caller = 'BASCULE', spn = spn_id, coverage = cov, purity = pur)
       
       cosine_mse_sigprofiler <- compute_cosine_mse(inferred = inf_sig_sigprofiler, simulated = sim_sig) %>% 
         mutate(caller = 'SigProfiler', spn = spn_id, coverage = cov, purity = pur)
       cosine_mse_sparsesig <- compute_cosine_mse(inferred = inf_sig_sparsesig, simulated = sim_sig) %>% 
         mutate(caller = 'SparseSignatures', spn = spn_id, coverage = cov, purity = pur)
+      cosine_mse_bascule <- compute_cosine_mse(inferred = inf_sig_bascule, simulated = sim_sig) %>% 
+        mutate(caller = 'BASCULE', spn = spn_id, coverage = cov, purity = pur)
       
-      metrics_sample <- bind_rows(metrics_sample, sample_metrics_sparsesig, sample_metrics_sigprofiler)
-      metrics_spn <- bind_rows(metrics_spn, summary_sparsesig, summary_sigprofiler)
+      metrics_sample <- bind_rows(metrics_sample, sample_metrics_sparsesig, sample_metrics_sigprofiler,sample_metrics_bascule)
+      metrics_spn <- bind_rows(metrics_spn, summary_sparsesig, summary_sigprofiler,summary_bascule)
       
-      cosine_mse <- bind_rows(cosine_mse, cosine_mse_sigprofiler, cosine_mse_sparsesig)
+      cosine_mse <- bind_rows(cosine_mse, cosine_mse_sigprofiler, cosine_mse_sparsesig,cosine_mse_bascule)
     }
   }
 }
