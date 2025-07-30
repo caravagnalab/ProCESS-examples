@@ -6,6 +6,7 @@ include { SOMATIC_PREPROCESS } from '../../modules/preprocessing/callers/main.nf
 include { PROCESS_PREPROCESS } from '../../modules/preprocessing/process/main.nf'
 include { GENERATE_SOMATIC_REPORT_SINGLE_COMBINATION } from '../../modules/somatic_report_single_combination/main.nf'
 include { GENERATE_SOMATIC_REPORT_ALL_CALLER } from '../../modules/somatic_report_all_caller/main.nf'
+include { GENERATE_SOMATIC_REPORT_ALL_COMBINATION } from '../../modules/somatic_report_all_combination/main.nf'
 
 
 workflow SOMATIC_VALIDATION {
@@ -96,8 +97,6 @@ workflow SOMATIC_VALIDATION {
         }
         | set {spn_coverage_purity_ch}
 
-    //spn_coverage_purity_ch.view()
-    //[spn:SPN01, sample:SPN01_1.3, coverage:50, purity:0.6, type:1, sex:XY, caller:freebayes]
     PROCESS_PREPROCESS.out.rds.map { meta, chr, rds ->
         [meta, rds]}
         | groupTuple
@@ -110,14 +109,33 @@ workflow SOMATIC_VALIDATION {
         }
         | set { process_coverage_purity_ch }
 
-    // // single caller 
-    //GENERATE_SOMATIC_REPORT_SINGLE_COMBINATION(process_coverage_purity_ch.combine(spn_coverage_purity_ch, by:0)
+    spn_coverage_purity_ch
+    | groupTuple
+    | set { spn_coverage_purity_ch_caller }
+
+    GENERATE_SOMATIC_REPORT_SINGLE_COMBINATION(process_coverage_purity_ch.combine(spn_coverage_purity_ch, by:0))
+    GENERATE_SOMATIC_REPORT_ALL_CALLER(process_coverage_purity_ch.combine(spn_coverage_purity_ch_caller, by:0))
+
+    report_comb_caller = GENERATE_SOMATIC_REPORT_SINGLE_COMBINATION.out.metrics_somatic_report
+    report_comb = GENERATE_SOMATIC_REPORT_ALL_CALLER.out.metrics_somatic_all_caller_report
+
+    metric_comb_caller = GENERATE_SOMATIC_REPORT_SINGLE_COMBINATION.out.metrics_somatic_rds
+    metric_comb = GENERATE_SOMATIC_REPORT_ALL_CALLER.out.metrics_somatic_all_caller_rds
     
-    // all caller
-    // GENERATE_SOMATIC_REPORT_ALL_CALLER(spn_coverage_purity_ch)
-    
+    metric_comb.map{ meta, rds -> 
+        def combination = "${meta.coverage}_${meta.purity}"
+        [meta.subMap('spn', 'type', 'sex'), rds, combination]
+    }
+    | groupTuple
+    | set { spn_ch }
+
+    GENERATE_SOMATIC_REPORT_ALL_COMBINATION(spn_ch)
+    plot_spn = GENERATE_SOMATIC_REPORT_ALL_COMBINATION.out.report
+
     emit:
-    null
-    //report_somatic_single_combination
-    //report_somatic_all_callers
+    metric_comb_caller
+    report_comb_caller
+    metric_comb 
+    report_comb 
+    plot_spn
 }

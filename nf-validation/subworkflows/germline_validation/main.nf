@@ -38,7 +38,8 @@ workflow GERMLINE_VALIDATION {
                 vcf_path = "${path}/${meta.spn}/sarek/normal/variant_calling/${caller}/${meta.sample}/${meta.sample}.${caller}.vcf.gz"
                 vcf_tbi_path = "${path}/${meta.spn}/sarek/normal/variant_calling/${caller}/${meta.sample}/${meta.sample}.${caller}.vcf.gz.tbi"
             }
-            return [meta, chr, caller, status, mut_type, file(vcf_path), file(vcf_tbi_path)]
+            meta = meta + [caller: caller]
+            return [meta, chr, file(vcf_path)]
         }
         .set { normal_jobs_ch }
 
@@ -59,13 +60,12 @@ workflow GERMLINE_VALIDATION {
     BCFTOOLS_VIEW(normal_jobs_ch) 
     GERMLINE_PREPROCESS(BCFTOOLS_VIEW.out.chr_vcf) 
    
-    GERMLINE_PREPROCESS.out.rds.map{meta, chr, caller, rds -> 
-            meta = meta + [caller: caller]
+    GERMLINE_PREPROCESS.out.rds.map{meta, chr, rds -> 
             [meta, rds]
            }
            | groupTuple
            | map{ meta, rds -> 
-            caller = meta.caller
+            def caller = meta.caller
             [meta.subMap('spn', 'sample', 'coverage', 'purity', 'type', 'sex'), rds, caller]
            }
            | groupTuple
@@ -82,6 +82,4 @@ workflow GERMLINE_VALIDATION {
     
     emit:
     report_germline
-    // viewed_vcfs
-    // r_output
 }

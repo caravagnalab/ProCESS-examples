@@ -1,18 +1,16 @@
 process GERMLINE_PREPROCESS {
 
-    tag { "${meta.spn}-${sample}-${caller}-chr${chromosome}" }
+    tag { "${meta.spn}-${meta.sample}-${meta.caller}-chr${chromosome}" }
     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
         'docker://lvaleriani/process_validation:v1' :
         'docker.io/lvaleriani/process_validation:v1' }"
 
     input:
-    tuple val(meta), val(chromosome), val(caller), val(mut_type), path(vcf_file)
+    tuple val(meta), val(chromosome), path(vcf_file)
 
     output:
-    // tuple val(meta), path("*.rds"),                            emit: rds
-    // path "${row.spn}_${row.coverage}_${row.purity}_chr${chromosome}_${caller}_output.txt"
-    tuple val(meta), val(chromosome), val(caller),path("chr*.rds"),	emit: rds
-    publishDir "${params.outdir}/${meta.spn}/germline/${meta.sample}/${caller}/rds", mode: 'copy'
+    tuple val(meta), val(chromosome), path("chr*.rds"),	emit: rds
+    publishDir "${params.outdir}/${meta.spn}/germline/${meta.sample}/${meta.caller}/rds", mode: 'copy'
 
     script:
     """
@@ -23,7 +21,7 @@ process GERMLINE_PREPROCESS {
     source("${projectDir}/bin/Germline/vcf_parser.R")
 
     chromosome <- "$chromosome"
-    caller="${caller}"
+    caller="${meta.caller}"
     outfile = paste0("chr",chromosome,"_${meta.sample}.rds")
 
     if (caller=="haplotypecaller"){
