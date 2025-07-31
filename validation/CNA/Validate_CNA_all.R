@@ -4,6 +4,7 @@ library(ProCESS)
 library(optparse)
 library(tidyr)
 library(ggplot2)
+library(patchwork)
 source("../../getters/sarek_getters.R")
 source("../../getters/process_getters.R")
 source("utils.R")
@@ -49,160 +50,98 @@ df_metric = lapply(1:nrow(params_grid), function(i) {
                                               coverage = as.numeric(coverage))
     }
   }) %>% bind_rows()
+
+}) %>% bind_rows()
+
+df_bp = lapply(1:nrow(params_grid), function(i) {
+  coverage = params_grid[i,]$coverage
+  purity = params_grid[i,]$purity
+  
+  combination = paste0(coverage, "x_", purity, "p")
+  
+  results_folder_path = file.path(input_dir, spn_id, combination)
+  samples_name = get_sample_names(spn_id)
+  
+  tmp_df = lapply(samples_name, FUN = function(sample){
+    file_name = file.path(results_folder_path, sample, "metrics_bp.rds")
+    if (file.exists(file_name)){
+      metrics = readRDS(file_name) %>% mutate(true_purity = as.numeric(true_purity),
+                                              coverage = as.numeric(coverage))
+    }
+  }) %>% bind_rows()
 }) %>% bind_rows()
 
 df_metric <- df_metric %>% mutate(fga = round(fga),
                                   fgs = round(fgs))
 
-plt <- df_metric %>% 
-  ggplot() + 
-  geom_point(aes(x = sample, y = as.numeric(true_purity) - as.numeric(purity), col = tool)) +
-  scale_color_manual(values = color_caller) +
-  geom_hline(aes(yintercept = 0)) +
-  ylab('true_purity - inferred_purity') +
-  theme_bw() +
-  facet_grid(as.numeric(coverage) ~ as.numeric(true_purity)) +
+df_bp <- df_bp %>% mutate(fga = round(fga),
+                                  fgs = round(fgs))
 
-df_metric %>% 
+plt_data <- df_metric %>% 
+  select(sample, fga,fgs) %>% 
+  distinct() %>% 
+  pivot_longer(cols = c(fga,fgs)) %>% 
   ggplot() + 
-  geom_point(aes(x = sample, y = as.numeric(true_ploidy) - as.numeric(ploidy), col = tool)) + 
+  geom_col(aes(x = sample, y = value,fill=name ),position = position_dodge()) +
+  scale_fill_manual('', values = c('indianred', 'orange'))  +
+  ylab('% of genome') +
+  theme_minimal() 
+
+plt_ploidy <- df_metric %>% 
+  select(sample, true_ploidy) %>% 
+  distinct() %>% 
+  mutate(true_ploidy = round(true_ploidy,1)) %>% 
+  ggplot(aes(x = sample, y = true_ploidy )) + 
+  geom_col() +
+  theme_minimal()
+
+plt_bp <- df_bp %>% 
+  filter(chr == 'genome') %>% 
+  pivot_longer(cols = c(precision, recall, f1)) %>% 
+  ggplot() +
+  geom_boxplot(aes(x = as.factor(true_purity), y = value, col = tool)) +
   scale_color_manual(values = color_caller) +
-  geom_hline(aes(yintercept = 0)) +
-  ylab('true_ploidy - inferred_ploidy') +
+  facet_grid(name~coverage)  +
+  xlab('purity') + 
+  theme_bw() 
+
+plt <- plt_ploidy + 
+  plt_data + 
+  
+  df_metric %>%
+  mutate(delta_purity = as.numeric(true_purity) - as.numeric(purity)) %>%
+  ggplot(aes(x = sample, y = delta_purity, fill = tool)) +
+  geom_col(position = position_dodge(width = 0.35), width = 0.7) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  scale_fill_manual(values = color_caller) +
+  ylab("true_purity - inferred_purity") +
+  facet_grid(as.numeric(coverage) ~ as.numeric(true_purity)) +
   theme_bw() +
-  facet_grid(as.numeric(coverage)  ~ as.numeric(true_purity))  +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + 
+
+  df_metric %>%
+  mutate(delta_ploidy = as.numeric(true_ploidy) - as.numeric(ploidy)) %>%
+  ggplot(aes(x = sample, y = delta_ploidy, fill = tool)) +
+  geom_col(position = position_dodge(width = 0.35), width = 0.7) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  scale_fill_manual(values = color_caller) +
+  ylab("true_ploidy - inferred_ploidy") +
+  facet_grid(as.numeric(coverage) ~ as.numeric(true_purity)) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + 
   
 df_metric %>% 
   ggplot() + 
-  geom_point(aes(x = sample, y = correctness_clonal, col = tool)) + 
-  scale_color_manual(values = color_caller) +
-  ylab('% correctness') +
+  geom_col(aes(x = sample, y = correctness_clonal*100, fill = tool), position = position_dodge()) + 
+  scale_fill_manual(values = color_caller) +
+  ylab('% CN correctness') +
   theme_bw() +
   facet_grid(as.numeric(coverage)  ~ as.numeric(true_purity))  +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + 
+  plt_bp + 
   
-  plot_layout(nrow = 3) +
+  plot_layout(design = 'AB\nCC\nDD\nEE\nFF') +
   plot_annotation(title = spn_id) + plot_layout(guides = 'collect')
 
-plt
 ggsave(filename = file.path(data_dir, spn_id, 'validation/cna/report', paste0(spn_id, '.pdf')), plot = plt, dpi = 400, height = 12, width = 12, units = 'in')
-
-
-p1 = df_metric %>%
-  filter(tool != 'cnvkit') %>%
-  group_by(sample) %>%
-  dplyr::mutate(sample_fga = mean(fga, na.rm = TRUE)) %>%
-  ungroup() %>%
-  dplyr::mutate(
-    purity_err =  true_purity - purity,
-    sample_fga_rank = rank(sample_fga)
-  ) %>%
-  ggplot(mapping = aes(x = true_purity, y = purity_err, col = sample_fga_rank, group = sample, shape = sample)) +
-  geom_point(size = 3) +
-  geom_line() +
-  facet_grid(coverage~tool) +
-  scale_fill_viridis_c(name = "FGA Rank") +
-  scale_color_viridis_c(name = "FGA Rank") +
-  theme_bw() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-  geom_hline(yintercept = 0, linetype = "dashed") +
-  labs(x = "True Purity", y = "Delta Purity (True - Predicted)", fill = "FGA", title = 'FGA')
-
-p2 = df_metric %>%
-  filter(tool != 'cnvkit') %>%
-  group_by(sample) %>%
-  dplyr::mutate(sample_fgs = mean(fgs, na.rm = TRUE)) %>%
-  ungroup() %>%
-  dplyr::mutate(
-    purity_err =  true_purity - purity,
-    sample_fgs_rank = rank(sample_fgs)
-  ) %>%
-  ggplot(mapping = aes(x = true_purity, y = purity_err, col = sample_fgs_rank, group = sample, shape = sample)) +
-  geom_point(size = 3) +
-  geom_line() +
-  facet_grid(coverage~tool) +
-  scale_fill_viridis_c(name = "FGS Rank") +
-  scale_color_viridis_c(name = "FGS Rank") +
-  theme_bw() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-  geom_hline(yintercept = 0, linetype = "dashed") +
-  labs(x = "True Purity", y = "Delta Purity (True - Predicted)", fill = "FGS", title ='FGS')
-
-p3 = df_metric %>%
-  filter(tool != 'cnvkit') %>%
-  group_by(sample) %>%
-  dplyr::mutate(sample_fga = mean(fga, na.rm = TRUE)) %>%
-  ungroup() %>%
-  dplyr::mutate(
-    ploidy_err =  true_ploidy - ploidy,
-    sample_fga_rank = rank(sample_fga)
-  ) %>%
-  ggplot(mapping = aes(x = true_purity, y = ploidy_err, col = sample_fga_rank, group = sample, shape = sample)) +
-  geom_point(size = 3) +
-  geom_line() +
-  facet_grid(coverage~tool) +
-  scale_fill_viridis_c(name = "FGA Rank") +
-  scale_color_viridis_c(name = "FGA Rank") +
-  theme_bw() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-  geom_hline(yintercept = 0, linetype = "dashed") +
-  labs(x = "True Purity", y = "Delta Ploidy (True - Predicted)", fill = "FGA")
-
-p4 = df_metric %>%
-  filter(tool != 'cnvkit') %>%
-  group_by(sample) %>%
-  dplyr::mutate(sample_fgs = mean(fgs, na.rm = TRUE)) %>%
-  ungroup() %>%
-  dplyr::mutate(
-    ploidy_err =  true_ploidy - ploidy,
-    sample_fgs_rank = rank(sample_fgs)
-  ) %>%
-  ggplot(mapping = aes(x = true_purity, y = ploidy_err, col = sample_fgs_rank, group = sample, shape = sample)) +
-  geom_point(size = 3) +
-  geom_line() +
-  facet_grid(coverage~tool) +
-  scale_fill_viridis_c(name = "FGS Rank") +
-  scale_color_viridis_c(name = "FGS Rank") +
-  theme_bw() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-  geom_hline(yintercept = 0, linetype = "dashed") +
-  labs(x = "True Purity", y = "Delta Ploidy (True - Predicted)", fill = "FGS")
-
-p5 = df_metric %>%
-  group_by(sample) %>%
-  dplyr::mutate(sample_fga = mean(fga, na.rm = TRUE)) %>%
-  ungroup() %>%
-  dplyr::mutate(
-    ploidy_err =  true_ploidy - ploidy,
-    sample_fga_rank = rank(sample_fga)
-  ) %>%
-  ggplot(mapping = aes(x = true_purity, y = correctness_clonal, col = sample_fga_rank, group = sample, shape = sample)) +
-  geom_point(size = 3) +
-  geom_line() +
-  facet_grid(coverage~tool) +
-  scale_fill_viridis_c(name = "FGA Rank") +
-  scale_color_viridis_c(name = "FGA Rank") +
-  theme_bw() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-  labs(x = "True Purity", y = "% of correct CN", fill = "FGA")
-
-p6 = df_metric %>%
-  group_by(sample) %>%
-  dplyr::mutate(sample_fgs = mean(fgs, na.rm = TRUE)) %>%
-  ungroup() %>%
-  dplyr::mutate(
-    ploidy_err =  true_ploidy - ploidy,
-    sample_fgs_rank = rank(sample_fgs)
-  ) %>%
-  ggplot(mapping = aes(x = true_purity, y = correctness_clonal, col = sample_fgs_rank, group = sample, shape = sample)) +
-  geom_point(size = 3) +
-  geom_line() +
-  facet_grid(coverage~tool) +
-  scale_fill_viridis_c(name = "FGS Rank") +
-  scale_color_viridis_c(name = "FGS Rank") +
-  theme_bw() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-  labs(x = "True Purity", y = "% of correct CN", fill = "FGS")
-
-
-pp <- p1 + p2 + p3 + p4 + p5 +theme(legend.position = 'none') + p6 +theme(legend.position = 'none') + plot_layout(ncol=2, guides = 'collect')
-ggsave(filename = file.path(data_dir, spn_id, 'validation/cna/report', paste0(spn_id, '_v2.pdf')), plot = pp, dpi = 400, height = 12, width = 12, units = 'in')
+plt
