@@ -25,9 +25,12 @@ workflow {
     if (params.step && params.step.split(',').contains('cna')){
         CNA_VALIDATION(samples_ch_tumour)
     }
-
+    //samples_ch_tumour.view()
     // TUMOUR
-    //SIGNATURE_VALIDATION(samples_ch_tumour)
+
+    if (params.step && params.step.split(',').contains('signature')){
+        SIGNATURE_VALIDATION(samples_ch_tumour)
+    }
     //DRIVER_VALIDATION()
     //SUBCLONAL_VALIDATION()
     //QC_VALIDATION()

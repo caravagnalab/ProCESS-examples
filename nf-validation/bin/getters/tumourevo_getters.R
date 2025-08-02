@@ -317,7 +317,7 @@ get_tumourevo_signatures <- function(
 ) {
   
   # quality control
-  tool_list <- c("SigProfiler", "SparseSignatures")
+  tool_list <- c("SigProfiler", "SparseSignatures","BASCULE")
   if (!(tool %in% tool_list)) {
     stop("ERROR: wrong tool name!")
   }
@@ -336,9 +336,10 @@ get_tumourevo_signatures <- function(
   
   
   if (tool == "SigProfiler") {
+    signature_class = gsub('[[:digit:]]+', '', context) 
+    context_matrix <- file.path(MAIN_PATH, tool,"SCOUT", "results","output",signature_class,paste0("SCOUT.",context,".all"))
     
     MAIN_PATH <- file.path(MAIN_PATH, tool, "SCOUT", "results", context, context, "Suggested_Solution")
-    
     COSMIC <- file.path(MAIN_PATH, paste0("COSMIC_", context, "_Decomposed_Solution"))
     COSMIC_exposure <- paste0(COSMIC, "/Activities/COSMIC_", context, "_Activities.txt")
     COSMIC_signatures <- paste0(COSMIC, "/Signatures/COSMIC_", context, "_Signatures.txt")
@@ -348,6 +349,7 @@ get_tumourevo_signatures <- function(
     denovo_signatures <- paste0(denovo, "/Signatures/", context, "_De-Novo_Signatures.txt")
     
     return(list(
+      context_matrix=context_matrix,
       COSMIC_exposure=COSMIC_exposure, 
       COSMIC_signatures=COSMIC_signatures, 
       denovo_exposure=denovo_exposure, 
@@ -363,6 +365,12 @@ get_tumourevo_signatures <- function(
     output[['best_params_config']] <- file.path(MAIN_PATH, "SCOUT_best_params_config.rds")
     output[['mut_counts']] <- file.path(MAIN_PATH, "SCOUT_mut_counts.rds")
     
+    return(output)
+  } else if (tool =="BASCULE") {
+    MAIN_PATH <- file.path(MAIN_PATH, tool, "SCOUT")
+    output <- list()
+    output[['refined_fit']] <- file.path(MAIN_PATH, "bascule_refined_fit.rds")
+    output[['base_fit']] <- file.path(MAIN_PATH, "bascule_fit.rds")
     return(output)
   } else {
     stop("ERROR: wrong tool name!")

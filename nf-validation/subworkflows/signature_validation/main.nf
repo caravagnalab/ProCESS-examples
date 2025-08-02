@@ -1,4 +1,5 @@
 nextflow.enable.dsl=2
+include { SIGNATURE_VALIDATION_COMBINATION } from '../../modules/signature_validation/main.nf'
 
 workflow SIGNATURE_VALIDATION {
 
@@ -20,8 +21,15 @@ workflow SIGNATURE_VALIDATION {
                 [meta, path, vcf, cna]
             }
         }
-    }.view()
+    }.set{ signature_ch }
+
+    SIGNATURE_VALIDATION_COMBINATION(signature_ch)
+    metrics_spn = SIGNATURE_VALIDATION_COMBINATION.out.metrics_spn
+    metrics_sample = SIGNATURE_VALIDATION_COMBINATION.out.metrics_sample
+    cosine_mse = SIGNATURE_VALIDATION_COMBINATION.out.cosine_mse
 
     emit:
-    null
+    cosine_mse
+    metrics_spn
+    metrics_sample
 }
