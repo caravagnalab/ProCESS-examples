@@ -31,7 +31,7 @@ data_dir = '/orfeo/scratch/cdslab/shared/SCOUT'
 
 contexts <- c("SBS96","ID83")
 
-reference_cat = list("SBS"=COSMIC_sbs_filt, "ID"=COSMIC_indels)
+reference_cat = list("SBS"=COSMIC_sbs, "ID"=COSMIC_indels)
 counts <- list()
 spns <- list(spn)
 
