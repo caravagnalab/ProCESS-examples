@@ -79,45 +79,42 @@ generation <- full_table %>%
 
 ggsave(filename = 'plot_benchmark.png', plot = generation, width = 12, height = 8, units = 'in', dpi = 600)
 
+# memory process ####
+samples_n <- sample_table %>% select(sample, N)
+file_memory_normal <- read.csv('/orfeo/cephfs/scratch/cdslab/shared/SCOUT/fastq_normal', sep = '\t', header = F) %>% 
+  tidyr::separate(V2, sep = '\\/', into = c('spn', 'seq', 'type', 'purity')) %>% 
+  tidyr::separate(purity, sep = '_', into = c('name', 'purity')) %>% 
+  select(-name, -seq) %>% 
+  dplyr::rename(GB = V1)  %>% 
+  mutate(GB = as.numeric(stringr::str_replace(GB, pattern = 'G', ''))) %>% 
+  filter(spn %in% spns) %>% 
+  mutate(N = 1)
 
-memory <- tibble(sample = spns,
-                 N = c(3,2,4,2,3,5,5),
-                 sample_forest = c('1.2', '0.8', '1.9', '0.7', NA, '2.4', '2.1'), #M
-                 phylo_forest = c('2.1', '6', '1.8', '0.8', NA, '2.6', '2.8'), #G
-                 sam = rep(NA, 7),
-                 bam = c('0.9', '0.6', '1.3', '0.6', '1.3', '1.7', '1.7'), #T
-                 fastq = c('0.7', '0.5', '0.9', '0.4', '0.7', '1.2', '1.2') #T
-                 )
+file_memory_tumour <- read.csv('/orfeo/cephfs/scratch/cdslab/shared/SCOUT/fastq_process', sep = '\t', header = F) %>% 
+  tidyr::separate(V2, sep = '\\/', into = c('spn', 'seq', 'type', 'purity')) %>% 
+  tidyr::separate(purity, sep = '_', into = c('name', 'purity')) %>% 
+  select(-name, -seq) %>% 
+  dplyr::rename(GB = V1) %>% 
+  filter(spn %in% spns) %>% 
+  mutate(GB = as.numeric(GB)) %>% 
+  left_join(samples_n %>% dplyr::rename(spn = sample))
 
-mem <- memory %>% 
-  filter(sample != 'SPN05') %>% 
-  ggplot() +
-  geom_col(aes(x = sample, y = sample_forest, fill = as.factor(N))) +
-  scale_fill_manual('N samples', values = c('#7CCAD5', '#A0A6BE', '#C481A7', '#454995'))  +
-  ylab('MB') +
-  ggtitle('Sample forest') +
-  theme_minimal()  +
-  
-memory %>% 
-  filter(sample != 'SPN05') %>% 
-  ggplot() +
-  geom_col(aes(x = sample, y = phylo_forest, fill = as.factor(N))) +
-  scale_fill_manual('N samples', values = c('#7CCAD5', '#A0A6BE', '#C481A7', '#454995'))  +
-  ylab('GB') +
-  ggtitle('Phylogenetic forest') +
-  theme_minimal()  +
-  
-memory %>% 
-  ggplot() +
-  geom_col(aes(x = sample, y = fastq, fill = as.factor(N))) +
-  scale_fill_manual('N samples', values = c('#7CCAD5', '#A0A6BE', '#C481A7', '#454995'))  +
-  ylab('TB') +
-  ggtitle('fastq files') +
-  theme_minimal()  +
-  plot_layout(guides = 'collect') & theme(legend.position = 'bottom')
-ggsave(filename = 'plot_memory.png', plot = mem, width = 12, height = 4, units = 'in', dpi = 600)
+memory_process <- bind_rows(file_memory_tumour, file_memory_normal)
 
-samples_n <- memory %>% select(sample, N)
+mem <- memory_process %>% 
+  filter(spn != 'SPN05') %>% 
+  mutate(N= ifelse(N==1, '1 - Normal', N)) %>% 
+  ggplot() +
+  geom_col(aes(x = spn, y = GB, fill = as.factor(N))) +
+  scale_fill_manual('N samples', values = c('2' = '#7CCAD5', '3' ='#A0A6BE', '4' ='#C481A7', '5' ='#454995', '1 - Normal' = 'gray'))  +
+  ylab('GB') + 
+  xlab('SPN') +
+  ggtitle('FASTQ - 200X x 3p') + 
+  theme_minimal() 
+ggsave(filename = 'plot_memory.png', plot = mem, width = 5, height = 4, units = 'in', dpi = 600)
+ggsave(filename = 'plot_memory.pdf', plot = mem, width = 5, height = 4, units = 'in', dpi = 600)
+
+
 memory_sarek <- read.csv('/orfeo/cephfs/scratch/cdslab/shared/SCOUT/sarek_memory', sep = '\t', header = F) %>% 
   tidyr::separate(V2, sep = '\\/', into = c('spn', 'sarek', 'comb')) %>% 
   tidyr::separate(comb, sep = '_', into = c('cov', 'purity')) %>% 
