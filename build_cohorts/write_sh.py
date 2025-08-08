@@ -138,9 +138,37 @@ config={CONFIG}
 base={PROCESS_DIR}
 profile=$(sinfo -h -o "%P %a %D %t" | grep -w 'EPYC\|GENOA\|THIN' |awk '$2 == "up" && $4 ~ /idle|mix/ {print tolower($1), $3}' | awk '{sum[$1] += $2} END {for (p in sum) print p, sum[p]}' | sort -k2 -nr | head -n1 | cut -f1 -d " ")
 
-/orfeo/cephfs/scratch/cdslab/shared/SCOUT/nextflow run $base/main.nf -profile singularity,${profile} --input $input --outdir $output_dir_combination -c $config
+/orfeo/cephfs/scratch/cdslab/shared/SCOUT/nextflow run $base/main.nf -profile singularity,${profile} --input $input --outdir $output_dir_combination -c $config --tool sequenza
 """
 
+
+battenberg_launcher="""#!/bin/bash
+#SBATCH --partition=EPYC
+#SBATCH --job-name=battenberg_{JOB_NAME}
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=2
+#SBATCH --mem=20G
+#SBATCH --time=24:00:00
+#SBATCH --output=battenberg_{JOB_NAME}_%J.out 
+#SBATCH --error=battenberg_{JOB_NAME}_%J.err
+#SBATCH -A {ACCOUNT}
+
+module load java/11.0.22
+module load singularity
+
+input_dir={INPUT_DIR}
+input="${input_dir}/sarek_variant_calling_{JOB_NAME}.csv"
+
+output_base_dir={SAREK_OUT}
+output_dir_combination="${output_base_dir}/{JOB_NAME}"
+
+base={PROCESS_DIR}
+config=$base/batt.config
+profile=$(sinfo -h -o "%P %a %D %t" | grep -w 'EPYC\|GENOA\|THIN' |awk '$2 == "up" && $4 ~ /idle|mix/ {print tolower($1), $3}' | awk '{sum[$1] += $2} END {for (p in sum) print p, sum[p]}' | sort -k2 -nr | head -n1 | cut -f1 -d " ")
+
+/orfeo/cephfs/scratch/cdslab/shared/SCOUT/nextflow run $base/main.nf -profile singularity,${profile} --input $input --outdir $output_dir_combination -c $config -plugins nf-schema@2.0.0 --tool battenberg
+"""
 
 
 tumourevo_launcher="""#!/bin/bash
@@ -317,19 +345,16 @@ if (__name__ == '__main__'):
 
     #if not os.path.exists(tumour_type_file):
 
-    with open('ProCESS_tumour_type.sh', 'w') as outstream:
-        outstream.write(write_tumour_type_file)
+    # with open('ProCESS_tumour_type.sh', 'w') as outstream:
+    #     outstream.write(write_tumour_type_file)
 
-    cmd = ['sbatch', '--account={}'.format(account),
-          '--partition={}'.format(args.partition),
-          ('--export=DIR={},SPN={},BASEDIR={}').format(curr_dir,args.SPN,
-                                                os.path.dirname(args.phylogenetic_forest)),
-          './ProCESS_tumour_type.sh']
+    # cmd = ['sbatch', '--account={}'.format(account),
+    #       '--partition={}'.format(args.partition),
+    #       ('--export=DIR={},SPN={},BASEDIR={}').format(curr_dir,args.SPN,
+    #                                             os.path.dirname(args.phylogenetic_forest)),
+    #       './ProCESS_tumour_type.sh']
 
-    subprocess.run(cmd)
-
-    
-
+    # subprocess.run(cmd)
 
     config_file = args.config
     if not os.path.exists(sarek_dir):
@@ -353,7 +378,6 @@ if (__name__ == '__main__'):
 
         for purity in cohorts_data['purities']:
 
-            
             if seq_type == 'normal':
                 job_id=seq_type
                 sarek_file_launcher_orig = sarek_file_normal_launcher
@@ -400,7 +424,7 @@ if (__name__ == '__main__'):
                         outstream.write(sarek_variant_calling_launcher)
                     sarek_variant_calling_launcher = sarek_variant_calling_launcher_orig
                     
-                    #sequenza sh file
+                    # sequenza sh file
                     sequenza_launcher_orig = sequenza_launcher
                     job_id=f'{cohort_cov}x_{purity}p'
                     process_path = os.path.join('/'.join(os.path.normpath(config_file).split(os.path.sep)[:-2]), 'sequenza')
@@ -417,6 +441,23 @@ if (__name__ == '__main__'):
                         outstream.write(sequenza_launcher)
                     sequenza_launcher = sequenza_launcher_orig
                     
+                    # battenberg sh file
+                    battenberg_launcher_orig = battenberg_launcher
+                    job_id=f'{cohort_cov}x_{purity}p'
+                    process_path = os.path.join('/'.join(os.path.normpath(config_file).split(os.path.sep)[:-2]), 'sequenza')
+                    
+                    battenberg_launcher = battenberg_launcher.replace('{ACCOUNT}', str(account))
+                    battenberg_launcher = battenberg_launcher.replace('{JOB_NAME}', str(job_id))
+                    battenberg_launcher = battenberg_launcher.replace('{INPUT_DIR}', str(sarek_dir))
+                    battenberg_launcher = battenberg_launcher.replace('{CONFIG}', str(config_file))
+                    battenberg_launcher = battenberg_launcher.replace('{SAREK_OUT}', str(args.sarek_output_dir))
+                    battenberg_launcher = battenberg_launcher.replace('{PROCESS_DIR}', str(process_path))
+
+                    
+                    with open(f'{sarek_dir}/battenberg_{cohort_cov}x_{purity}p.sh', 'w') as outstream:
+                        outstream.write(battenberg_launcher)
+                    battenberg_launcher = battenberg_launcher_orig
+                    
                     with open(tumour_type_file) as cancer_type_file:
                         cancer_type = cancer_type_file.read().strip()
                     #tumourevo sh file and csv file
@@ -428,17 +469,16 @@ if (__name__ == '__main__'):
                             combinations.append([vc, cnc])
 
 
-                    
                     for comb in combinations:
                         vc = comb[0]
                         cc = comb[1]
-                        with open(f'{tumourevo_dir}/tumourevo_{cohort_cov}x_{purity}p_{vc}_{cc}.csv', 'w') as tumourevo_file:
-                            if comb[0] == 'mutect2':
-                                tumourevo_file.write('dataset,patient,tumour_sample,normal_sample,vcf,tbi,cna_segments,cna_extra,cna_caller,cancer_type')
-                            else:
-                                tumourevo_file.write('dataset,patient,tumour_sample,normal_sample,vcf,tbi,cna_segments,cna_extra,cna_caller,cancer_type,tumour_alignment,tumour_alignment_index')
-                            for sample_name in sample_names:
-                                write_tumourevo_lines(tumourevo_file, args.SPN, sample_name, comb, cohort_cov, purity, args.sarek_output_dir,cancer_type)
+                        # with open(f'{tumourevo_dir}/tumourevo_{cohort_cov}x_{purity}p_{vc}_{cc}.csv', 'w') as tumourevo_file:
+                        #     if comb[0] == 'mutect2':
+                        #         tumourevo_file.write('dataset,patient,tumour_sample,normal_sample,vcf,tbi,cna_segments,cna_extra,cna_caller,cancer_type')
+                        #     else:
+                        #         tumourevo_file.write('dataset,patient,tumour_sample,normal_sample,vcf,tbi,cna_segments,cna_extra,cna_caller,cancer_type,tumour_alignment,tumour_alignment_index')
+                        #     for sample_name in sample_names:
+                        #         write_tumourevo_lines(tumourevo_file, args.SPN, sample_name, comb, cohort_cov, purity, args.sarek_output_dir,cancer_type)
                     
                         tumourevo_launcher_orig = tumourevo_launcher
                         job_id=f'{cohort_cov}x_{purity}p_{vc}_{cc}'

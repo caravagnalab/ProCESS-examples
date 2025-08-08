@@ -1,18 +1,26 @@
 #!/bin/bash
 #SBATCH --partition=EPYC
-#SBATCH --job-name=sequenza
+#SBATCH --job-name=cn_calling
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=2
 #SBATCH --mem=20G
 #SBATCH --time=96:00:00
-#SBATCH --output=seq_%J.out 
-#SBATCH --error=seq_%J.err
+#SBATCH --output=cn_calling_%J.out 
+#SBATCH --error=cn_calling_%J.err
 #SBATCH -A lade
 
-module load java
+module load java/11.0.22
 module load singularity
 
 base=/orfeo/scratch/area/lvaleriani/races/ProCESS-examples/sequenza
 config=$base/myconfig
-/orfeo/cephfs/scratch/cdslab/shared/SCOUT/nextflow run $base/main.nf -profile singularity,genoa -c $config -resume
+
+input_dir=/orfeo/cephfs/scratch/cdslab/shared/SCOUT/SPN03/sequencing/sarek
+input="${input_dir}/sarek_variant_calling_50x_0.9p.csv"
+
+/orfeo/cephfs/scratch/cdslab/shared/SCOUT/nextflow run $base/main.nf \
+    -profile singularity,epyc  \
+    -c $config \
+    --input $input \
+    --outdir /orfeo/scratch/area/lvaleriani/races/ProCESS-examples/sequenza/test/SPN03 -plugins nf-schema@2.0.0 -resume

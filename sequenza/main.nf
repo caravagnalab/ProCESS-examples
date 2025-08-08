@@ -3,49 +3,27 @@
 nextflow.enable.dsl=2
 
 include { SAMTOOLS_CONVERT  as  SAMTOOLS_CONVERT_T    } from './modules/nf-core/samtools/convert/main'
-include { SAMTOOLS_CONVERT  as SAMTOOLS_CONVERT_N   } from './modules/nf-core/samtools/convert/main'
+include { SAMTOOLS_CONVERT  as  SAMTOOLS_CONVERT_N    } from './modules/nf-core/samtools/convert/main'
 include { SEQUENZAUTILS_GCWIGGLE  } from './modules/nf-core/sequenzautils/gcwiggle/main'
 include { SEQUENZAUTILS_BAM2SEQZ  } from './modules/nf-core/sequenzautils/bam2seqz/main'
 include { SEQUENZAUTILS_MERGESEQZ } from './modules/local/sequenzautils/mergeseqz/main'
 include { SEQUENZAUTILS_BINNING   } from './modules/local/sequenzautils/seqzbin/main'
 include { SEQUENZAUTILS_RSEQZ     } from './modules/local/sequenzautils/seq_R/main'
+include { BATTENBERG  } from './modules/local/battenberg/main'
+
 
 include { samplesheetToList } from 'plugin/nf-schema'
 
+
 workflow SEQUENZA {
     take:
-    input_samplesheet
+    tumour_bam
+    normal_bam
     fasta
     fai
 
     main:
-    input_samplesheet.branch { meta, cram, crai ->
-                        tumour: meta.status == 1
-                        normal: meta.status == 0
-                    }.set{seq_split}
-
-    seq_split.tumour.map{ meta, cram, crai -> 
-                        meta = meta + [id:meta.sample+'_vs_normal_sample']
-                        [meta, cram, crai]
-                    }.set{tumour_cram}
-                    
-    SAMTOOLS_CONVERT_T(tumour_cram,fasta,fai)
-    out_bam_T = SAMTOOLS_CONVERT_T.out.bam.join(SAMTOOLS_CONVERT_T.out.bai)
-    out_bam_T.map{ meta, bam, bai -> 
-            [meta.patient, [id:meta.id , status:meta.status, gender:meta.gender], bam, bai]
-        }.set{tumour_bam}
-                    
-    seq_split.normal.map{ meta, cram, crai -> 
-                        meta = meta + [id:meta.patient + meta.sample]
-                        [meta, cram, crai]
-                     }.set{normal_cram} 
-
-    SAMTOOLS_CONVERT_N(normal_cram,fasta,fai)
-    out_bam_N = SAMTOOLS_CONVERT_N.out.bam.join(SAMTOOLS_CONVERT_N.out.bai)
-    out_bam_N.map{ meta, bam, bai -> 
-                [meta.patient, [ id:meta.id, status:meta.status, gender:meta.gender], bam, bai]
-            }.set{normal_bam}
-                    
+           
     tumour_bam
             .combine(normal_bam, by:0)
             .map { patient, meta1, files1, files11, meta2, files2, files22 ->
@@ -86,6 +64,49 @@ workflow  {
 
     input_samplesheet = params.input ? Channel.fromList(samplesheetToList(params.input, "assets/schema_input.json")) : Channel.empty()
     
-    SEQUENZA(input_samplesheet, fasta, fai)
+    input_samplesheet.branch { meta, cram, crai ->
+                        tumour: meta.status == 1
+                        normal: meta.status == 0
+                    }.set{seq_split}
+
+    // process tumour
+    seq_split.tumour.map{ meta, cram, crai -> 
+                        meta = meta + [id:meta.sample+'_vs_normal_sample']
+                        [meta, cram, crai]
+                    }.set{tumour_cram}
+                    
+    SAMTOOLS_CONVERT_T(tumour_cram,fasta,fai)
+    out_bam_T = SAMTOOLS_CONVERT_T.out.bam.join(SAMTOOLS_CONVERT_T.out.bai)
+    out_bam_T.map{ meta, bam, bai -> 
+            [meta.patient, [id:meta.id , status:meta.status, gender:meta.gender], bam, bai]
+        }.set{tumour_bam}
+
+    // process normal        
+    seq_split.normal.map{ meta, cram, crai -> 
+                        meta = meta + [id:meta.patient + '_' + meta.sample]
+                        [meta, cram, crai]
+                     }.set{normal_cram} 
+
+    SAMTOOLS_CONVERT_N(normal_cram,fasta,fai)
+    out_bam_N = SAMTOOLS_CONVERT_N.out.bam.join(SAMTOOLS_CONVERT_N.out.bai)
+    out_bam_N.map{ meta, bam, bai -> 
+                [meta.patient, [ id:meta.id, status:meta.status, gender:meta.gender], bam, bai]
+            }.set{normal_bam}
+
+    // run sequenza
+    if (params.tool && params.tool.split(',').contains('sequenza')){
+        SEQUENZA(tumour_bam, normal_bam, fasta, fai)
+    }
+    
+    // run battenberg
+    if (params.tool && params.tool.split(',').contains('battenberg')){
+    tumour_bam
+            .combine(normal_bam, by:0)
+            .map { patient, meta1, files1, files11, meta2, files2, files22 ->
+                    [meta1 + [patient:patient], files2, files1, files22, files11]
+            }
+            .set{input_join}
+    BATTENBERG(input_join)
+    }
 
 }

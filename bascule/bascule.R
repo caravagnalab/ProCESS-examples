@@ -6,9 +6,11 @@ library(dplyr)
 
 source("../getters/process_getters.R")
 source("../getters/tumourevo_getters.R")
-reticulate::use_condaenv("/orfeo/scratch/cdslab/ggandolfi/miniconda/envs/bascule-env")
-py = reticulate::import("pybascule")
+#reticulate::use_condaenv("/orfeo/scratch/cdslab/ggandolfi/miniconda/envs/bascule-env")
+#py = reticulate::import("pybascule")
 
+reticulate::use_condaenv("/orfeo/cephfs/scratch/area/lvaleriani/myconda/envs/bascule-env")
+py = reticulate::import("pybascule")
 
 option_list <- list(make_option(c("--spn_id"), type = "character", default = 'SPN04'),
                     make_option(c("--purity"), type = "character", default = '0.9'),
@@ -91,10 +93,10 @@ saveRDS(object = x_refined,file = file.path(output_dir,"bascule_refined_fit.rds"
 saveRDS(object = x,file = file.path(output_dir,"bascule_fit.rds"))
 ################################################################################
 
-exp = plot_exposures(x=x_refined)
+exp = plot_exposures(x=x_refined, sample_name = T)
 sig = plot_signatures(x=x_refined)
-plot_fit = exp/sig
-ggplot2::ggsave(filename=file.path(output_dir,"bascule_fit.png"),plot=plot_fit)
+ggplot2::ggsave(filename=file.path(output_dir,"bascule_exposure.png"),plot=exp, width = 8, height = 8, units = 'in', dpi = 300)
+ggplot2::ggsave(filename=file.path(output_dir,"bascule_signature.png"),plot=sig, width = 17, height = 8, units = 'in', dpi = 300)
 
 
 
