@@ -3,18 +3,20 @@ library(GenomicRanges)
 
 color_by_state = c("INFERRED_Major1"='steelblue',
                    "INFERRED_minor1"='indianred',
-                   "INFERRED_CN"='seagreen')
+                   "INFERRED_CN"='seagreen',
+                   "INFERRED_Major2"='steelblue1',
+                   "INFERRED_minor2"='orangered')
 
-fill_by_match = c('match'= alpha('gainsboro', .03),
-                  'no match subclone'= alpha('cadetblue3', .08),
-                  'match subclone'= alpha('lightsalmon', .08),
-                  'no match' = alpha('indianred', .08),
-                  'subclonal' = alpha('lightsalmon', .08),
-                  'clonal' = 'gainsboro')
+fill_by_match = c('match'= alpha('gainsboro', .5),
+                  'no match subclone'= alpha('cadetblue4', .5),
+                  'match subclone'= alpha('lightsalmon', .5),
+                  'no match' = alpha('indianred', .5),
+                  'subclonal' = alpha('lightsalmon', .5),
+                  'clonal' = 'gainsboro', .5)
 
 color_type <- c('clonal' = 'gainsboro', 'sub-clonal' = 'lightsalmon')
 color_process <- c('Major1'='steelblue', 'minor1'='indianred', 'Major2'='steelblue1', 'minor2'="orangered")
-color_caller <- c('ascat' = 'palegreen4','cnvkit' = 'orange', 'sequenza' = 'steelblue')
+color_caller <- c('ascat' = 'palegreen4','cnvkit' = 'orange', 'sequenza' = 'steelblue', 'battenberg' = 'palevioletred')
 
 
 compute_CNA_metrics <- function(confusion_df) {
@@ -203,11 +205,32 @@ read_CNVkit = function(spn_id,sample_id,coverage,purity){
   return(list('CNA'=CNA_cnvkit))
 }
 
+
+read_Battenberg = function(spn_id,sample_id,coverage,purity){
+  caller='battenberg'
+  batt_results <- get_sarek_cna_file(spn = spn_id,
+                                       coverage = coverage,
+                                       purity = purity,
+                                       caller = caller,
+                                       type = "tumour",
+                                       sampleID = sample_id)
+  
+  #file_cn <- file.path(data_dir, spn_id, 'sarek', paste0(coverage, 'x_', purity, 'p/variant_calling/battenberg/'), paste0(sample_id, '_vs_normal_sample/', paste0(sample_id, '_vs_normal_sample_subclones.txt')))
+  #file_info <- file.path(data_dir, spn_id, 'sarek', paste0(coverage, 'x_', purity, 'p/variant_calling/battenberg/'), paste0(sample_id, '_vs_normal_sample/', paste0(sample_id, '_vs_normal_sample_rho_and_psi.txt')))
+  purity_ploidy_battenberg <- read.table(batt_results$rho_psi, header = T) %>% filter(is.best == TRUE) %>% dplyr::rename(purity = rho) %>% select(purity, ploidy)
+  CNA_battenberg <- read.table(batt_results$subclones, header = T) %>% 
+    select(chr, startpos, endpos, nMaj1_A, nMin1_A, frac1_A, nMaj2_A, nMin2_A, frac2_A) %>% 
+    dplyr::rename(from = startpos, to = endpos) %>% 
+    dplyr::rename(Major1 = nMaj1_A, minor1 = nMin1_A, Major2 = nMaj2_A, minor2 = nMin2_A)
+  
+  return(list('CNA'=CNA_battenberg, 'purity_ploidy'= purity_ploidy_battenberg))
+}
+
 ## Create joint segmentation
 create_joint_segmentation = function(CNA_ProCESS, CNA_target, caller, chromosomes){
   
   joint_segmentation = lapply(chromosomes, function(c){
-    
+
     CNA_ProCESS_chr = CNA_ProCESS %>% 
       filter(chr==c) %>% 
       mutate(group = cumsum(
@@ -215,7 +238,7 @@ create_joint_segmentation = function(CNA_ProCESS, CNA_target, caller, chromosome
           lag(minor, default = dplyr::first(minor)) != minor |
           lag(ratio, default = dplyr::first(ratio)) != ratio
       )) %>%
-      group_by(chr, major, minor, ratio, group, from ,to) %>%
+      group_by(chr, major, minor, ratio, from ,to) %>%
       select(chr, from, to, major, minor, ratio) %>% 
       arrange(from, to)
     
@@ -226,25 +249,27 @@ create_joint_segmentation = function(CNA_ProCESS, CNA_target, caller, chromosome
     df = data.frame()
     
     for (i in 1:(length(breakpoints)-1)){
+
       f = breakpoints[i]
       t = breakpoints[i+1]
       true_cna= CNA_ProCESS_chr %>% filter(from <= f, from < t, to>=t) 
       inferred_cna= CNA_target_chr %>% filter(from <= f, from < t, to>=t) 
+      
       if (nrow(true_cna)==0){
         true_M1=NA
         true_m1=NA
         true_M2=NA
         true_m2=NA
         true_cn=NA
-      }
-      if (nrow(true_cna)==1){
+        ratio=NA
+      } else if (nrow(true_cna)==1){
         true_M1=true_cna %>% pull(major)
         true_m1=true_cna %>% pull(minor)
         true_M2=NA
         true_m2=NA
         true_cn=true_M1+true_m1
-      }
-      if (nrow(true_cna)>1){
+        ratio=true_cna[1,] %>% pull(ratio)
+      } else if (nrow(true_cna)>1){
         true_cna = true_cna %>% arrange(desc(ratio))
         true_M1=true_cna[1,] %>% pull(major)
         true_m1=true_cna[1,] %>% pull(minor)
@@ -253,20 +278,59 @@ create_joint_segmentation = function(CNA_ProCESS, CNA_target, caller, chromosome
         ratio=true_cna[1,] %>% pull(ratio)
         true_cn = ratio*(true_M1+true_m1) + (1-ratio)*(true_M2+true_m2) 
       }
+      
       if (nrow(inferred_cna)==0){
         inferred_M=NA
         inferred_m=NA
         inferred_cn=NA
-      }
-      if (nrow(inferred_cna)==1){
-        if (caller!='cnvkit'){
-          inferred_M=inferred_cna %>% pull(major)
-          inferred_m=inferred_cna %>% pull(minor)
-          inferred_cn=inferred_M+inferred_m
-        }else{
+        inferred_M2=NA
+        inferred_m2=NA
+        inferred_cn2=NA
+        inferred_ratio=NA
+      }else if (nrow(inferred_cna)==1){
+        if (caller=='cnvkit'){
           inferred_M=NA
           inferred_m=NA
           inferred_cn=inferred_cna %>% pull(CN)
+          inferred_M2=NA
+          inferred_m2=NA
+          inferred_ratio = 1
+          
+        } else if (caller == 'battenberg'){
+          if (is.na(inferred_cna$frac2_A)){
+            
+            inferred_M=inferred_cna %>% pull(Major1)
+            inferred_m=inferred_cna %>% pull(minor1)
+            inferred_cn=inferred_M+inferred_m
+            inferred_M2=NA
+            inferred_m2=NA
+            inferred_ratio=inferred_cna %>% pull(frac1_A)
+            
+          } else if (inferred_cna$frac1_A > inferred_cna$frac2_A){
+            
+            inferred_M=inferred_cna %>% pull(Major1)
+            inferred_m=inferred_cna %>% pull(minor1)
+            inferred_M2=inferred_cna %>% pull(Major2)
+            inferred_m2=inferred_cna %>% pull(minor2)
+            inferred_ratio = inferred_cna %>% pull(frac1_A)
+            inferred_cn=inferred_ratio*(inferred_M+inferred_m) + (1-inferred_ratio)*(inferred_M2+inferred_m2) 
+            
+          } else{
+            inferred_M=inferred_cna %>% pull(Major2)
+            inferred_m=inferred_cna %>% pull(minor2)
+            inferred_M2=inferred_cna %>% pull(Major1)
+            inferred_m2=inferred_cna %>% pull(minor1)
+            inferred_ratio = inferred_cna %>% pull(frac2_A)
+            inferred_cn=inferred_ratio*(inferred_M+inferred_m) + (1-inferred_ratio)*(inferred_M2+inferred_m2) 
+          }
+
+        }else{
+          inferred_M=inferred_cna %>% pull(major)
+          inferred_m=inferred_cna %>% pull(minor)
+          inferred_cn=inferred_M+inferred_m
+          inferred_M2=NA
+          inferred_m2=NA
+          inferred_ratio = 1
         }
       }
       df = rbind(df, data.frame(
@@ -278,9 +342,13 @@ create_joint_segmentation = function(CNA_ProCESS, CNA_target, caller, chromosome
         'TRUE_Major2'= true_M2,
         'TRUE_minor2'= true_m2,
         'TRUE_CN' = true_cn,
+        'TRUE_ratio' = ratio,
         'INFERRED_Major1' = inferred_M,
         'INFERRED_minor1' = inferred_m,
+        'INFERRED_Major2' = inferred_M2,
+        'INFERRED_minor2' = inferred_m2,
         'INFERRED_CN' = inferred_cn,
+        'INFERRED_ratio' = inferred_ratio,
         'caller'=caller
       ))
     }
@@ -295,14 +363,14 @@ create_joint_segmentation = function(CNA_ProCESS, CNA_target, caller, chromosome
     joint_segmentation[r,] %>% mutate(from = from + from_chromosome, to = to + from_chromosome)
   })
   joint_segmentation_shifted = Reduce(rbind, joint_segmentation_shifted)
-  
+
   if (caller %in% c('ascat','sequenza')){
-    joint_segmentation_shifted_longer = joint_segmentation_shifted %>% 
+    joint_segmentation_shifted_longer = joint_segmentation_shifted %>%
       mutate(is_match = 
                case_when(
                  TRUE_Major1==INFERRED_Major1 & TRUE_minor1==INFERRED_minor1 & is.na(TRUE_Major2) ~ 'match',
                  TRUE_Major1==INFERRED_Major1 & TRUE_minor1==INFERRED_minor1 | 
-                 TRUE_Major1==INFERRED_Major1 & TRUE_minor1==INFERRED_minor1 & !is.na(TRUE_Major2) ~ 'match subclone',
+                   TRUE_Major1==INFERRED_Major1 & TRUE_minor1==INFERRED_minor1 & !is.na(TRUE_Major2) ~ 'match subclone',
                  TRUE_Major1!=INFERRED_Major1 & TRUE_minor1!=INFERRED_minor1 & !is.na(TRUE_Major2) ~ 'no match subclone',
                  .default = 'no match'
                )) %>%
@@ -314,7 +382,27 @@ create_joint_segmentation = function(CNA_ProCESS, CNA_target, caller, chromosome
       )
     joint_segmentation_shifted = joint_segmentation_shifted %>% filter(!is.na(TRUE_CN))
     joint_segmentation_shifted_longer = joint_segmentation_shifted_longer %>% filter(!is.na(TRUE_CN))
-  } else{
+    
+  }else if(caller =='battenberg'){
+    joint_segmentation_shifted_longer = joint_segmentation_shifted %>% 
+      mutate(is_match = 
+               case_when(
+                 TRUE_Major1==INFERRED_Major1 & TRUE_minor1==INFERRED_minor1 & is.na(TRUE_Major2) & INFERRED_ratio == 1 ~ 'match',
+                 !is.na(TRUE_Major2) & TRUE_Major1==INFERRED_Major1 & TRUE_minor1==INFERRED_minor1 & TRUE_Major2==INFERRED_Major2 & TRUE_minor2==INFERRED_minor2 ~ 'match subclone', 
+                 !is.na(TRUE_Major2) & TRUE_Major1==INFERRED_Major1 & TRUE_minor1==INFERRED_minor1 & TRUE_Major2==INFERRED_Major2 & TRUE_minor2==INFERRED_minor2 ~ 'match subclone', 
+                 !is.na(TRUE_Major2) & TRUE_Major1==INFERRED_Major2 & TRUE_minor2==INFERRED_minor2 &  TRUE_Major2==INFERRED_Major1 & TRUE_minor2==INFERRED_minor1 ~ 'switch subclone',
+                 .default = 'no match'
+               )) %>%
+      mutate(type = ifelse(!is.na(TRUE_Major2) & !is.na(TRUE_Major2), 'subclonal', 'clonal')) %>% 
+      pivot_longer(
+        cols = c('TRUE_Major1', 'TRUE_minor1', 'TRUE_Major2', 'TRUE_minor2', 'INFERRED_Major1', 'INFERRED_minor1', 'INFERRED_Major2', 'INFERRED_minor2'),  
+        names_to = "Type",  # New column for variable names
+        values_to = "Value"  # New column for values
+      )
+    joint_segmentation_shifted = joint_segmentation_shifted %>% filter(!is.na(TRUE_CN))
+    joint_segmentation_shifted_longer = joint_segmentation_shifted_longer %>% filter(!is.na(TRUE_CN))
+    
+  } else if (caller == 'cnvkit'){
     joint_segmentation_shifted = joint_segmentation_shifted %>% filter(!is.na(TRUE_CN))
     joint_segmentation_shifted_longer = joint_segmentation_shifted %>% 
       mutate(is_match = 
@@ -343,17 +431,22 @@ compute_correctness = function(df, caller) {
            pull(len) %>% unique() %>% sum()) / (df %>% filter(type == 'clonal') %>% mutate(len=to-from) %>%
                                                   pull(len) %>% unique() %>% sum()))
     
-    all = 1-( (df %>% filter(is_match %in% c('no match', 'no match subclone')) %>% mutate(len=to-from) %>%
-                    pull(len) %>% unique() %>% sum()) / (df %>% mutate(len=to-from) %>%
-                                                           pull(len) %>% unique() %>% sum()))
-  } else{
+    subclonal = NA
+  } else if (caller == 'cnvkit'){
     clonal = 1-( (df %>% filter(is_match == 'no match') %>% filter(type == 'clonal') %>% mutate(len=to-from) %>%
                     pull(len) %>% unique() %>% sum()) / (df %>% filter(type == 'clonal') %>% mutate(len=to-from) %>%
                                                            pull(len) %>% unique() %>% sum()))
-    all <- NA
+    subclonal = NA
+  } else if (caller == 'battenberg'){
+    clonal = 1-( (df %>% filter(is_match == 'no match') %>% filter(type == 'clonal') %>% mutate(len=to-from) %>%
+                    pull(len) %>% unique() %>% sum()) / (df %>% filter(type == 'clonal') %>% mutate(len=to-from) %>%
+                                                           pull(len) %>% unique() %>% sum()))
+    subclonal = 1-((df %>% filter(is_match %in% c('no match', 'no match subclone')) %>% filter(type == 'subclonal') %>% mutate(len=to-from) %>%
+                      pull(len) %>% unique() %>% sum()) /  (df %>% filter(type == 'subclonal') %>% mutate(len=to-from) %>%
+                                                              pull(len) %>% unique() %>% sum()))
   }
   
-  return(list('all'=all, 'clonal'=clonal))
+  return(list('subclonal'=subclonal, 'clonal'=clonal))
 }
 
 

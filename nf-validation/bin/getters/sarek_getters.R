@@ -18,14 +18,14 @@ get_sarek_variant_called_files <- function(spn,
   }
   
   # input checking
-  accepted_callers <- c("mutect2", "strelka", "ascat", "freebayes", "haplotypecaller", "cnvkit", "sequenza")
+  accepted_callers <- c("mutect2", "strelka", "ascat", "freebayes", "haplotypecaller", "cnvkit", "sequenza", 'battenberg')
   if (!(variant_caller %in% accepted_callers)) {
     stop("Variant caller not supported. Or check spelling of variant_caller arg.")
   }
   
   # get files
   if (type == "tumour" || is.null(type)) {
-    if (variant_caller %in% c("strelka", "ascat", "cnvkit", "freebayes", "haplotypecaller", "sequenza")) {
+    if (variant_caller %in% c("strelka", "ascat", "cnvkit", "freebayes", "haplotypecaller", "sequenza", 'battenberg')) {
       sample_naming <- paste0(sampleID, "_vs_", normalID)
       path_to_files <- file.path(basedir, spn, "sarek",
                                  paste0(as.character(coverage),
@@ -162,8 +162,18 @@ parse_sarek_variant_called_files <- function(list_of_output_files) {
         named_files[["mutations"]] <- list_of_output_files[i]
       }
     }
-  }  else{
-    stop('Error: combination does not exist')
+  } else if (grepl("battenberg", as.character(list_of_output_files[1]), fixed = TRUE)) {
+    named_files <- list()
+    # check for substrings in each file to tell us what the file is
+    for (i in 1:length(list_of_output_files)) {
+      if (endsWith(list_of_output_files[i], "rho_and_psi.txt")) {
+        named_files[["rho_psi"]] <- list_of_output_files[i]
+      } else if (endsWith(list_of_output_files[i], "subclones.txt")) {
+        named_files[["subclones"]] <- list_of_output_files[i]
+      } 
+    }
+  } else{
+      stop('Error: combination does not exist')
   }
   return(named_files)
 }
@@ -231,6 +241,8 @@ get_sarek_cna_file <- function(spn,
   } else if (caller == "cnvkit") {
     output <- file_list
   } else if (caller == "sequenza") {
+    output <- file_list 
+  } else if (caller == "battenberg") {
     output <- file_list 
   } else {
     stop("Error: Invalid caller name supplied")
