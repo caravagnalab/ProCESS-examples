@@ -4,20 +4,20 @@ library(ggplot2)
 library(patchwork)
 library(lubridate)
 library(optparse)
-source('utils.R')
+
 spns <- paste0('SPN0', 1:7)
 sample_table <- tibble(sample = spns, 
                        N = c(3,2,4,2,3,5,5), 
-                       hypermutant = c(F,T,F,F,F,F,T), 
-                       type = c('WGD', 'Hypermutant', NA, NA, NA, 'WGD', 'Hypermutant'))
+                       hypermutant = c(F,T,F,F,T,F,T), 
+                       type = c('WGD', 'Hypermutant', NA, NA, 'Hypermutant', 'WGD', 'Hypermutant'))
 
 base <- '../../SCOUT/time/'
 table <- tibble()
 for (spn in spns){
   if (file.exists(file.path(base, paste0(spn, '_tissue.rds'))) & file.exists(file.path(base, paste0(spn, '_mutations.rds')))){
     print(spn)
-    tissue <- readRDS(file.path(base, paste0(spn, '_tissue.rds'))) #%>% mutate(cpu_time_secs = hms::as_hms(cpu_time_secs))
-    muts <- readRDS(file.path(base, paste0(spn, '_mutations.rds'))) #%>% mutate(cpu_time_secs = hms::as_hms(cpu_time_secs))
+    tissue <- readRDS(file.path(base, paste0(spn, '_tissue.rds'))) 
+    muts <- readRDS(file.path(base, paste0(spn, '_mutations.rds'))) 
     tmp <- tibble(sample = spn, 
                   time_sample_forest =  tissue$cpu_time_secs, 
                   mem_sample_forest = tissue$memory_used_MB,
@@ -46,7 +46,8 @@ table %>%
   theme_minimal() + 
   ggtitle('Simulate Mutations')
 
-ggsave(filename = 'plot_time_ProCESS.png', plot = plt, width = 8, height = 3, units = 'in', dpi = 600)
-ggsave(filename = 'plot_time_ProCESS.pdf', plot = plt, width = 8, height = 3, units = 'in', dpi = 600)
+plt
 
+ggsave(filename = 'plot_time_ProCESS.png', plot = plt, width = 12, height = 4, units = 'in', dpi = 600)
+ggsave(filename = 'plot_time_ProCESS.pdf', plot = plt, width = 12, height = 4, units = 'in', dpi = 600)
 saveRDS(object = table, file='time_ProCESS.rds')
