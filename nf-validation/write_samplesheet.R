@@ -1,8 +1,8 @@
 library(dplyr)
 source('../getters/process_getters.R')
-spns = c('SPN01', 'SPN02', 'SPN03', 'SPN04', 'SPN06', 'SPN07')
-coverages = c(50)
-purities = c(0.3, 0.6, 0.9)
+spns = c('SPN01', 'SPN02','SPN04','SPN03')
+coverages = c(50,100)
+purities = c(0.3, 0.6,0.9)
 
 base = "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/"
 df = tibble()

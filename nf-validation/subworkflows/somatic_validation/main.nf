@@ -24,7 +24,7 @@ workflow SOMATIC_VALIDATION {
     }.set{ vcf_strelka }
 
     BCFTOOLS_CONCAT(vcf_strelka).flatMap { meta, vcf ->
-        def chromosomes = (20..22).collect { it.toString() } + ['X']
+        def chromosomes = (1..22).collect { it.toString() } + ['X']
             if (meta.sex == 'XY') {
                 chromosomes += 'Y'
             }
@@ -36,7 +36,7 @@ workflow SOMATIC_VALIDATION {
 
     t_sample_ch
         .flatMap { meta, path ->
-            def chromosomes = (20..22).collect { it.toString() } + ['X']
+            def chromosomes = (1..22).collect { it.toString() } + ['X']
             if (meta.sex == 'XY') {
                 chromosomes += 'Y'
             }
@@ -66,7 +66,7 @@ workflow SOMATIC_VALIDATION {
     SOMATIC_PREPROCESS(BCFTOOLS_VIEW.out.chr_vcf)
 
     t_sample_ch.flatMap { meta, path ->
-            def chromosomes = (20..22).collect { it.toString() } + ['X']
+            def chromosomes = (1..22).collect { it.toString() } + ['X']
             if (meta.sex == 'XY') {
                 chromosomes += 'Y'
             }

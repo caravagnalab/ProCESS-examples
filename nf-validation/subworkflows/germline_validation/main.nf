@@ -14,7 +14,7 @@ workflow GERMLINE_VALIDATION {
 
     normal_sample_ch
         .flatMap { meta,path ->
-            def chromosomes = (20..22).collect { it.toString() } + ['X']
+            def chromosomes = (1..22).collect { it.toString() } + ['X']
             if (meta.sex == 'XY') {
               chromosomes += 'Y' 
             }
