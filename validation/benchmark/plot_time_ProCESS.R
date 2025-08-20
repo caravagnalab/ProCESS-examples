@@ -44,7 +44,8 @@ table %>%
   xlab('SPN') + 
   scale_fill_manual('', values = c('Hypermutant' = 'maroon', 'NA' = 'slategrey', 'WGD' = 'steelblue')) + 
   theme_minimal() + 
-  ggtitle('Simulate Mutations')
+  ggtitle('Simulate Mutations') +
+  plot_layout(guides = 'collect')
 
 plt
 

@@ -2,6 +2,7 @@ rm(list = ls())
 options(bitmapType='cairo')
 library(optparse)
 library(tidyverse)
+library(gt)
 
 source('utils.R')
 
@@ -15,7 +16,7 @@ option_list <- list(
 
 param <- parse_args(OptionParser(option_list=option_list))
 
-SPN <- paste0('SPN0', seq(1,4))
+SPN <- paste0('SPN0', c(7,1,2,3,4,6))
 COV <- c(50, 100)
 PUR <- c(0.3, 0.6, 0.9)
 
@@ -23,8 +24,7 @@ full_table <- tibble()
 validate_table <- tibble()
 
 for (spn in SPN){
-  out <- paste0('/orfeo/cephfs/scratch/cdslab/shared/SCOUT/', spn, '/validation/tumourevo/CNAqc/')
-  dir.create(out, showWarnings = F, recursive = T)
+  print(spn)
   
   samples <- get_sample_names(spn)
   for (cov in COV){
@@ -60,22 +60,24 @@ for (spn in SPN){
                                                   cn_purity = p) 
         }) %>% bind_rows()
         
-        compare <- cna_cnaqc %>%
-          left_join(true_cna, 
+        thr = 1e6
+        compare <- true_cna %>%
+          left_join(cna_cnaqc, 
                     by = join_by(chr,sample), 
                     relationship = "many-to-many") %>% 
-          filter(from >= begin & to <= end | begin >= from & end <= to) %>% 
+          filter(from >= begin-thr & to <= end+thr | begin-thr >= from & end <= to+thr) %>% 
           mutate(true_purity = pur, delta_purity = abs(true_purity-cn_purity)) 
         
         validate <- compare %>% 
-          mutate(CNAqc = NA) %>%
+          mutate(CNAqc = 'NA') %>%
           mutate(ratio = ifelse(ratio > 0.9, 1, ratio)) %>% 
           mutate(CNAqc = ifelse(paste(Major, minor,sep = ':') == paste(true_major,true_minor,sep = ':')  & delta_purity < 0.1 & QC_PASS == TRUE & ratio > 0.9, 'CNAqc OK - Caller OK', CNAqc)) %>%
           mutate(CNAqc = ifelse(paste(Major, minor,sep = ':') == paste(true_major,true_minor,sep = ':')  & delta_purity < 0.1 & QC_PASS == FALSE & ratio > 0.9, 'CNAqc FAIL - Caller OK', CNAqc)) %>%
-          mutate(CNAqc = ifelse(ratio < 0.9, 'Caller Subclonal', CNAqc)) %>%
+          mutate(CNAqc = ifelse(ratio < 0.9, 'Subclonal', CNAqc)) %>%
           
           mutate(CNAqc = ifelse(paste(Major, minor,sep = ':') != paste(true_major,true_minor,sep = ':')  & delta_purity < 0.1 & QC_PASS == FALSE & ratio > 0.9, 'CNAqc OK - Caller FAIL', CNAqc)) %>%
           mutate(CNAqc = ifelse(paste(Major, minor,sep = ':') == paste(true_major,true_minor,sep = ':')  & delta_purity > 0.1 & QC_PASS == FALSE & ratio > 0.9, 'CNAqc OK - Caller FAIL', CNAqc)) %>%
+          mutate(CNAqc = ifelse(paste(Major, minor,sep = ':') != paste(true_major,true_minor,sep = ':')  & delta_purity > 0.1 & QC_PASS == FALSE & ratio > 0.9, 'CNAqc OK - Caller FAIL', CNAqc)) %>%
           
           mutate(CNAqc = ifelse(paste(Major, minor,sep = ':') != paste(true_major,true_minor,sep = ':')  & delta_purity < 0.1 & QC_PASS == TRUE & ratio > 0.9, 'CNAqc FAIL - Caller FAIL', CNAqc)) %>%
           mutate(CNAqc = ifelse(paste(Major, minor,sep = ':') != paste(true_major,true_minor,sep = ':')  & delta_purity > 0.1 & QC_PASS == TRUE & ratio > 0.9, 'CNAqc FAIL - Caller FAIL', CNAqc)) %>%
@@ -94,35 +96,31 @@ for (spn in SPN){
   }
 }
 
-# final_plot <- validate_table %>%
-#   mutate(true_karyo = paste(true_major, true_minor, sep = ':')) %>% 
-#   ggplot2::ggplot(aes(x = sample, y = true_karyo, fill = CNAqc)) +
-#   ggplot2::geom_tile(aes(width = .8, height = .8)) +
-#   ggplot2::scale_fill_manual('', values = c(
-#     `CNAqc OK - Caller OK` = 'seagreen',
-#     `CNAqc OK - Caller FAIL` = 'darkseagreen',
-#     `CNAqc FAIL - Caller FAIL` = 'indianred3', 
-#     `Caller Subclonal` = 'coral2',
-#     `CNAqc FAIL` = 'tomato4',
-#     `NA` = 'gainsboro'
-#   )) +
-#   ylab('ProCESS karyotype') +
-#   ggh4x::facet_nested(coverage+purity ~ spn, scales = 'free')  +
-#   CNAqc:::my_ggplot_theme()
+saveRDS(full_table, file = 'table_CNAqc.rds')
+saveRDS(validate_table, file = 'plot_CNAqc.rds')
 
-plt <- validate_table %>% 
-  group_by(true_karyo, CNAqc, sample, coverage, purity, spn) %>% summarize(n = n())  %>% 
+validate_table_filt <- validate_table %>%
+  mutate(CNAqc = ifelse(is.na(CNAqc), 'NA', CNAqc)) %>% 
+  group_by(sample, coverage, purity, true_karyo) %>%
+  filter(!(all(CNAqc == "Subclonal", na.rm = T))) %>%
+  ungroup()
+
+plt <- validate_table_filt %>% 
+  group_by(true_karyo, CNAqc, sample, coverage, purity, spn) %>% 
+  summarize(n = n())  %>% 
   ggplot() + 
-  geom_col(aes(x = true_karyo, y=n, fill = CNAqc)) +
+  geom_col(aes(x = true_karyo, y=n, fill = CNAqc), position = "fill") + # position = "fill"
   ggplot2::scale_fill_manual('', values = c(
     `CNAqc OK - Caller OK` = 'seagreen',
     `CNAqc OK - Caller FAIL` = 'darkseagreen',
     `CNAqc FAIL - Caller FAIL` = 'indianred3', 
     `CNAqc FAIL - Caller OK` = 'tomato4', 
-    `Caller Subclonal` = 'coral2',
-    `NA` = 'gainsboro'
+    `Subclonal` = 'gainsboro',
+    `NA` = 'gray60'
   )) +     
+  ylab('% of segments') + 
   ggh4x::facet_nested(coverage+purity ~  spn + sample , scales = 'free') +
-  CNAqc:::my_ggplot_theme()
+  theme_light() + theme(legend.position = 'bottom', axis.text.x = element_text(angle = 45, hjust = 1, vjust = 0.5))
+plt
 
-ggsave(filename = 'validation_CNAqc.png', plot = plt, width = 7, height = 7, units = 'in', dpi = 600)
+ggsave(filename = 'validation_CNAqc.png', plot = plt, width = 18, height = 7, units = 'in', dpi = 400)
