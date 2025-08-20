@@ -15,9 +15,10 @@ module load singularity
 module load R/4.4.1
 
 nf=/orfeo/scratch/area/lvaleriani/
-base="/orfeo/scratch/area/lvaleriani/races/ProCESS-examples/nf-validation"
-results=$base/results
-config=/orfeo/scratch/area/lvaleriani/races/ProCESS-examples/build_cohorts/orfeo.config
-profile=epyc
+base="/orfeo/scratch/cdslab/ggandolfi/Github/ProCESS-examples/nf-validation"
+scout_dir="/orfeo/cephfs/scratch/cdslab/shared/SCOUT"
+results=$scout_dir/VALIDATION
+config=/orfeo/scratch/cdslab/ggandolfi/Github/ProCESS-examples/build_cohorts/orfeo.config
+profile=genoa
 
-$nf/nextflow run $base/main.nf --input $base/samplesheet.csv --outdir $results -profile singularity,$profile -c $config
+nextflow run $base/main.nf --input $base/samplesheet.csv --outdir $results -profile singularity,$profile -c $config -resume

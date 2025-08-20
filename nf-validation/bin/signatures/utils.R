@@ -45,19 +45,31 @@ align_callers <- function(tumourevo_signature_res,tool,spn){
     df <- df %>%
       tibble::column_to_rownames("Samples") %>%
       mutate(across(everything(), as.numeric))
+    signatures_found <- colnames(df)
     
     df_norm <- t(apply(df, 1, function(x) if (sum(x) == 0) x else x / sum(x)))
     if (is.vector(df_norm)) {
       df_norm <- matrix(df_norm, nrow = 1, dimnames = list(rownames(df), colnames(df)))
     }
-    
-    df <- as.data.frame(df_norm)
-    
-    # Clean sample names: extract "SPN01_1.1" from long names
-    pattern <- "^.*?_(SPN\\d+_\\d+\\.\\d+)$"
-    rn <- rownames(df)
-    rn_new <- ifelse(grepl(pattern, rn), sub(pattern, "\\1", rn), rn)
-    rownames(df) <- rn_new
+    if (length(signatures_found)==1){
+      # flip back so samples are rownames again
+      df <- as.data.frame(t(df_norm))
+      # Clean sample names
+      pattern <- "^.*?_(SPN\\d+_\\d+\\.\\d+)$"
+      rn <- rownames(df)
+      rn_new <- ifelse(grepl(pattern, rn), sub(pattern, "\\1", rn), rn)
+      rownames(df) <- rn_new
+      colnames(df) <- signatures_found
+    } else {
+      df <- as.data.frame(df_norm)
+      
+      # Clean sample names: extract "SPN01_1.1" from long names
+      pattern <- "^.*?_(SPN\\d+_\\d+\\.\\d+)$"
+      rn <- rownames(df)
+      rn_new <- ifelse(grepl(pattern, rn), sub(pattern, "\\1", rn), rn)
+      rownames(df) <- rn_new      
+    }
+
   } else if (tool =="SparseSignatures"){
     mat <- tumourevo_signature_res
     # Assign proper rownames consistently

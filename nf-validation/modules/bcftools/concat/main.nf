@@ -1,5 +1,5 @@
 process BCFTOOLS_CONCAT {
-    tag { "${meta.sample}" }
+    tag { "${meta.sample}_${meta.coverage}x_${meta.purity}p" }
     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
         'https://depot.galaxyproject.org/singularity/bcftools:1.20--h8b25389_0':
         'biocontainers/bcftools:1.20--h8b25389_0' }"
