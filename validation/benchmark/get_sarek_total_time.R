@@ -246,8 +246,8 @@ get_time_pipeline <- function(spn,coverage,purity){
   }
   
   
-  for (proc in unique(df_resources_battenbgerg$process)){
-    tmp <- df_resources_battenbgerg %>%
+  for (proc in unique(df_resources_battengerg$process)){
+    tmp <- df_resources_battengerg %>%
       filter(process == proc)
     tot_jobs <- nrow(tmp)
     tot_samples <- length(unique(tmp$tag))
@@ -311,5 +311,7 @@ plot_time_all <- ggplot(df_plot, aes(x = reorder(process, mean_seconds),
   labs(x = "Process", 
        y = "Mean duration (seconds)",
        fill = "# parallel jobs",
-       title = "Mean ± SD of Workflow Step Durations")
-ggsave(filename = "/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/validation/benchmark/plot_time_sarek.png",plot = plot_time_all)
+       title = "Mean ± SD of Workflow Step Durations")+
+  theme_bw()
+ggsave(filename = "/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/validation/benchmark/plot_time_sarek.png",plot = plot_time_all,
+       width = 20,height = 10,dpi = 300)
