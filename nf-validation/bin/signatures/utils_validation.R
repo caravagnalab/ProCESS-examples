@@ -54,9 +54,9 @@ per_sample_metrics <- function(inferred_df, simulated_df) {
   # Per sample metrics
   results <- data.frame()
   
-  for (sample in rownames(simulated_df)) {
-    inferred_active <- names(inferred_df[which(inferred_df[sample, ] > 0)])
-    simulated_active <- names(simulated_df[which(simulated_df[sample, ] > 0)])
+  for (sample in (simulated_df$Sample_ID)) {
+    inferred_active <- inferred_df %>% filter(Sample_ID==sample) %>% pull(Signature)
+    simulated_active <- simulated_df  %>% filter(Sample_ID==sample) %>% pull(Signature)
     
     TP <- length(intersect(inferred_active, simulated_active))
     FP <- length(setdiff(inferred_active, simulated_active))

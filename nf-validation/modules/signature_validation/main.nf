@@ -167,8 +167,30 @@ process SIGNATURE_VALIDATION_COMBINATION {
         sigprof_aligned <- align_callers(tumourevo_signature_res = tumourevo_signature_res,tool = "SigProfiler",spn = spn_id) %>% as.data.frame()
         bascule_aligned <- align_callers(tumourevo_signature_res = tumourevo_signature_res,tool = "BASCULE",spn = spn_id) %>% as.data.frame()
 
+        df_long <- bind_rows(
+          ground_truth_nested %>% mutate(sample=row.names(.), Method="ProCESS"),
+          bascule_aligned %>% mutate(sample=row.names(.), Method="BASCULE"),
+          sigprof_aligned %>% mutate(sample=row.names(.), Method="SigProfiler")
+        ) %>%
+          pivot_longer(cols = starts_with(context_classes),
+                       names_to = "Signature",
+                       values_to = "Exposure")
+        #p_sankey <- ggplot(df_long,
+        #                aes(x = Method, y = Exposure,
+        #                    stratum = Signature, alluvium = Signature,
+        #                    fill = Signature, label = Signature)) +
+        #  geom_flow(stat = "alluvium", lode.guidance = "forward", color = "black") +
+        #  geom_stratum(color = "black") +
+        #  scale_y_continuous(expand = c(0,0)) +
+        #  facet_wrap(~sample, nrow = 1) +
+        #  labs(title = paste0(spn,", cov=",coverage,", pur=", purity,", Signature class=",context),
+        #       y = "Exposure", x = "Method") +
+        #  theme_minimal() +
+        #  theme(legend.position = "bottom")
+        #ggsave(filename = paste0("sankey_plot_",contex,".png"),plot =p_sankey ,width = 10,height = 5)
+
         ### Compare exposure of estimated and true signatures  ###
-        # sankey_df <- prepare_sankey_data_sbs(ground_truth_nested, sparsesig_aligned, sigprof_aligned)
+        
         gt_long <- reshape_exposures_long(exposures_mat = ground_truth_nested,spn = spn_id,
                                             coverage = coverage,purity = purity,method_name = "ProCESS")
         bascule_long <- reshape_exposures_long(exposures_mat=bascule_aligned,spn = spn_id,
