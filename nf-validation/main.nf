@@ -5,7 +5,7 @@ include { GERMLINE_VALIDATION } from './subworkflows/germline_validation/main.nf
 include { SOMATIC_VALIDATION } from './subworkflows/somatic_validation/main.nf'
 include { CNA_VALIDATION } from './subworkflows/cna_validation/main.nf'
 include { SIGNATURE_VALIDATION } from './subworkflows/signature_validation/main.nf'
-
+include { DRIVER_VALIDATION } from './subworkflows/driver_validation/main.nf'
 
 workflow {
     samplesheet = params.input ? Channel.fromList(samplesheetToList(params.input, "assets/schema_input.json")) : Channel.empty()
@@ -31,7 +31,11 @@ workflow {
     if (params.step && params.step.split(',').contains('signature')){
         SIGNATURE_VALIDATION(samples_ch_tumour)
     }
-    //DRIVER_VALIDATION()
+    
+        if (params.step && params.step.split(',').contains('driver')){
+        DRIVER_VALIDATION(samples_ch_tumour)
+    }
+
     //SUBCLONAL_VALIDATION()
     //QC_VALIDATION()
 
