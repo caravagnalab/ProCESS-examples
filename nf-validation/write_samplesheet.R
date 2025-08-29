@@ -1,8 +1,17 @@
 library(dplyr)
+library(optparse)
 source('../getters/process_getters.R')
-spns = c('SPN01', 'SPN02','SPN04','SPN03')
-coverages = c(50,100)
-purities = c(0.3, 0.6,0.9)
+
+option_list <- list(make_option(c("--spn_list"), type = "character", default = 'SPN03,SPN01'),
+                    make_option(c("--coverages"), type = "character", default = '50,100'),
+                    make_option(c("--purities"), type = "character", default = '0.3,0.6,0.9'))
+
+opt_parser <- OptionParser(option_list = option_list)
+opt <- parse_args(opt_parser)
+
+spns = as.character(strsplit(opt$spn_list, ",")[[1]]) 
+coverages <- as.numeric(strsplit(opt$coverages, ",")[[1]]) 
+purities <- as.numeric(strsplit(opt$purities, ",")[[1]])
 
 base = "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/"
 df = tibble()

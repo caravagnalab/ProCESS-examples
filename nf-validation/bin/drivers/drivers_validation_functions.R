@@ -102,7 +102,9 @@ create_true_drivers_table = function(process_drivers,
     dplyr::filter(!grepl("errors",causes)) %>% 
     dplyr::ungroup() %>% 
     dplyr::select(code, dplyr::ends_with('VAF')) %>% 
-    dplyr::rename_with(~ gsub('.VAF', '-process', .x))
+    dplyr::rename_with(~ gsub('.VAF', '-process', .x)) %>% 
+    dplyr::mutate(code=case_when(is.na(code)~"Unknown driver",
+                  TRUE ~ code))
   
   process_in_tumourevo = get_process_drivers_in_tumourevo(tumourevo_mutations, process_drivers_ids)
   
@@ -293,7 +295,11 @@ merge_drivers = function(all_dr_process, all_drivers_tumourevo) {
                          is_driver_tumourevo == TRUE) ~ 'Process False - Tumourevo True',
                       (is_driver_process == TRUE &
                          is_driver_tumourevo == TRUE) ~ 'Process True - Tumourevo True', 
-                    )) 
+                      (is_driver_process == TRUE &
+                         is.na(is_driver_tumourevo)) ~ 'Process True - Not Called',
+                      (is_driver_process == FALSE &
+                         is.na(is_driver_tumourevo)) ~ 'Process False - Not Called'
+                    ))
   
   return(all_drivers)
   
@@ -302,11 +308,15 @@ merge_drivers = function(all_dr_process, all_drivers_tumourevo) {
 colors = setNames(nm = c("Process False - Tumourevo True", 
                          "Process True - Tumourevo False", 
                          "Process True - Tumourevo True", 
-                         'Not a driver in sample'),
+                         'Not a driver in sample',
+                         'Process True - Not Called',
+                         'Process False - Not Called'),
                   object = c('goldenrod', 
-                             'indianred4', 
+                             'indianred', 
                              'forestgreen', 
-                             '#393E46'))
+                             '#393E46',
+                             'goldenrod4',
+                             'indianred4'))
 
 
 plot_drivers = function(x, 

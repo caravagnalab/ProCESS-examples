@@ -27,11 +27,13 @@ workflow DRIVER_VALIDATION {
   confusion_matrix = DRIVER_VALIDATION_COMBINATION.out.confusion_matrix
   report = DRIVER_VALIDATION_COMBINATION.out.report
   heatmap = DRIVER_VALIDATION_COMBINATION.out.heatmap
+  driver_comparsion = DRIVER_VALIDATION_COMBINATION.out.driver_comparsion
   
   
   
   emit:
     confusion_matrix
+    driver_comparsion
     report
     heatmap
 }

@@ -9,11 +9,12 @@ process DRIVER_VALIDATION_COMBINATION {
 
     output:
     tuple val(meta), path("confusion_matrix.rds"),             emit:confusion_matrix
+    tuple val(meta), path("all_driver_comparsion.rds"),        emit:driver_comparsion
     tuple val(meta), path("real_drivers_vaf_comparison.rds"),          emit:heatmap
     tuple val(meta), path("report.png"),	            emit:report
 
     
-    publishDir "${params.outdir}/${meta.spn}/driver/${meta.coverage}x_${meta.purity}/", mode: 'copy'
+    publishDir "${params.outdir}/${meta.spn}/driver/${meta.coverage}x_${meta.purity}/${vcf_caller}_${cna_caller}", mode: 'copy'
 
     script:
     """
@@ -103,25 +104,28 @@ process DRIVER_VALIDATION_COMBINATION {
     tumourevo_all_drs = get_all_drivers_tumourevo(tumourevo_mutations, all_drivers)
     
     all_drivers_table = merge_drivers(all_dr_process = process_all_drs,all_drivers_tumourevo =  tumourevo_all_drs)
-    summary_pct_true <-all_drivers_table %>% 
-      group_by(sample,driver_class) %>% 
-      summarise(n = n(), .groups = "drop") %>% 
+    metrics_df <- all_drivers_table %>%
       group_by(sample) %>%
       summarise(
-        pct_true = 100 * sum(n[driver_class == "Process True - Tumourevo True"]) /
-          sum(n[grepl("^Process True", driver_class)])
-      )
-    summ_plt <- summary_pct_true %>% 
-      ggplot(aes(y=sample,x=pct_true))+
-      geom_col()+
-      ggplot2::theme_light()+
-      xlab(label = "% Correctly identified")+
-      theme(axis.text.x = element_blank())
+        TP = sum(driver_class == "Process True - Tumourevo True"),
+        FP = sum(driver_class == "Process False - Tumourevo True"),
+        FN = sum(driver_class == "Process True - Tumourevo False"),
+        .groups = "drop"
+      ) %>%
+      mutate(
+        precision = ifelse(TP + FP > 0, TP / (TP + FP), NA),
+        recall    = ifelse(TP + FN > 0, TP / (TP + FN), NA)
+      ) %>%
+      select(sample, precision, recall) %>% 
+      mutate(coverage=coverage) %>% 
+      mutate(purity=purity) %>% 
+      mutate(spn=spn_id)
     plt = plot_drivers(all_drivers_table, colors = colors)
-    final_plot = wrap_plots(list(plt,summ_plt),design = "AAAB\\nAAAB")
-    ggsave(filename = "report.png",plot = final_plot,width = 10,height = 5)
     
-    saveRDS(object=all_drivers_table,file="confusion_matrix.rds")
+    ggsave(filename = "report.png",plot = plt,width = 10,height = 5)
+    
+    saveRDS(object=metrics_df,file="confusion_matrix.rds")
+    saveRDS(object=all_drivers_table,file="all_driver_comparsion.rds")
 
     """
 }

@@ -13,7 +13,7 @@ process SIGNATURE_VALIDATION_COMBINATION {
     tuple val(meta), path("cosine_mse_*.rds"),	            emit:cosine_mse
 
     
-    publishDir "${params.outdir}/${meta.spn}/signature/${meta.coverage}x_${meta.purity}/", mode: 'copy'
+    publishDir "${params.outdir}/${meta.spn}/signature/${meta.coverage}x_${meta.purity}/${vcf_caller}_${cna_caller}", mode: 'copy'
 
     script:
     """
