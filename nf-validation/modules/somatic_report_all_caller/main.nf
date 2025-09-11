@@ -32,7 +32,9 @@ process GENERATE_SOMATIC_REPORT_ALL_CALLER {
 
     mut_types = c("INDEL", "SNV")
     # INPUT PARAMATERS ####
-    min_vaf = .02
+    # min_vaf = .02
+    min_ccf = .02
+    min_vaf_caller = 0.0
     mut_types = c("INDEL", "SNV")
     
     process_samples = substr("$process_sample", 2, nchar("$process_sample")-1) 
@@ -111,9 +113,11 @@ process GENERATE_SOMATIC_REPORT_ALL_CALLER {
       sample_info = list(mut_type=mut_type, spn=spn_id, purity=purity, coverage=coverage)
       report_plot = get_multi_caller_report(seq_res_long = gt_res, 
                                        caller_res_list = caller_res_list, 
-                                       pi = as.numeric(purity),
+                                       # pi = as.numeric(purity),
                                        sample_info = sample_info, 
-                                       min_vaf = min_vaf, 
+                                       min_ccf = min_ccf,
+                                       min_vaf_caller = min_vaf_caller,
+                                       # min_vaf = min_vaf, 
                                        only_pass = TRUE)
 
       results_folder_path = file.path(mut_type)
@@ -128,18 +132,18 @@ process GENERATE_SOMATIC_REPORT_ALL_CALLER {
             sample_ground_truth_res = gt_res %>% dplyr::filter(sample == sample_id)
             sample_caller_res = caller_res %>% dplyr::filter(sample == sample_id)
             
-            metrics_results = analyze_vaf_performance(sample_ground_truth_res, 
-                                                      sample_caller_res, 
-                                                      only_pass = TRUE, 
-                                                      min_vaf_threshold = min_vaf, 
-                                                      vaf_tolerance_pct = 5)  # 5% VAF tolerance
+            # metrics_results = analyze_vaf_performance(sample_ground_truth_res, 
+            #                                           sample_caller_res, 
+            #                                           only_pass = TRUE, 
+            #                                           min_vaf_threshold = min_vaf, 
+            #                                           vaf_tolerance_pct = 5)  # 5% VAF tolerance
             
             metrics_results = analyze_ccf_performance(sample_ground_truth_res, 
                                                       sample_caller_res, 
-                                                      pi = as.numeric(purity),
-                                                      only_pass = TRUE, 
-                                                      min_ccf_threshold = min_vaf, 
-                                                      ccf_tolerance_pct = 5)  # 5% VAF tolerance
+                                                      tolerance_pct = 5, 
+                                                      min_vaf_caller = min_vaf_caller,
+                                                      min_ccf_threshold = min_ccf,
+                                                      only_pass = TRUE)
             
             metrics_results\$raw_data = NULL
             metrics_results

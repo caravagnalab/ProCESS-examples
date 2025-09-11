@@ -308,19 +308,33 @@ plot_false_negative_vaf_dist <- function(merged_df0) {
     dplyr::filter(false_negative)
   
   median_VAF0 <- stats::median(merged_df0$VAF_truth)
+  median_CCF = stats::median(merged_df0$CCF)
   
   merged_df0 %>%
-    dplyr::filter(false_negative) %>%
-    ggplot2::ggplot(mapping = ggplot2::aes(x = VAF_truth)) +
+    dplyr::filter(false_negative, CCF > 0) %>%
+    ggplot2::ggplot(mapping = ggplot2::aes(x = CCF)) +
     ggplot2::geom_histogram(bins = 100) +
-    ggplot2::geom_vline(xintercept = median_VAF0, col = "indianred") +
-    ggplot2::scale_x_continuous(trans = "log10") +
+    ggplot2::geom_vline(xintercept = median_CCF, col = "indianred") +
+    #ggplot2::scale_x_continuous(trans = "log10") +
     ggplot2::theme_bw() +
     ggplot2::labs(
-      x = "VAF races", 
+      x = "CCF process", 
       y = "Count", 
-      title = "False negatives' Variant allele frequency"
+      title = "False negatives' Cancer Cell Fraction"
     )
+  
+  # merged_df0 %>%
+  #   dplyr::filter(false_negative) %>%
+  #   ggplot2::ggplot(mapping = ggplot2::aes(x = VAF_truth)) +
+  #   ggplot2::geom_histogram(bins = 100) +
+  #   ggplot2::geom_vline(xintercept = median_VAF0, col = "indianred") +
+  #   ggplot2::scale_x_continuous(trans = "log10") +
+  #   ggplot2::theme_bw() +
+  #   ggplot2::labs(
+  #     x = "VAF races", 
+  #     y = "Count", 
+  #     title = "False negatives' Variant allele frequency"
+  #   )
 }
 
 plot_vaf_scatter_all <- function(merged_df, colors, sample_info) {
@@ -452,6 +466,33 @@ plot_metric_over_VAF_threshold <- function(seq_res_long, caller_res, only_pass, 
     ggplot2::geom_line() +
     ggplot2::theme_bw() +
     ggplot2::labs(x = "VAF threshold", y = "Value") +
+    ggplot2::scale_color_manual(values = metric_colors) +
+    ggplot2::ylim(c(0, 1))
+}
+
+plot_metric_over_CCF_threshold <- function(seq_res_long, caller_res, only_pass, min_vaf_caller, CCF_spectrum = seq(0, 0.1, by = 0.005)) {
+  if (only_pass) {
+    caller_res <- caller_res %>% dplyr::filter(FILTER == "PASS")
+  }
+  
+  dfm <- lapply(CCF_spectrum, function(min_ccf) {
+    merged_df <- merge_datasets(caller_res, seq_res_long, min_ccf = min_ccf, min_vaf_caller = min_vaf_caller)
+    y_true <- base::as.numeric(base::factor((merged_df$CCF > min_ccf), levels = c(FALSE, TRUE))) - 1
+    y_pred <- base::as.numeric(base::factor((merged_df$VAF_caller > min_vaf_caller), levels = c(FALSE, TRUE))) - 1
+    metrics <- compute_metrics_from_vectors(y_true, y_pred)
+    dplyr::tibble(min_ccf = min_ccf, value = base::as.numeric(metrics), metric = base::colnames(metrics))
+  }) %>% base::do.call("rbind", .)
+  
+  metric_colors <- c(
+    "#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd"
+  )
+  
+  dfm %>%
+    ggplot2::ggplot(ggplot2::aes(x = min_ccf, y = value, col = metric)) +
+    ggplot2::geom_point() +
+    ggplot2::geom_line() +
+    ggplot2::theme_bw() +
+    ggplot2::labs(x = "CCF threshold", y = "Value", color = "Metric") +
     ggplot2::scale_color_manual(values = metric_colors) +
     ggplot2::ylim(c(0, 1))
 }
@@ -674,6 +715,67 @@ plot_precision_recall_vaf <- function(vaf_analysis_results,
   
   if (!is.null(vaf_analysis_results$overall_metrics)) {
     overall <- vaf_analysis_results$overall_metrics
+    if (!is.na(overall$precision) && !is.na(overall$sensitivity)) {
+      annotation_text <- paste0(
+        "Overall: Precision = ", round(overall$precision * 100, 1), "%, ",
+        "Recall = ", round(overall$sensitivity * 100, 1), "%"
+      )
+      p <- p + ggplot2::labs(subtitle = annotation_text)
+    }
+  }
+  
+  return(p)
+}
+
+plot_precision_recall_ccf <- function(analysis_results, 
+                                      title = "Precision and Recall Across CCF Bins",
+                                      text_size = 3.5,
+                                      point_size = 1.5,
+                                      line_size = 1) {
+  performance_data <- analysis_results$performance_table
+  
+  required_cols <- c("CCF_bin", "precision", "sensitivity")
+  if (!all(required_cols %in% colnames(performance_data))) {
+    stop("Required columns missing: ", 
+         paste(setdiff(required_cols, colnames(performance_data)), collapse = ", "))
+  }
+  
+  plot_data <- performance_data %>%
+    dplyr::select(CCF_bin, precision, recall = sensitivity) %>%
+    dplyr::filter(!is.na(CCF_bin)) %>%
+    tidyr::pivot_longer(cols = c(precision, recall),
+                        names_to = "metric", values_to = "value") %>%
+    dplyr::mutate(
+      metric = factor(metric, levels = c("precision", "recall"), 
+                      labels = c("Precision", "Recall")),
+      value_pct = round(value * 100, 1),
+      label_text = paste0(value_pct, "%")
+    )
+  
+  p <- ggplot2::ggplot(plot_data, ggplot2::aes(x = CCF_bin, y = value, color = metric, group = metric)) +
+    ggplot2::geom_line(size = line_size, alpha = 0.8) +
+    ggplot2::geom_point(size = point_size, alpha = 0.9) +
+    ggplot2::geom_text(ggplot2::aes(label = label_text), vjust = -0.5, size = text_size,
+                       show.legend = FALSE, fontface = "bold") +
+    ggplot2::scale_y_continuous(
+      limits = c(0, 1.05),
+      breaks = seq(0, 1, 0.25),
+      labels = scales::percent_format(accuracy = 1)
+    ) +
+    ggplot2::scale_color_manual(values = c("Precision" = "#E31A1C", "Recall" = "#1F78B4"),
+                                name = "Metric") +
+    ggplot2::labs(
+      title = title,
+      x = "CCF Bin",
+      y = "Performance",
+      caption = paste0("Tolerance: ", analysis_results$tolerance_pct, "%; ",
+                       "Min CCF threshold: ", analysis_results$min_ccf_threshold)
+    ) +
+    ggplot2::theme_bw()
+  
+
+  if (!is.null(analysis_results$overall_metrics)) {
+    overall <- analysis_results$overall_metrics
     if (!is.na(overall$precision) && !is.na(overall$sensitivity)) {
       annotation_text <- paste0(
         "Overall: Precision = ", round(overall$precision * 100, 1), "%, ",

@@ -8,8 +8,8 @@ source("utils/mutect_utils.R")
 source("utils/process_utils.R")
 source("utils/freeBayes_utils.R")
 source("utils/strelka_utils.R")
-source("../../getters/process_getters.R")
-source("../../getters/sarek_getters.R")
+source("../getters/process_getters.R")
+source("../getters/sarek_getters.R")
 
 get_missing_files <- function(spn,purity,coverage,caller, chr,base_path="/orfeo/cephfs/scratch/cdslab/shared/SCOUT/"){
   missing_files <- list()

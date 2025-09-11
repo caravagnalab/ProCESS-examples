@@ -77,7 +77,8 @@ process GENERATE_SOMATIC_REPORT_ALL_COMBINATION {
             ggplot(mapping = aes(x = CCF_bin, y = mean, ymin=ylow,ymax=ymax, color = caller, linetype = mut)) +
             geom_line(aes(group = interaction(caller, mut)), size = 1) +
             geom_point(size = 2) +
-            facet_grid(coverage ~ purity, labeller = label_both) +
+            # facet_grid(coverage ~ purity, labeller = label_both) +
+            facet_grid(coverage ~ purity, labeller = label_both, scales = "free_x", space = "free_x") +
             labs(x = "CCF Bin", y = "Precision",
                 color = "Caller", linetype = "Mutation Type") +
             theme_bw() +
@@ -106,7 +107,8 @@ process GENERATE_SOMATIC_REPORT_ALL_COMBINATION {
             ggplot(mapping = aes(x = CCF_bin, y = mean, ymin=ylow, color = caller, linetype = mut)) +
             geom_line(aes(group = interaction(caller, mut)), size = 1) +
             geom_point(size = 2) +
-            facet_grid(coverage ~ purity, labeller = label_both) +
+            # facet_grid(coverage ~ purity, labeller = label_both) +
+            facet_grid(coverage ~ purity, labeller = label_both, scales = "free_x", space = "free_x") +
             labs(x = "CCF Bin", y = "Sensitivity",
                 color = "Caller", linetype = "Mutation Type") +
             theme_bw() +
@@ -131,7 +133,7 @@ process GENERATE_SOMATIC_REPORT_ALL_COMBINATION {
         
         p3 = df %>% 
             tidyr::replace_na(list(sensitivity = 0, precision = 0)) %>% 
-            dplyr::filter(mut == "SNV", !(CCF_bin %in% c("0-5%","5-10%"))) %>% 
+            # dplyr::filter(mut == "SNV", !(CCF_bin %in% c("0-5%","5-10%"))) %>% 
             dplyr::group_by(caller, mut, purity, sample_id, coverage) %>% 
             dplyr::summarise(sensitivity = mean(sensitivity), precision = mean(precision), .groups = "drop") %>%
             # Arrange by purity to ensure proper arrow direction
@@ -173,7 +175,7 @@ process GENERATE_SOMATIC_REPORT_ALL_COMBINATION {
         
         p4 = df %>% 
             tidyr::replace_na(list(sensitivity = 0, precision = 0)) %>% 
-            dplyr::filter(mut == "INDEL", !(CCF_bin %in% c("0-5%","5-10%"))) %>% 
+            # dplyr::filter(mut == "INDEL", !(CCF_bin %in% c("0-5%","5-10%"))) %>% 
             dplyr::group_by(caller, mut, purity, sample_id, coverage) %>% 
             dplyr::summarise(sensitivity = mean(sensitivity), precision = mean(precision)) %>%
             ggplot(mapping = aes(x = sensitivity, y = precision, color = caller, shape = sample_id)) +
@@ -190,7 +192,7 @@ process GENERATE_SOMATIC_REPORT_ALL_COMBINATION {
         
         p4 = df %>% 
             tidyr::replace_na(list(sensitivity = 0, precision = 0)) %>% 
-            dplyr::filter(mut == "INDEL", !(CCF_bin %in% c("0-5%","5-10%"))) %>% 
+            # dplyr::filter(mut == "INDEL", !(CCF_bin %in% c("0-5%","5-10%"))) %>% 
             dplyr::group_by(caller, mut, purity, sample_id, coverage) %>% 
             dplyr::summarise(sensitivity = mean(sensitivity), precision = mean(precision), .groups = "drop") %>%
             # Arrange by purity to ensure proper arrow direction

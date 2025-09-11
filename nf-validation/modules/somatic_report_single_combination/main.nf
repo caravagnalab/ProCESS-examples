@@ -46,7 +46,8 @@ process GENERATE_SOMATIC_REPORT_SINGLE_COMBINATION {
     }
     
     # INPUT PARAMATERS ####
-    min_vaf = .02
+    min_ccf = .02
+    min_vaf_caller = 0.0
     mut_types = c("INDEL", "SNV")
     
     process_rds_per_sample = strsplit("${rds_process_list}", '], ') %>% unlist()
@@ -96,7 +97,7 @@ process GENERATE_SOMATIC_REPORT_SINGLE_COMBINATION {
       report = get_report(seq_res_long = gt_res, 
                           caller_res = caller_res, 
                           sample_info = sample_info, 
-                          min_vaf = min_vaf)
+                          min_ccf = min_ccf, min_vaf_caller = min_vaf_caller)
         
       results_folder_path = file.path(caller, "report", mut_type)
       dir.create(results_folder_path, recursive = T)
