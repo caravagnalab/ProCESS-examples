@@ -27,6 +27,6 @@ process BCFTOOLS_VIEW {
     zgrep ^# ${vcf_path} > header_vcf.tmp
     zgrep -v ^# ${vcf_path} | grep ^chr${chromosome} > filtered_vcf.tmp
     cat header_vcf.tmp filtered_vcf.tmp > ${out_vcf}
-    gzip ${out_vcf}
+    gzip -f ${out_vcf}
     """
 }
