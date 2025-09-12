@@ -230,13 +230,14 @@ process GENERATE_SOMATIC_REPORT_ALL_COMBINATION {
         ggh4x::facet_nested(mut~"Purity"+purity, scales = "free_y") +
         theme_bw() +
         scale_fill_manual(values = method_colors) +
-        labs(x = "Coverage", y = "FDR", fill = "Caller")
+        labs(x = "Coverage", y = "False Discovery Rate", fill = "Caller")
       
       design <- "
         AABBCC
         AABBCC
         DDEEFF
         DDEEFF
+        #GGHH#
         #GGHH#
         "
       
@@ -246,7 +247,7 @@ process GENERATE_SOMATIC_REPORT_ALL_COMBINATION {
         patchwork::free(p4) + patchwork::free(p5) + patchwork::free(p6) +
         patchwork::free(TP_plot) + patchwork::free(FP_plot) + 
         patchwork::plot_layout(design = design) +
-        patchwork::plot_annotation(title) & 
+        patchwork::plot_annotation(title, tag_levels = list(c("SNV", "", "", "INDEL", "", "", "TPR and FDR"))) &
         ggplot2::theme(text = ggplot2::element_text(size = 12), 
                        legend.position = "bottom", 
                        legend.direction = "horizontal", legend.box = "vertical", legend.spacing.y = unit(1, "pt"))
@@ -255,7 +256,7 @@ process GENERATE_SOMATIC_REPORT_ALL_COMBINATION {
     }
     
     final_report = plot_rep(df, spn_id)
-    ggsave("final_report.pdf", plot = final_report, width = 18, height = 14)
+    ggsave("final_report.pdf", plot = final_report, width = 18, height = 18)
 
     """
 }
