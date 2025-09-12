@@ -732,7 +732,13 @@ plot_precision_recall_ccf <- function(analysis_results,
                                       text_size = 3.5,
                                       point_size = 1.5,
                                       line_size = 1) {
+  
   performance_data <- analysis_results$performance_table
+  performance_data$precision[is.na(performance_data$precision)] = 0
+  performance_data$precision_pct[is.na(performance_data$precision_pct)] = 0
+  
+  performance_data$sensitivity[is.na(performance_data$sensitivity)] = 0
+  performance_data$sensitivity_pct[is.na(performance_data$sensitivity_pct)] = 0
   
   required_cols <- c("CCF_bin", "precision", "sensitivity")
   if (!all(required_cols %in% colnames(performance_data))) {
@@ -752,7 +758,7 @@ plot_precision_recall_ccf <- function(analysis_results,
       label_text = paste0(value_pct, "%")
     )
   
-  p <- ggplot2::ggplot(plot_data, ggplot2::aes(x = CCF_bin, y = value, color = metric, group = metric)) +
+  p <- ggplot2::ggplot(plot_data %>% dplyr::filter(metric == "Recall"), ggplot2::aes(x = CCF_bin, y = value, color = metric, group = metric)) +
     ggplot2::geom_line(size = line_size, alpha = 0.8) +
     ggplot2::geom_point(size = point_size, alpha = 0.9) +
     ggplot2::geom_text(ggplot2::aes(label = label_text), vjust = -0.5, size = text_size,
@@ -765,7 +771,7 @@ plot_precision_recall_ccf <- function(analysis_results,
     ggplot2::scale_color_manual(values = c("Precision" = "#E31A1C", "Recall" = "#1F78B4"),
                                 name = "Metric") +
     ggplot2::labs(
-      title = title,
+      #title = title,
       x = "CCF Bin",
       y = "Performance",
       caption = paste0("Tolerance: ", analysis_results$tolerance_pct, "%; ",
@@ -773,19 +779,30 @@ plot_precision_recall_ccf <- function(analysis_results,
     ) +
     ggplot2::theme_bw()
   
+  p = p +
+    theme(legend.position = "none") +
+    labs(y = "Recall")
 
-  if (!is.null(analysis_results$overall_metrics)) {
-    overall <- analysis_results$overall_metrics
-    if (!is.na(overall$precision) && !is.na(overall$sensitivity)) {
-      annotation_text <- paste0(
-        "Overall: Precision = ", round(overall$precision * 100, 1), "%, ",
-        "Recall = ", round(overall$sensitivity * 100, 1), "%"
-      )
-      p <- p + ggplot2::labs(subtitle = annotation_text)
-    }
-  }
+  # if (!is.null(analysis_results$overall_metrics)) {
+  #   overall <- analysis_results$overall_metrics
+  #   if (!is.na(overall$precision) && !is.na(overall$sensitivity)) {
+  #     annotation_text <- paste0(
+  #       "Overall: Precision = ", round(overall$precision * 100, 1), "%, ",
+  #       "Recall = ", round(overall$sensitivity * 100, 1), "%"
+  #     )
+  #     p <- p + ggplot2::labs(subtitle = annotation_text)
+  #   }
+  # }
   
   return(p)
+}
+
+plot_fdr = function(analysis_results) {
+  performance_data <- analysis_results$performance_table
+  performance_data %>% 
+    dplyr::summarise(FP = sum(false_positives), )
+  
+  
 }
 
 
@@ -914,7 +931,7 @@ plot_multicaller_precision_recall <- function(performance_data, x_name,
     )
   
   ggplot2::ggplot(
-    plot_data,
+    plot_data %>% dplyr::filter(metric == "Recall"),
     ggplot2::aes(x = .data[[x_name]], y = value, color = caller, linetype = metric,
                  group = interaction(caller, metric))
   ) +
@@ -931,12 +948,12 @@ plot_multicaller_precision_recall <- function(performance_data, x_name,
       labels = scales::percent_format(accuracy = 1)
     ) +
     ggplot2::scale_linetype_manual(
-      values = c("Precision" = "solid", "Recall" = "dashed"),
+      values = c("Precision" = "dotted", "Recall" = "solid"),
       name = "Metric"
     ) +
     ggplot2::scale_color_manual(name = "Caller", values = method_colors) +
     ggplot2::labs(
-      title = title,
+      #title = title,
       x = x_name,
       y = "Performance"
     ) +
@@ -976,4 +993,28 @@ plot_multicaller_rmse_vaf <- function(performance_data,
       y = "RMSE"
     ) +
     ggplot2::theme_bw()
+}
+
+
+plot_multicaller_FDR = function(seq_res_long, caller_res_list, min_vaf_caller, min_ccf) {
+  FDR_across_callers = lapply(names(caller_res_list), function(nc) {
+    caller_res = caller_res_list[[nc]]
+    
+    metrics_results = analyze_ccf_performance(
+      seq_res_long, caller_res, only_pass = TRUE, tolerance_pct = 5, 
+      min_vaf_caller = min_vaf_caller, min_ccf_threshold = min_ccf
+    )
+    
+    FDR = metrics_results$detection_summary["False Positive"] / (metrics_results$detection_summary["False Positive"] + metrics_results$detection_summary["True Positive"])
+    
+    dplyr::tibble(FDR = FDR, caller = nc)
+  }) %>% do.call("bind_rows", .)
+  
+  FDR_across_callers %>% 
+    ggplot(mapping = aes(x = caller, y = FDR, fill = caller)) +
+    geom_col() +
+    ggplot2::scale_fill_manual(name = "Caller", values = method_colors) +
+    theme_bw() +
+    labs(x = "Caller") +
+    theme(legend.position = "none")
 }

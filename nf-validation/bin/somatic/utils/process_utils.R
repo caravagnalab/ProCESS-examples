@@ -1,6 +1,6 @@
 library(dplyr)
 
-process_seq_results <- function(spn, purity, coverage, chromosome, outdir,rds_path,sample_id) {
+process_seq_results <- function(spn, purity, coverage, chromosome, outdir, rds_path, sample_id) {
   # Construct the output folder path
   combination = paste0(coverage, "x_", purity, "p")
 
@@ -28,21 +28,17 @@ process_seq_results <- function(spn, purity, coverage, chromosome, outdir,rds_pa
   mut_df = phylo_forest$get_sampled_cell_mutations()
   mut_df = mut_df %>% dplyr::mutate(mutationID = paste0("chr", chr, ":", chr_pos, ":", ref ,":", alt))
   
-  mut_snv$CCF = lapply(1:nrow(mut_snv), function(i) {
-    cells_w_mutation = mut_df %>% dplyr::filter(mutationID == mut_snv[i,]$mutationID) %>% 
-      dplyr::pull(cell_id)
-    n = (cells_w_mutation %in% sample_cell_ids) %>% sum()
-    Ntot = length(sample_cell_ids)
-    n / Ntot
-  }) %>% unlist()
+  library(data.table)
+  setDT(mut_df); setDT(mut_snv); setDT(mut_indel)
   
-  mut_indel$CCF = lapply(1:nrow(mut_indel), function(i) {
-    cells_w_mutation = mut_df %>% dplyr::filter(mutationID == mut_indel[i,]$mutationID) %>% 
-      dplyr::pull(cell_id)
-    n = (cells_w_mutation %in% sample_cell_ids) %>% sum()
-    Ntot = length(sample_cell_ids)
-    n / Ntot
-  }) %>% unlist()
+  Ntot <- uniqueN(sample_cell_ids)
+  
+  per_mut <- unique(mut_df[cell_id %in% sample_cell_ids, .(mutationID, cell_id)]
+  )[, .(n_cells = .N), by = mutationID][
+    , .(mutationID, CCF = n_cells / Ntot)]
+  
+  mut_snv[per_mut,   CCF := i.CCF, on = "mutationID"][is.na(CCF),   CCF := 0]
+  mut_indel[per_mut, CCF := i.CCF, on = "mutationID"][is.na(CCF), CCF := 0]
   
   mut = list('SNV' = mut_snv, 'INDEL' = mut_indel)
   saveRDS(object = mut, file = paste0("chr", chromosome, ".rds"))

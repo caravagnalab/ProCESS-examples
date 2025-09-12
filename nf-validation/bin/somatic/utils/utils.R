@@ -61,6 +61,7 @@ string_difference <- function(str1, str2) {
 }
 
 merge_datasets <- function(snp_caller, ground_truth, min_ccf, min_vaf_caller) {
+  
   df <- snp_caller %>%
     dplyr::full_join(ground_truth, by = c("mutationID"), suffix = c("_caller", "_truth")) %>%
     dplyr::mutate(
@@ -76,6 +77,7 @@ merge_datasets <- function(snp_caller, ground_truth, min_ccf, min_vaf_caller) {
     dplyr::mutate(DP_truth = ifelse(is.na(DP_truth), 0, DP_truth)) %>% 
     dplyr::mutate(DP_caller = ifelse(is.na(DP_caller), 0, DP_caller)) %>% 
     dplyr::mutate(CCF = ifelse(is.na(CCF), 0, CCF))
+  
   return(df)
 }
 
@@ -151,7 +153,8 @@ get_report <- function(seq_res_long, caller_res, sample_info, min_ccf, min_vaf_c
     dplyr::filter(FILTER == "PASS" & !is.na(FILTER))
   
   # Create merged dataset with 0 threshold for PASS mutations (includes all VAFs)
-  merged_df0 <- merge_datasets(caller_res_pass, seq_res_long, min_ccf = 0, min_vaf_caller = 0)
+  #merged_df0 <- merge_datasets(caller_res_pass, seq_res_long, min_ccf = 0, min_vaf_caller = 0)
+  merged_df0 <- merge_datasets(caller_res_pass, seq_res_long, min_ccf = min_ccf, min_vaf_caller = min_vaf_caller)
   
   ###
   # PLOT GENERATION - FALSE NEGATIVE ANALYSIS
@@ -279,6 +282,13 @@ get_report <- function(seq_res_long, caller_res, sample_info, min_ccf, min_vaf_c
   # Generate precision-recall curve
   #precision_recall_plot = plot_precision_recall_vaf(vaf_analysis_results = metrics_results)
   precision_recall_plot = plot_precision_recall_ccf(analysis_results = metrics_results)
+  FDR = metrics_results$detection_summary["False Positive"] / (metrics_results$detection_summary["False Positive"] + metrics_results$detection_summary["True Positive"])
+  FDR_rate_plot = dplyr::tibble(FDR = FDR) %>% 
+    ggplot(mapping = aes(x = "FDR", y = FDR)) +
+    geom_col() +
+    lims(y = c(0,1)) +
+    theme_bw() +
+    labs(y = "Value", x = "")
   
   # ccf_bins = c(-Inf, 0, 0.05, 0.1, 0.2, 0.3, 0.5, 1.0)
   # ccf_bins = ccf_bins[ccf_bins < (pi * 0.95)]
@@ -379,8 +389,8 @@ get_report <- function(seq_res_long, caller_res, sample_info, min_ccf, min_vaf_c
   DDEEFF
   DDEEFF
   GGGHHH
-  IIILLL
-  IIILLL
+  IIILMM
+  IIILMM
   "
   
   # Generate descriptive title and subtitle for the report
@@ -413,7 +423,7 @@ get_report <- function(seq_res_long, caller_res, sample_info, min_ccf, min_vaf_c
   report_plot <- patchwork::free(DP_density) + patchwork::free(DP_ecdf) + patchwork::free(p_scatter_DP_pass) +
     patchwork::free(VAF_density) + patchwork::free(VAF_ecdf) + patchwork::free(p_scatter_VAF_pass) +
     patchwork::free(p_false_negative_VAF_dist) +  patchwork::free(p_venn_pass) +
-    patchwork::free(precision_recall_plot) + patchwork::free(metrics_over_CCF) +
+    patchwork::free(precision_recall_plot) + patchwork::free(FDR_rate_plot) + patchwork::free(metrics_over_CCF) +
     patchwork::plot_layout(design = design) +
     patchwork::plot_annotation(title, subtitle) & 
     ggplot2::theme(text = ggplot2::element_text(size = 12))
@@ -615,7 +625,7 @@ analyze_ccf_performance <- function(seq_res_long, caller_res, only_pass,
                                     min_vaf_caller = 0.0,
                                     min_ccf_threshold = 0.02) {
   
-  ccf_bins = c(-Inf, 0, 0.05, 0.1, 0.2, 0.3, 0.5, .99, 1.0)
+  ccf_bins = c(-Inf, 0, 0.01, 0.02, 0.03, 0.05, 0.1, 0.25, 0.5, .99, 1.0)
   ccf_bins = ccf_bins[ccf_bins < 1.0]
   ccf_bins = c(ccf_bins, 1.0) %>% sort()
   
@@ -632,22 +642,6 @@ analyze_ccf_performance <- function(seq_res_long, caller_res, only_pass,
   merged_df = merge_datasets(caller_res, seq_res_long, min_ccf = min_ccf_threshold, min_vaf_caller = min_vaf_caller)
   merged_df = merged_df %>% dplyr::select(mutationID, VAF_caller, VAF_truth, CCF) %>% 
     dplyr::mutate(CCF = ifelse(is.na(CCF), 0, CCF))
-  
-  # Compute CCFs
-  # merged_df <- merged_df %>%
-  #   dplyr::mutate(
-  #     CCF = CCF 
-  #     #CCF_truth = VAF_truth / pi * (pi + 2 * (1 - pi)) / 2,
-  #     #CCF_caller = VAF_caller / pi * (pi + 2 * (1 - pi)) / 2
-  #   ) %>%
-  #   dplyr::mutate(
-  #     CCF = pmin(CCF, 1)
-  #     #CCF_truth = pmin(CCF_truth, 1),
-  #     #CCF_caller = pmin(CCF_caller, 1)
-  #   )
-  
-  # Create CCF bins
-  #ccf_labels <- c("0%", "0–5%", "5–10%", "10–20%", "20–30%", "30–50%", "50–100%")
   
   ccf_labels = lapply(2:(length(ccf_bins)-2), function(i) {
     paste0(paste0(ccf_bins[i:(i+1)] * 100, collapse = "-"), "%")  
@@ -702,6 +696,7 @@ analyze_ccf_performance <- function(seq_res_long, caller_res, only_pass,
       total_truth = dplyr::n(),
       true_positives = sum(detection_status == "True Positive"),
       false_negatives = sum(detection_status == "False Negative"),
+      false_positive = sum(detection_status == "False Positive"),
       VAF_discordant = sum(!is.na(VAF_caller) & CCF > min_ccf_threshold &
                              VAF_rel_diff_pct > tolerance_pct, na.rm = TRUE),
       .groups = 'drop'
@@ -858,9 +853,7 @@ get_multi_caller_report <- function(seq_res_long, caller_res_list, sample_info, 
   
   # Upset plot 
   # CCF binning
-  ccf_bins <- c(-Inf, 0, 0.05, 0.1, 0.2, 0.3, 0.5, 0.99, 1.0)
-  #ccf_bins <- ccf_bins[ccf_bins < (pi * 0.95)]
-  #ccf_bins <- sort(c(ccf_bins, (pi * 0.95), 1.0))
+  ccf_bins <- c(-Inf, 0, .01, .02, .03, 0.05, 0.1, 0.2, 0.3, 0.5, 0.99, 1.0)
   
   ccf_labels <- sapply(2:(length(ccf_bins) - 2), function(i) {
     paste0(paste0(ccf_bins[i:(i + 1)] * 100, collapse = "–"), "%")
@@ -946,24 +939,14 @@ get_multi_caller_report <- function(seq_res_long, caller_res_list, sample_info, 
       seq_res_long, caller_res, only_pass = TRUE, tolerance_pct = 5, 
       min_vaf_caller = min_vaf_caller, min_ccf_threshold = min_ccf
     )
-    # metrics_results = analyze_ccf_performance(
-    #   seq_res_long, 
-    #   caller_res, only_pass = TRUE, 
-    #   pi = pi, 
-    #   tolerance_pct = 5, 
-    #   min_ccf_threshold = min_vaf
-    # )
     
-    # metrics_results = analyze_ccf_performance(seq_res_long, 
-    #                                           caller_res, pi = pi,
-    #                                           only_pass = TRUE, 
-    #                                           min_ccf_threshold = min_vaf,
-    #                                           ccf_tolerance_pct = 5)
     metrics_results$performance_table %>% dplyr::mutate(caller = nc)
   }) %>% do.call("bind_rows", .)
   
   # Generate precision-recall curve
   precision_recall_plot = plot_multicaller_precision_recall(performance_data = ccf_analysis_results_across_callers, x_name = "CCF_bin")
+  FDR_plot = plot_multicaller_FDR(seq_res_long, caller_res_list, min_vaf_caller, min_ccf)  
+
   #rmse_plot = plot_multicaller_rmse_vaf(vaf_analysis_results_across_callers)
   
   ###
@@ -974,14 +957,13 @@ get_multi_caller_report <- function(seq_res_long, caller_res_list, sample_info, 
   # Each letter represents a plot position in the grid
   
   design <- "
-  AAABBB
-  AAABBB
-  CCCDDD
-  CCCDDD
-  #EEEE#
-  #EEEE#
-  #FFFF#
-  #FFFF#
+  AAAAABBBBB
+  AAAAABBBBB
+  CCCCCDDDDD
+  CCCCCDDDDD
+  EEEEFGGGGG
+  EEEEFGGGGG
+  EEEEFGGGGG
   "
   
   # Generate descriptive title and subtitle for the report
@@ -993,7 +975,7 @@ get_multi_caller_report <- function(seq_res_long, caller_res_list, sample_info, 
   # free() function allows each plot to maintain its own scales
   report_plot <- free(DP_density) + free(DP_ecdf) +
     free(VAF_density) + free(VAF_ecdf) + 
-    free(precision_recall_plot) + free(upset_plot) +
+    free(precision_recall_plot) + free(FDR_plot) + free(upset_plot) +
     plot_layout(design = design) +
     plot_annotation(title, subtitle) & 
     theme(text = element_text(size = 12))
