@@ -33,7 +33,7 @@ process GENERATE_SOMATIC_REPORT_ALL_CALLER {
     mut_types = c("INDEL", "SNV")
     # INPUT PARAMATERS ####
     # min_vaf = .02
-    min_ccf = .02
+    min_ccf = 0.0
     min_vaf_caller = 0.0
     mut_types = c("INDEL", "SNV")
     

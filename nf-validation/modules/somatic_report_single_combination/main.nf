@@ -46,7 +46,7 @@ process GENERATE_SOMATIC_REPORT_SINGLE_COMBINATION {
     }
     
     # INPUT PARAMATERS ####
-    min_ccf = .02
+    min_ccf = 0.0
     min_vaf_caller = 0.0
     mut_types = c("INDEL", "SNV")
     
