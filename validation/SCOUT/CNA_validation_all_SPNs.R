@@ -10,11 +10,11 @@ source("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/getters/p
 # source("compute_FGA.R")
 scout_dir <-"/orfeo/cephfs/scratch/cdslab/shared/SCOUT/"
 SPNS <- c("SPN01","SPN02","SPN03","SPN04","SPN06","SPN07")
-COVERAGES <- c("50","100")
+COVERAGES <- c("50","100","150")
 PURITIES <- c("0.3","0.6","0.9")
 SPN_colors <-c("SPN01"='steelblue', "SPN02"='seagreen', "SPN03"='goldenrod', 
                "SPN04"='coral', "SPN06"='palevioletred', "SPN07"='indianred3')
-source("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/validation/colors.R")
+source("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/validation/SCOUT/colors.R")
 WGD_samples <- c("SPN01_1.1","SPN01_1.3","SPN06_3.1","SPN06_3.2")
 
 validation_dir <- "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/VALIDATION"
@@ -39,9 +39,11 @@ for (SPN in SPNS){
       } else{
         metrics_df <- readRDS(metrics_filename) %>% 
           mutate(delta_purity=as.numeric(true_purity)-as.numeric(purity)) %>% 
-          mutate(delta_ploidy=as.numeric(true_ploidy)-as.numeric(ploidy))
+          mutate(delta_ploidy=as.numeric(true_ploidy)-as.numeric(ploidy)) %>% 
+          filter(tool!="cnvkit")
         metrics_bp_df <- readRDS(metrics_bp_filename) %>% 
-          filter(chr=="genome")
+          filter(chr=="genome") %>% 
+          filter(tool!="cnvkit")
         all_metrics_comb[[sample]] <- inner_join(metrics_df,metrics_bp_df,by=c("tool","sample","spn","coverage","fga","fgs","true_purity"))
       }
     }
@@ -52,30 +54,42 @@ for (SPN in SPNS){
 df_all_combs_SPN <- do.call("rbind",df_all_SPN)
 
 ######## heatmap purity ########
+q_precision <- round(quantile(df_all_combs_SPN$precision, probs = c(0.33, 0.66)),2)
+q_recall    <- round(quantile(df_all_combs_SPN$recall, probs = c(0.33, 0.66)),2)
+q_corr_clonal <- round(quantile(df_all_combs_SPN$correctness_clonal, probs = c(0.25, 0.50, 0.75),na.rm = T),2)
+#q_corr_subclonal <- round(quantile(df_all_combs_SPN$correctness_subclonal, probs = c(0.25, 0.50, 0.75),na.rm = T),2)
 
 df_all_combs_SPN<- df_all_combs_SPN %>% 
   arrange(tool) %>% 
   mutate(id=paste(sample,tool,sep=":")) %>% 
   mutate(comb=paste(coverage,true_purity,sep=":")) %>% 
   
-  mutate(delta_purity_class = case_when(delta_purity>=0.3  ~ "highly underestimated",
-                                        delta_purity<=-0.3 ~ "highly overestimated",
-                                        delta_purity>=0.1 & delta_purity<0.3~ "poorly underestimated",
-                                        delta_purity<=-0.1 & delta_purity>-0.3~ "poorly overestimated",
+  mutate(delta_purity_class = case_when(delta_purity>=0.3  ~ "Δ purity > 0.3",
+                                        delta_purity<=-0.3 ~ "Δ purity < -0.3",
+                                        delta_purity>=0.1 & delta_purity<0.3~ "0.1 < Δ purity < 0.3",
+                                        delta_purity<=-0.1 & delta_purity>-0.3~ "-0.1 < Δ purity < -0.3",
                                         is.na(delta_ploidy) ~ "not estimated",
                                         TRUE ~ "correctly estimated",
                                         )) %>% 
-  mutate(delta_ploidy_class = case_when(delta_ploidy>1  ~ "highly underestimated",
-                                        delta_ploidy<=-1 ~ "highly overestimated",
-                                        delta_ploidy>=0.5 & delta_ploidy<1~ "poorly underestimated",
-                                        delta_ploidy<=-0.5 & delta_ploidy>-1~ "poorly overestimated",
+  mutate(delta_ploidy_class = case_when(delta_ploidy>1  ~ "Δ ploidy > 1",#"highly underestimated",
+                                        delta_ploidy<=-1 ~ "Δ ploidy < -1", #"highly overestimated",
+                                        delta_ploidy>=0.5 & delta_ploidy<1~ "0.5 < Δ ploidy < 1", #"poorly underestimated",
+                                        delta_ploidy<=-0.5 & delta_ploidy>-1~ "-0.5 < Δ ploidy < -1", #"poorly overestimated",
                                         is.na(delta_ploidy) ~ "not estimated",
                                         TRUE ~ "correctly estimated")) %>% 
-  mutate(correctness_clonal_class= case_when(correctness_clonal>=0.95  ~ "Excellent",
-                                             correctness_clonal<0.95 & correctness_clonal>=0.80   ~ "High",
-                                             correctness_clonal<0.80 & correctness_clonal>=0.60   ~ "Medium",
+  mutate(correctness_clonal_class= case_when(correctness_clonal>=q_corr_clonal[3]  ~ "> 3th quantile",
+                                             correctness_clonal<q_corr_clonal[3] & correctness_clonal>=q_corr_clonal[2]   ~ "2th - 3th quantile",
+                                             correctness_clonal<q_corr_clonal[2] & correctness_clonal>=q_corr_clonal[1]   ~ "1th - 2th quantile",
                                              is.na(delta_ploidy) ~ "not estimated",
-                                             TRUE ~ "Low")) %>% 
+                                             TRUE ~ "< 1th quantile")) %>% 
+  mutate(precision_class= case_when(precision>=q_precision[2]  ~ paste0("> ", round(q_precision[2], 2)),
+                                    precision<q_precision[2]& precision>=q_precision[1]   ~ paste0(round(q_precision[1], 2), " – ", round(q_precision[2], 2)),
+                                    is.na(precision) ~ "not estimated",
+                                    TRUE ~ paste0("< ", round(q_precision[1], 2)))) %>% 
+  mutate(recall_class= case_when(recall>=q_recall[2]  ~ paste0("> ", round(q_recall[2], 2)),
+                                 recall<q_recall[2] & recall>=q_recall[1]   ~ paste0(round(q_recall[1], 2), " – ", round(q_recall[2], 2)),
+                                 is.na(recall) ~ "not estimated",
+                                 TRUE ~ paste0("< ", round(q_recall[1], 2)))) %>% 
   mutate(WGD= case_when(sample%in%WGD_samples ~ "WGD",
                         TRUE ~ "not WGD"))
   
@@ -110,14 +124,14 @@ list_correctness_clonal <- df_all_combs_SPN %>%
 ## correctness bp detection
 
 list_bp_precision <- df_all_combs_SPN %>% 
-  dplyr::select(comb, id, precision) %>%
-  tidyr::pivot_wider(names_from = id, values_from = precision) %>% 
+  dplyr::select(comb, id, precision_class) %>%
+  tidyr::pivot_wider(names_from = id, values_from = precision_class) %>% 
   tibble::column_to_rownames("comb") %>% 
   as.matrix()
 
 list_bp_recall <- df_all_combs_SPN %>% 
-  dplyr::select(comb, id, recall) %>%
-  tidyr::pivot_wider(names_from = id, values_from = recall) %>% 
+  dplyr::select(comb, id, recall_class) %>%
+  tidyr::pivot_wider(names_from = id, values_from = recall_class) %>% 
   tibble::column_to_rownames("comb") %>% 
   as.matrix()
 
@@ -167,15 +181,18 @@ column_ha <- HeatmapAnnotation(
   #coverage = anno_simple(coverages, col= col_coverages),
   spn = spn_ids, 
   # tool = tools,
-  col = list(spn=SPN_colors)
+  col = list(spn=SPN_colors),
+  annotation_label = c("fraction of genome altered", 
+                      "fraction of genome subclonal", 
+                      "SPN ID")
 )
 
 column_bottom_ha <- HeatmapAnnotation(
-  true_ploidy = true_ploidy_values,
-  WGD = anno_customize(wgd_values, graphics = graphics),
+  true_ploidy = anno_barplot(true_ploidy_values),
+  WGD = anno_customize(wgd_values, graphics = graphics)
   #coverage = anno_simple(coverages, col= col_coverages),
-  # tool = tools,
-  col = list(true_ploidy=col_fun_true_ploidy)
+  # # tool = tools,
+  # col = list(true_ploidy=col_fun_true_ploidy)
 )
 
 
@@ -183,7 +200,7 @@ row_ha <- rowAnnotation(
   coverage = coverages,
   purity = purities,
   #coverage = anno_simple(coverages, col= col_coverages),
-  col = list(coverage=col_coverages, purity=col_purities)
+  col = list(coverage=coverage_colors, purity=purity_colors),show_annotation_name = F
 )
 ####
 #col_fun_purity = circlize::colorRamp2(c(-1,0, 1), c("forestgreen","white", "darkorange"))
@@ -196,25 +213,50 @@ row_ha <- rowAnnotation(
 #   "not estimated" = "grey"
 # )
 
-col_fun_classes <-  c(
+col_fun_classes_purity <-  c(
   "correctly estimated"   = "snow",  # green
-  "highly overestimated"  = "#D32F2F",  # dark red
-  "poorly overestimated"  = "#FFCDD2",  # light red
-  "highly underestimated" = "#1976D2",  # dark blue
-  "poorly underestimated" = "#BBDEFB",   # light blue,
+  "Δ purity > 0.3"  = "#D32F2F",  # dark red
+  "0.1 < Δ purity < 0.3"  = "#FFCDD2",  # light red
+  "Δ purity < -0.3" = "#1976D2",  # dark blue
+  "-0.1 < Δ purity < -0.3" = "#BBDEFB",   # light blue,
+  "not estimated" = "grey"
+)
+
+col_fun_classes_ploidy <-  c(
+  "correctly estimated"   = "snow",  # green
+  "Δ ploidy > 1"  = "#D32F2F",  # dark red
+  "0.5 < Δ ploidy < 1"  = "#FFCDD2",  # light red
+  "Δ ploidy < -1" = "#1976D2",  # dark blue
+  "-0.5 < Δ ploidy < 1" = "#BBDEFB",   # light blue,
   "not estimated" = "grey"
 )
 
 col_fun_classes_correct <-  c(
-  "Low"   = "goldenrod4",  # green
-  "Excellent" ="forestgreen",
-  "Medium"  = "goldenrod3",  # dark red
-  "High"  = "goldenrod1",
+  "> 3th quantile" = "#1a9850",  # green
+  "2th - 3th quantile"      = "#d9ef8b",  # yellow-green
+  "1th - 2th quantile"    = "#fc8d59",  # orange
+  "< 1th quantile"       = "red3",   # red
   "not estimated" = "grey"
 )
 
+labels_recall <- c(
+  paste0("< ", round(q_recall[1], 2)),
+  paste0(round(q_recall[1], 2), " – ", round(q_recall[2], 2)),
+  paste0("> ", round(q_recall[2], 2)),
+  "not estimated"
+)
+col_fun_recall <-  c("lightpink1",  "salmon2","salmon4" ,"grey")
+names(col_fun_recall)<-labels_recall
+labels_precision <- c(
+  paste0("< ", round(q_precision[1], 2)),
+  paste0(round(q_precision[1], 2), " – ", round(q_precision[2], 2)),
+  paste0("> ", round(q_precision[2], 2)),
+  "not estimated"
+)
+col_fun_precision <- c("#e0f3f8", "#91bfdb","#4575b4", "grey80")
+names(col_fun_precision)<-labels_precision
 h_purity = ComplexHeatmap::Heatmap(list_purities,cluster_rows = F,cluster_columns = F,
-                                top_annotation = column_ha,col=col_fun_classes,
+                                top_annotation = column_ha,col=col_fun_classes_purity,
                                 left_annotation = row_ha,show_column_names = F,
                                 show_row_names = F,rect_gp = gpar(col = "black", lwd = 1),
                                 column_split = tools,
@@ -222,25 +264,29 @@ h_purity = ComplexHeatmap::Heatmap(list_purities,cluster_rows = F,cluster_column
                                 row_title_side = "right",
                                 row_title_gp = gpar(fontsize = 12, lineheight = 0.8,fontface="bold"),
                                 row_title_rot = 90,
-                                name = "Purity/Ploidy estimation classes"
+                                name = "Purity estimation classes"
 )
 # col_fun_ploidy = circlize::colorRamp2(c(-3,0, 3), c("forestgreen","white", "darkorange"))
 h_ploidy = ComplexHeatmap::Heatmap(list_ploidy,cluster_rows = F,cluster_columns = F,
                                    # top_annotation = column_ha,
                                    left_annotation = row_ha,
-                                   col=col_fun_classes, show_column_names = F,
+                                   col=col_fun_classes_ploidy, show_column_names = F,
                                    show_row_names = F,rect_gp = gpar(col = "black", lwd = 1),
                                    column_split = tools,
                                    row_title = "Ploidy",
                                    row_title_side = "right",
                                    row_title_gp = gpar(fontsize = 12, lineheight = 0.8,fontface="bold"),
                                    row_title_rot = 90,
-                                   show_heatmap_legend = F
+                                   name = "Ploidy estimation classes"
 )
 #col_fun_correctness_clonal = circlize::colorRamp2(c(0, 1), c("white", "goldenrod2"))
 h_correc = ComplexHeatmap::Heatmap(list_correctness_clonal,cluster_rows = F,cluster_columns = F,
                                    # top_annotation = column_ha,
                                    left_annotation = row_ha,
+                                   row_title = "% correctly\ninferred CNA",
+                                   row_title_side = "right",
+                                   row_title_gp = gpar(fontsize = 12, lineheight = 0.8,fontface="bold"),
+                                   row_title_rot = 90,
                                    col=col_fun_classes_correct, show_column_names = F,
                                    show_row_names = F,rect_gp = gpar(col = "black", lwd = 1),
                                    column_split = tools,
@@ -251,8 +297,12 @@ col_fun_correctness_clonal = circlize::colorRamp2(c(0, 1), c("white", "#D64F54")
 h_precision_bp = ComplexHeatmap::Heatmap(list_bp_precision,cluster_rows = F,cluster_columns = F,
                                    # top_annotation = column_ha,
                                    left_annotation = row_ha,
-                                   col=col_fun_correctness_clonal,
+                                   col=col_fun_precision,
                                    show_column_names = F,
+                                   row_title = "Precison",
+                                   row_title_side = "right",
+                                   row_title_gp = gpar(fontsize = 12, lineheight = 0.8,fontface="bold"),
+                                   row_title_rot = 90,
                                    show_row_names = F,rect_gp = gpar(col = "black", lwd = 1),
                                    column_split = tools,
                                    name = "Precision break point"
@@ -261,7 +311,11 @@ h_recall_bp = ComplexHeatmap::Heatmap(list_bp_recall,cluster_rows = F,cluster_co
                                          # top_annotation = column_ha,
                                           bottom_annotation = column_bottom_ha,
                                          left_annotation = row_ha,
-                                         col=col_fun_correctness_clonal,
+                                         col=col_fun_recall,
+                                         row_title = "Recall",
+                                         row_title_side = "right",
+                                         row_title_gp = gpar(fontsize = 12, lineheight = 0.8,fontface="bold"),
+                                         row_title_rot = 90,
                                          show_column_names = F,
                                          show_row_names = F,rect_gp = gpar(col = "black", lwd = 1),
                                          column_split = tools,
@@ -269,5 +323,10 @@ h_recall_bp = ComplexHeatmap::Heatmap(list_bp_recall,cluster_rows = F,cluster_co
 )
 h_final_cna <- h_purity %v% h_ploidy %v% h_correc %v% h_precision_bp %v% h_recall_bp
 pdf("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/validation/SCOUT/Final_CNA_SCOUT_Validation.pdf",width = 15,height = 10)
-draw(object = h_final_cna)
+draw(
+  h_final_cna,
+  heatmap_legend_side = "bottom",
+  annotation_legend_side = "bottom",
+  merge_legends = TRUE   # merges multiple legends into one row if possible
+)
 dev.off()
