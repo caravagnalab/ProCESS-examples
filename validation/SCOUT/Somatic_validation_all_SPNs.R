@@ -102,50 +102,6 @@ for (SPN in SPNS){
 df_all_combs_SPN <- do.call("rbind",df_all_SPN)
 
 
-######## heatmap purity ########
-
-df_all_combs_SPN<- df_all_combs_SPN %>% 
-  dplyr::filter(mut_type=="SNV") %>% 
-  dplyr::mutate(CCF_bin_class = factor(CCF_bin_class, 
-                                       levels = c("Subclonal Low CCF", 
-                                                  "Subclonal High CCF", 
-                                                  "Clonal"))) %>% 
-  arrange(CCF_bin_class,sample) %>% 
-  mutate(id=paste(sample,caller,sep=":")) %>% 
-  mutate(comb=paste(coverage,purity,sep=":")) %>% 
-  mutate(across(where(is.numeric), ~replace_na(., 0)))
-
-## recall matrix
-list_mean_sensitivity_low_subclonal <- df_all_combs_SPN %>% 
-  dplyr::filter(CCF_bin_class=="Subclonal Low CCF") %>% 
-  dplyr::select(comb, id, mean_sensitivity) %>%
-  tidyr::pivot_wider(names_from = id, values_from = mean_sensitivity) %>% 
-  tibble::column_to_rownames("comb") %>% 
-  as.matrix()
-  
-
-list_mean_sensitivity_high_subclonal <- df_all_combs_SPN %>% 
-  dplyr::filter(CCF_bin_class=="Subclonal High CCF") %>% 
-  dplyr::select(comb, id, mean_sensitivity) %>%
-  tidyr::pivot_wider(names_from = id, values_from = mean_sensitivity) %>% 
-  tibble::column_to_rownames("comb") %>% 
-  as.matrix()
-
-list_mean_sensitivity_clonal <- df_all_combs_SPN %>% 
-  dplyr::filter(CCF_bin_class=="Clonal") %>% 
-  dplyr::select(comb, id, mean_sensitivity) %>%
-  tidyr::pivot_wider(names_from = id, values_from = mean_sensitivity) %>% 
-  tibble::column_to_rownames("comb") %>% 
-  as.matrix()
-
-list_fdr <- df_all_combs_SPN %>% 
-  dplyr::filter(CCF_bin_class=="Clonal") %>% 
-  dplyr::select(comb, id, FDR) %>%
-  tidyr::pivot_wider(names_from = id, values_from = FDR) %>% 
-  tibble::column_to_rownames("comb") %>% 
-  as.matrix()
-
-
 
 ###### get annotation for heatmap ######
 
