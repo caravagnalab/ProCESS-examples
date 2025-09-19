@@ -3,7 +3,7 @@ library(optparse)
 source('../getters/process_getters.R')
 
 option_list <- list(make_option(c("--spn_list"), type = "character", default = 'SPN03,SPN01'),
-                    make_option(c("--coverages"), type = "character", default = '50,100'),
+                    make_option(c("--coverages"), type = "character", default = '50,100,150'),
                     make_option(c("--purities"), type = "character", default = '0.3,0.6,0.9'))
 
 opt_parser <- OptionParser(option_list = option_list)
