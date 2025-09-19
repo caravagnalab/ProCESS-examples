@@ -11,6 +11,7 @@ process SIGNATURE_VALIDATION_COMBINATION {
     tuple val(meta), path("metrics_*_spn.rds"),             emit:metrics_spn
     tuple val(meta), path("metrics_*_sample.rds"),          emit:metrics_sample
     tuple val(meta), path("cosine_mse_*.rds"),	            emit:cosine_mse
+    tuple val(meta), path("sankey_plot_*.png"),             emit:sankey_plot
 
     
     publishDir "${params.outdir}/${meta.spn}/signature/${meta.coverage}x_${meta.purity}/${vcf_caller}_${cna_caller}", mode: 'copy'
@@ -23,7 +24,8 @@ process SIGNATURE_VALIDATION_COMBINATION {
     library(tidyverse)
     library(lsa)
     library(Metrics)
-
+    library(ggplot2)
+    library(ggalluvial)
 
 
     source("${projectDir}/bin/getters/process_getters.R")
@@ -175,19 +177,19 @@ process SIGNATURE_VALIDATION_COMBINATION {
           pivot_longer(cols = starts_with(context_classes),
                        names_to = "Signature",
                        values_to = "Exposure")
-        #p_sankey <- ggplot(df_long,
-        #                aes(x = Method, y = Exposure,
-        #                    stratum = Signature, alluvium = Signature,
-        #                    fill = Signature, label = Signature)) +
-        #  geom_flow(stat = "alluvium", lode.guidance = "forward", color = "black") +
-        #  geom_stratum(color = "black") +
-        #  scale_y_continuous(expand = c(0,0)) +
-        #  facet_wrap(~sample, nrow = 1) +
-        #  labs(title = paste0(spn,", cov=",coverage,", pur=", purity,", Signature class=",context),
-        #       y = "Exposure", x = "Method") +
-        #  theme_minimal() +
-        #  theme(legend.position = "bottom")
-        #ggsave(filename = paste0("sankey_plot_",contex,".png"),plot =p_sankey ,width = 10,height = 5)
+        p_sankey <- ggplot(df_long,
+                        aes(x = Method, y = Exposure,
+                            stratum = Signature, alluvium = Signature,
+                            fill = Signature, label = Signature)) +
+          geom_flow(stat = "alluvium", lode.guidance = "forward", color = "black") +
+          geom_stratum(color = "black") +
+          scale_y_continuous(expand = c(0,0)) +
+          facet_wrap(~sample, nrow = 1) +
+          labs(title = paste0(spn_id,", cov=",coverage,", pur=", purity,", Signature class=",context_classes),
+               y = "Exposure", x = "Method") +
+          theme_minimal() +
+          theme(legend.position = "bottom")
+        ggsave(filename = paste0("sankey_plot_",context,".png"),plot =p_sankey ,width = 10,height = 5)
 
         ### Compare exposure of estimated and true signatures  ###
         
