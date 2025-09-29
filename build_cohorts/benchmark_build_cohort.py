@@ -31,8 +31,8 @@ merging_shell_script="""#!/bin/bash
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=5
-#SBATCH --time=6:00:00
-#SBATCH --mem=80GB
+#SBATCH --time=12:00:00
+#SBATCH --mem=128GB
 
 module load singularity
 lots_list=${LOTS_LIST}
@@ -659,6 +659,38 @@ profile=$(sinfo -h -o "%P %a %D %t" | grep -w 'EPYC\|GENOA\|THIN' |awk '$2 == "u
     --outdir $output_dir_combination -profile singularity,${profile} -c $config
 """
 
+
+battenberg_launcher="""#!/bin/bash
+#SBATCH --partition=EPYC
+#SBATCH --job-name=battenberg_{JOB_NAME}
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=2
+#SBATCH --mem=20G
+#SBATCH --time=24:00:00
+#SBATCH --output=battenberg_{JOB_NAME}_%J.out 
+#SBATCH --error=battenberg_{JOB_NAME}_%J.err
+#SBATCH -A {ACCOUNT}
+
+module load java/11.0.22
+module load singularity
+
+input_dir={INPUT_DIR}
+input="${input_dir}/sarek_variant_calling_{JOB_NAME}.csv"
+
+output_base_dir={SAREK_OUT}
+output_dir_combination="${output_base_dir}/{JOB_NAME}"
+
+base={PROCESS_DIR}
+config=$base/batt.config
+profile=$(sinfo -h -o "%P %a %D %t" | grep -w 'EPYC\|GENOA\|THIN' |awk '$2 == "up" && $4 ~ /idle|mix/ {print tolower($1), $3}' | awk '{sum[$1] += $2} END {for (p in sum) print p, sum[p]}' | sort -k2 -nr | head -n1 | cut -f1 -d " ")
+
+/orfeo/cephfs/scratch/cdslab/shared/SCOUT/nextflow run $base/main.nf -profile singularity,${profile} --input $input --outdir $output_dir_combination -c $config -plugins nf-schema@2.0.0 --tool battenberg
+
+chgrp -R cdslab $output_dir_combination
+chmod -R g+wrx $output_dir_combination
+"""
+
 sequenza_launcher="""#!/bin/bash
 #SBATCH --partition=EPYC
 #SBATCH --job-name=sequenza_{JOB_NAME}
@@ -684,7 +716,7 @@ config={CONFIG}
 base={PROCESS_DIR}
 profile=$(sinfo -h -o "%P %a %D %t" | grep -w 'EPYC\|GENOA\|THIN' |awk '$2 == "up" && $4 ~ /idle|mix/ {print tolower($1), $3}' | awk '{sum[$1] += $2} END {for (p in sum) print p, sum[p]}' | sort -k2 -nr | head -n1 | cut -f1 -d " ")
 
-/orfeo/cephfs/scratch/cdslab/shared/SCOUT/nextflow run $base/main.nf -profile singularity,${profile} --input $input --outdir $output_dir_combination -c $config
+/orfeo/cephfs/scratch/cdslab/shared/SCOUT/nextflow run $base/main.nf -profile singularity,${profile} --input $input --outdir $output_dir_combination -c $config --tool sequenza
 """
 
 
@@ -886,15 +918,11 @@ if (__name__ == '__main__'):
                        help="Path to tumourevo result path")
     
 
-    cohorts = { 'normal': {
-                    'max_coverage': 30,
-                    'purities': list([1])
-                    },
-               'tumour': {
-                    'max_coverage': 200,
-                    'purities': [0.9,0.3,0.6]
-                    }
+    cohorts = {'tumour': {
+                'max_coverage': 200,
+                'purities': [0.6,0.3]
                 }
+              }
 
     num_of_lots_T = 40
     num_of_lots_N = 6
@@ -1152,6 +1180,24 @@ if (__name__ == '__main__'):
                     with open(f'{sarek_dir}/sequenza_{cohort_cov}x_{purity}p.sh', 'w') as outstream:
                         outstream.write(sequenza_launcher)
                     sequenza_launcher = sequenza_launcher_orig
+                    
+                    
+                    # battenberg sh file
+                    battenberg_launcher_orig = battenberg_launcher
+                    job_id=f'{cohort_cov}x_{purity}p'
+                    process_path = os.path.join('/'.join(os.path.normpath(config_file).split(os.path.sep)[:-2]), 'sequenza')
+                    
+                    battenberg_launcher = battenberg_launcher.replace('{ACCOUNT}', str(account))
+                    battenberg_launcher = battenberg_launcher.replace('{JOB_NAME}', str(job_id))
+                    battenberg_launcher = battenberg_launcher.replace('{INPUT_DIR}', str(sarek_dir))
+                    battenberg_launcher = battenberg_launcher.replace('{CONFIG}', str(config_file))
+                    battenberg_launcher = battenberg_launcher.replace('{SAREK_OUT}', str(args.sarek_output_dir))
+                    battenberg_launcher = battenberg_launcher.replace('{PROCESS_DIR}', str(process_path))
+
+                    
+                    with open(f'{sarek_dir}/battenberg_{cohort_cov}x_{purity}p.sh', 'w') as outstream:
+                        outstream.write(battenberg_launcher)
+                    battenberg_launcher = battenberg_launcher_orig
                     
                     #tumourevo sh file and csv file
                     with open(tumour_type_file) as cancer_type_file:
