@@ -31,287 +31,213 @@ purity <- 0.9
 coverage <- 100
 
 
-get_time_pipeline <- function(spn,coverage,purity){
+get_time_pipeline <- function(spn,coverage,purity,pipeline){
   comb <- paste0(coverage,"x_",purity,"p")
-  execution_dir <- file.path(spn,"sarek",comb,"pipeline_info")
-  execution_dir_normal <- file.path(spn,"sarek","normal","pipeline_info")
-  execution_traces <- list.files(path = execution_dir,pattern = "execution_trace",recursive = T,full.names = T)
-  execution_traces_normal <- list.files(path = execution_dir_normal,pattern = "execution_trace",recursive = T,full.names = T)
-  trace_df <- lapply(execution_traces, function(x) {
-    df <- read.table(x, header = TRUE, sep = "\t")
-    df <- df %>% 
-      mutate(purity=purity,
-             coverage=coverage)
-    
-    if (nrow(df) == 0) {
-      message("Skipping empty file: ", x)
-      return(NULL) 
-    }
-    return(df)
-  })
-  trace_df_normal <- lapply(execution_traces_normal, function(x) {
-    df <- read.table(x, header = TRUE, sep = "\t")
-    df <- df %>% 
-      mutate(purity=purity,
-             coverage=coverage,
-             type="normal") 
-    
-    if (nrow(df) == 0) {
-      message("Skipping empty file: ", x)
-      return(NULL) 
-    }
-    return(df)
-  })
-  df_final <- do.call("rbind",trace_df)
-  df_final_normal <- do.call("rbind",trace_df_normal)
-  df_resources <- df_final %>% 
-    dplyr::filter(status=="COMPLETED") %>% 
-    tidyr::separate(col = "name", into = c("process","tag"),sep = " ") %>% 
-    mutate(
-      duration_seconds = parse_with_lubridate(duration),
-      realtime_seconds = parse_with_lubridate(realtime)
-    ) %>% 
-    group_by(process) %>% 
-    mutate(duration_seconds_sum=sum(duration_seconds),
-           realtime_seconds_sum=sum(realtime_seconds)) 
-  df_resources_normal <- df_final_normal %>% 
-    dplyr::filter(status=="COMPLETED") %>% 
-    tidyr::separate(col = "name", into = c("process","tag"),sep = " ") %>% 
-    mutate(
-      duration_seconds = parse_with_lubridate(duration),
-      realtime_seconds = parse_with_lubridate(realtime)
-    ) %>% 
-    group_by(process) %>% 
-    mutate(duration_seconds_sum=sum(duration_seconds),
-           realtime_seconds_sum=sum(realtime_seconds)) 
-  
-  df_resources_sarek <- df_resources %>% 
-    filter(grepl("SAREK", process)) %>%
-    tidyr::separate(col = "process", into = c("pipeline","subworkflow1","subworkflow2","subworkflow3","module"),sep = ":")
-  
-  
-  df_resources_sequenza <- df_resources %>% 
-    filter(grepl("SEQUENZA", process)) %>% 
-    tidyr::separate(col = "process", into = c("subworkflow1","module"),sep = ":")
-  
-  df_resources_battengerg <- df_resources %>% 
-    filter(grepl("BATTENBERG", process))
-  
-  selected_subworkflow3 <- c("GATK4_MARKDUPLICATES","BWAMEM2_MEM",
-                             "GATK4_BASERECALIBRATOR","GATK4_APPLYBQSR"
-  )
-  
-  selected_modules <- c("GETPILEUPSUMMARIES_TUMOR","GETPILEUPSUMMARIES_NORMAL",
-                        "GATHERPILEUPSUMMARIES_TUMOR",
-                        "FREEBAYES",
-                        "CNVKIT_BATCH","CNVKIT_CALL","CNVKIT_GENEMETRICS","CNVKIT_EXPORT",
-                        "ASCAT",
-                        "STRELKA_SOMATIC","STRELKA_SINGLE","MUTECT2_PAIRED",
-                        "CALCULATECONTAMINATION","LEARNREADORIENTATIONMODEL",
-                        "FILTERMUTECTCALLS"
-  )
-  
-  df_sub <- data.frame(
-    process = character(),
-    mean_duration = period(),
-    st_duration = period(),
-    coverage = numeric(),
-    purity = numeric(),
-    n_jobs =numeric(),
-    n_samples=numeric(),
-    step = character(),
-    stringsAsFactors = FALSE
-  )
-  
-  df_mod <- data.frame(
-    process = character(),
-    mean_duration = period(),
-    st_duration = period(),
-    coverage = numeric(),
-    purity = numeric(),
-    n_jobs =numeric(),
-    n_samples=numeric(),
-    step = character(),
-    stringsAsFactors = FALSE
-  )
-  
-  df_seq <- data.frame(
-    process = character(),
-    mean_duration = period(),
-    st_duration = period(),
-    coverage = numeric(),
-    purity = numeric(),
-    n_jobs =numeric(),
-    n_samples=numeric(),
-    step = character(),
-    stringsAsFactors = FALSE
-  )
-  
-  df_batt <- data.frame(
-    process = character(),
-    mean_duration = period(),
-    st_duration = period(),
-    coverage = numeric(),
-    purity = numeric(),
-    n_jobs =numeric(),
-    n_samples=numeric(),
-    step = character(),
-    stringsAsFactors = FALSE
-  )
-  
-  for (proc in selected_subworkflow3){
-    tmp <- df_resources_sarek %>%
-      filter(subworkflow3 == proc)
-    tot_jobs <- nrow(tmp)
-    tot_samples <- length(unique(tmp$tag))
-    tmp <- tmp %>% 
+  if (pipeline=="sarek"){
+    execution_dir <- file.path(spn,"sarek",comb,"pipeline_info")
+    execution_dir_normal <- file.path(spn,"sarek","normal","pipeline_info")
+    execution_traces <- list.files(path = execution_dir,pattern = "execution_trace",recursive = T,full.names = T)
+    execution_traces_normal <- list.files(path = execution_dir_normal,pattern = "execution_trace",recursive = T,full.names = T)
+    trace_df <- lapply(execution_traces, function(x) {
+      df <- read.table(x, header = TRUE, sep = "\t")
+      df <- df %>% 
+        mutate(purity=purity,
+               coverage=coverage)
+      
+      if (nrow(df) == 0) {
+        message("Skipping empty file: ", x)
+        return(NULL) 
+      }
+      return(df)
+    })
+    trace_df_normal <- lapply(execution_traces_normal, function(x) {
+      df <- read.table(x, header = TRUE, sep = "\t")
+      df <- df %>% 
+        mutate(purity=purity,
+               coverage=coverage,
+               type="normal") 
+      
+      if (nrow(df) == 0) {
+        message("Skipping empty file: ", x)
+        return(NULL) 
+      }
+      return(df)
+    })
+    df_final <- do.call("rbind",trace_df)
+    df_final_normal <- do.call("rbind",trace_df_normal)
+    df_resources <- df_final %>% 
+      dplyr::filter(status=="COMPLETED") %>% 
+      tidyr::separate(col = "name", into = c("process","tag"),sep = " ") %>% 
       mutate(
-        # Parse the duration string into a Period
-        duration_parsed = parse_with_lubridate(duration)
-      ) %>%
+        duration_seconds = parse_with_lubridate(duration),
+        realtime_seconds = parse_with_lubridate(realtime))
+    df_resources_normal <- df_final_normal %>% 
+      dplyr::filter(status=="COMPLETED") %>% 
+      tidyr::separate(col = "name", into = c("process","tag"),sep = " ") %>% 
+      mutate(
+        duration_seconds = parse_with_lubridate(duration),
+        realtime_seconds = parse_with_lubridate(realtime)
+      )
+    
+    df_resources_sarek <- df_resources %>% 
+      filter(grepl("SAREK", process)) %>%
+      tidyr::separate(col = "process", into = c("pipeline","subworkflow1","subworkflow2","subworkflow3","module"),sep = ":")
+    
+    
+    df_resources_sequenza <- df_resources %>% 
+      filter(grepl("SEQUENZA", process)) %>% 
+      tidyr::separate(col = "process", into = c("subworkflow1","module"),sep = ":")
+    
+    df_resources_battengerg <- df_resources %>% 
+      filter(grepl("BATTENBERG", process))
+    
+    selected_subworkflow3 <- c("GATK4_MARKDUPLICATES","BWAMEM2_MEM",
+                               "GATK4_BASERECALIBRATOR","GATK4_APPLYBQSR"
+    )
+    
+    selected_modules <- c("GETPILEUPSUMMARIES_TUMOR","GETPILEUPSUMMARIES_NORMAL",
+                          "GATHERPILEUPSUMMARIES_TUMOR",
+                          "FREEBAYES",
+                          "CNVKIT_BATCH","CNVKIT_CALL","CNVKIT_GENEMETRICS","CNVKIT_EXPORT",
+                          "ASCAT",
+                          "STRELKA_SOMATIC","STRELKA_SINGLE","MUTECT2_PAIRED",
+                          "CALCULATECONTAMINATION","LEARNREADORIENTATIONMODEL",
+                          "FILTERMUTECTCALLS"
+    )
+
+    df_sarek_preprocess <- df_resources_sarek %>%
+      filter(subworkflow3%in%selected_subworkflow3) %>% 
+      group_by(subworkflow3) %>% 
       summarise(
-        mean_duration = mean(as.numeric(duration_parsed, units = "secs")),
-        st_duration = sd(as.numeric(duration_parsed, units = "secs"))
-      ) %>%
-      mutate(
-        mean_duration = round(seconds_to_period(mean_duration),0),
-        st_duration = seconds_to_period(st_duration)
+        mean_duration = mean(as.numeric(duration_seconds, units = "secs")),
+        st_duration = sd(as.numeric(duration_seconds, units = "secs"))
       ) %>% 
-      mutate(process=proc,
+      mutate(process=subworkflow3,
              coverage = coverage,
              purity = purity,
-             n_jobs=tot_jobs,
-             n_samples=tot_samples,
              step = "preprocess"
-      )
-    df_sub <- rbind(df_sub, tmp)
-  }
-  
-  
-  for (proc in selected_modules){
-    tmp <- df_resources_sarek %>%
-      filter(module == proc)
-    tot_jobs <- nrow(tmp)
-    tot_samples <- length(unique(tmp$tag))
-    tmp <- tmp %>% 
-      mutate(
-        # Parse the duration string into a Period
-        duration_parsed = parse_with_lubridate(duration)
-      ) %>%
-      summarise(
-        mean_duration = mean(as.numeric(duration_parsed, units = "secs")),
-        st_duration = sd(as.numeric(duration_parsed, units = "secs"))
-      ) %>%
-      mutate(
-        mean_duration = round(seconds_to_period(mean_duration),0),
-        st_duration = seconds_to_period(st_duration),
       ) %>% 
-      mutate(process=proc,
+      select(process,mean_duration,st_duration,coverage,purity,step)
+    
+    df_sarek_variant_calling <- df_resources_sarek %>%
+      filter(module%in%selected_modules) %>% 
+      group_by(module) %>% 
+      summarise(
+        mean_duration = mean(as.numeric(duration_seconds, units = "secs")),
+        st_duration = sd(as.numeric(duration_seconds, units = "secs"))
+      ) %>% 
+      mutate(process=module,
              coverage = coverage,
              purity = purity,
-             n_jobs=tot_jobs,
-             n_samples=tot_samples,
              step = "variant_calling"
-      )
-    df_mod <- rbind(df_mod, tmp)
-  }
-  
-  
-  for (proc in unique(df_resources_sequenza$module)){
-    tmp <- df_resources_sequenza %>%
-      filter(module == proc)
-    tot_jobs <- nrow(tmp)
-    tot_samples <- length(unique(tmp$tag))
-    tmp <- tmp %>% 
-      mutate(
-        # Parse the duration string into a Period
-        duration_parsed = parse_with_lubridate(duration)
-      ) %>%
-      summarise(
-        mean_duration = mean(as.numeric(duration_parsed, units = "secs")),
-        st_duration = sd(as.numeric(duration_parsed, units = "secs"))
-      ) %>%
-      mutate(
-        mean_duration = round(seconds_to_period(mean_duration),0),
-        st_duration = seconds_to_period(st_duration),
       ) %>% 
-      mutate(process=proc,
+      select(process,mean_duration,st_duration,coverage,purity,step)
+      
+    df_sarek_sequenza <- df_resources_sequenza %>%
+      group_by(module) %>% 
+      summarise(
+        mean_duration = mean(as.numeric(duration_seconds, units = "secs")),
+        st_duration = sd(as.numeric(duration_seconds, units = "secs"))
+      ) %>% 
+      mutate(process=module,
              coverage = coverage,
              purity = purity,
-             n_jobs=tot_jobs,
-             n_samples=tot_samples,
              step = "variant_calling"
-      )
-    df_seq <- rbind(df_seq, tmp)
-  }
-  
-  
-  for (proc in unique(df_resources_battengerg$process)){
-    tmp <- df_resources_battengerg %>%
-      filter(process == proc)
-    tot_jobs <- nrow(tmp)
-    tot_samples <- length(unique(tmp$tag))
-    tmp <- tmp %>% 
-      mutate(
-        # Parse the duration string into a Period
-        duration_parsed = parse_with_lubridate(duration)
-      ) %>%
-      summarise(
-        mean_duration = mean(as.numeric(duration_parsed, units = "secs")),
-        st_duration = sd(as.numeric(duration_parsed, units = "secs"))
-      ) %>%
-      mutate(
-        mean_duration = round(seconds_to_period(mean_duration),0),
-        st_duration = seconds_to_period(st_duration),
       ) %>% 
-      mutate(process=proc,
+      select(process,mean_duration,st_duration,coverage,purity,step)
+    df_sarek_battenberg <- df_resources_battengerg %>%
+      group_by(process) %>% 
+      summarise(
+        mean_duration = mean(as.numeric(duration_seconds, units = "secs")),
+        st_duration = sd(as.numeric(duration_seconds, units = "secs"))
+      ) %>% 
+      mutate(process=process,
              coverage = coverage,
              purity = purity,
-             n_jobs=tot_jobs,
-             n_samples=tot_samples,
              step = "variant_calling"
+      ) %>% 
+      select(process,mean_duration,st_duration,coverage,purity,step)
+
+    
+    
+    df_final <- rbind(df_sarek_preprocess,df_sarek_variant_calling,df_sarek_sequenza,df_sarek_battenberg)
+    df_final <- df_final %>% 
+      dplyr::mutate(SPN=spn)
+  } else if (pipeline=="tumourevo"){
+    vcf_caller = "mutect2"
+    cna_caller = "ascat"
+    comb <- paste0(coverage,"x_",purity,"p_",vcf_caller,"_",cna_caller)
+    execution_dir <- file.path(spn,"tumourevo",comb,"pipeline_info")
+    execution_traces <- list.files(path = execution_dir,pattern = "execution_trace",recursive = T,full.names = T)
+    
+    trace_df <- lapply(execution_traces, function(x) {
+      df <- read.table(x, header = TRUE, sep = "\t")
+      df <- df %>% 
+        mutate(purity=purity,
+               coverage=coverage)
+      
+      if (nrow(df) == 0) {
+        message("Skipping empty file: ", x)
+        return(NULL) 
+      }
+      return(df)
+    })
+    df_final <- do.call("rbind",trace_df)
+    
+    df_resources <- df_final %>% 
+      dplyr::filter(status=="COMPLETED") %>% 
+      tidyr::separate(col = "name", into = c("process","tag"),sep = " ") %>% 
+      mutate(
+        duration_seconds = parse_with_lubridate(duration),
+        realtime_seconds = parse_with_lubridate(realtime)
       )
-    df_batt <- rbind(df_batt, tmp)
+    df_resources_tumourevo <- df_resources %>% 
+      tidyr::separate(col = "process", into = c("pipeline","subworkflow1","subworkflow2","subworkflow3","module"),sep = ":")
+    
+    selected_subworkflow3 <- c("ENSEMBLVEP_VEP","ANNOTATE_DRIVER",
+                               "TINC","CNAQC","JOIN_CNAQC","VIBER","CTREE_VIBER" ,
+                               "MOBSTERh","CTREE_MOBSTERh",
+                               "PYCLONEVI","CTREE_PYCLONEVI",
+                               "SIGPROFILER","SPARSE_SIGNATURES"
+    )
+    df_tumourevo <- df_resources_tumourevo %>%
+      filter(subworkflow3%in%selected_subworkflow3) %>% 
+      group_by(subworkflow2) %>% 
+      summarise(
+        mean_duration = mean(as.numeric(duration_seconds, units = "secs")),
+        st_duration = sd(as.numeric(duration_seconds, units = "secs"))
+      ) %>% 
+      mutate(process=subworkflow2,
+             coverage = coverage,
+             purity = purity,
+             step = "tumourevo"
+      ) %>% 
+      select(process,mean_duration,st_duration,coverage,purity,step)
+    df_final <- df_tumourevo
+    df_final <- df_final %>% 
+      dplyr::mutate(SPN=spn)
   }
-  
-  df_final <- rbind(df_mod,df_sub,df_batt,df_seq)
-  df_final <- df_final %>% 
-    dplyr::mutate(SPN=spn)
+
   return(df_final)
 }
-
-spns <- list("SPN01","SPN02","SPN03","SPN04","SPN06","SPN07")
-df_tmp <- lapply(spns, function(x){
-  df_final_100 <- get_time_pipeline(spn = x,purity = 0.9,coverage = 100)
-  df_final_50 <- get_time_pipeline(spn = x,purity = 0.9,coverage = 50)
-  df_final <- rbind(df_final_100,df_final_50)
+spns <- list("SPN01")
+df_nexflow <- lapply(spns, function(x){
+  df_final_150_s <- get_time_pipeline(spn = x,purity = 0.9,coverage = 150,pipeline = "sarek")
+  df_final_100_s <- get_time_pipeline(spn = x,purity = 0.9,coverage = 100,pipeline = "sarek")
+  df_final_50_s <- get_time_pipeline(spn = x,purity = 0.9,coverage = 50,pipeline = "sarek")
+  df_final_150_t <- get_time_pipeline(spn = x,purity = 0.9,coverage = 150,pipeline = "tumourevo")
+  df_final_100_t <- get_time_pipeline(spn = x,purity = 0.9,coverage = 100,pipeline = "tumourevo")
+  df_final_50_t <- get_time_pipeline(spn = x,purity = 0.9,coverage = 50,pipeline = "tumourevo")
+  df_final <- rbind(df_final_150_s,df_final_100_s,df_final_50_s,df_final_150_t,df_final_100_t,df_final_50_t)
   return(df_final)
-}) %>% bind_rows()
+}) %>% bind_rows() %>% 
+  mutate(substep=case_when(
+    process%in%c("ASCAT","BATTENBERG")~"cna calling",
+    str_detect(process, ("SEQUENZA|CNVKIT")) ~ "cna calling",
+    step=="tumourevo" & process =="SIGNATURE_DECONVOLUTION" ~ "signature deconvolution",
+    step=="tumourevo" & process =="SUBCLONAL_DECONVOLUTION" ~ "subclonal deconvolution",
+    step=="tumourevo" & process%in%c("DRIVER_ANNOTATION","VCF_ANNOTATE_ENSEMBLVEP") ~ "variant/driver annotation",
+    step=="tumourevo" & process=="QC" ~ "quality control",
+    TRUE~"snv/indel calling"))
 
 
-df_plot <- df_tmp %>%
-  mutate(
-    mean_seconds = as.numeric(mean_duration, units = "secs"),
-    sd_seconds   = as.numeric(st_duration, units = "secs"),
-    mean_label   = as.character(mean_duration)   # keep the original period as string
-  )
-
-plot_time_all <- ggplot(df_plot, aes(x = reorder(process, mean_seconds), 
-                    y = mean_seconds,
-                    fill = factor(step))) +
-  geom_col() +
-  geom_errorbar(aes(ymin = mean_seconds - sd_seconds,
-                    ymax = mean_seconds + sd_seconds),
-                width = 0.2, color = "black") +
-  geom_text(aes(label = mean_label),
-            hjust = -0.2,vjust = 1.5,
-            size = 3) +
-  coord_flip() +
-  facet_grid(coverage~SPN)+
-  labs(x = "Process", 
-       y = "Mean duration (seconds)",
-       fill = "# parallel jobs",
-       title = "Mean ± SD of Workflow Step Durations")+
-  theme_bw()
-ggsave(filename = "/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/validation/benchmark/plot_time_sarek.png",plot = plot_time_all,
-       width = 20,height = 10,dpi = 300)
