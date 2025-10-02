@@ -52,7 +52,7 @@ mem_fastq <- memory_process %>%
   mutate(N= ifelse(N==1, '1 - Normal', N)) %>% 
   ggplot() +
   geom_col(aes(x = spn, y = GB/1000, fill = as.factor(N))) +
-  scale_fill_manual('N samples', values = c('2' = '#7CCAD5', '3' ='#A0A6BE', '4' ='#C481A7', '5' ='#454995', '1 - Normal' = 'gray'))  +
+  scale_fill_manual('N samples', values = c('2' = '#c9e4ca', '3' ='#87bba2', '4' ='#55828b', '5' ='#3b6064', '1 - Normal' = 'gray'))  +
   ylab('TB') + 
   xlab('SPN') +
   ggtitle('FASTQ - 200X x 3p') + 
@@ -63,7 +63,7 @@ mem_phylo <- memory_phylo %>%
   ggplot() +
   geom_col(aes(x = spn, y = MB/1000, fill = as.factor(type))) +
   #scale_fill_manual('Hypermutant', values = c('TRUE' = 'maroon', 'FALSE' = 'slategrey'))  +
-  scale_fill_manual('', values = c('Hypermutant' = 'maroon', 'NA' = 'slategrey', 'WGD' = 'steelblue')) + 
+  scale_fill_manual('', values = c('Hypermutant' = '#ce796b', 'NA' = 'slategrey', 'WGD' = '#577399')) + 
   ylab('GB') + 
   xlab('SPN') +
   ggtitle('Phylogenetic Forest') + 
@@ -75,13 +75,15 @@ mem_sample <- memory_sample %>%
   mutate(N= ifelse(N==1, '1 - Normal', N)) %>% 
   ggplot() +
   geom_col(aes(x = spn, y = KB/1000, fill = as.factor(N))) +
-  scale_fill_manual('N samples', values = c('2' = '#7CCAD5', '3' ='#A0A6BE', '4' ='#C481A7', '5' ='#454995', '1 - Normal' = 'gray'))  +
+  scale_fill_manual('N samples', values = c('2' = '#c9e4ca', '3' ='#87bba2', '4' ='#55828b', '5' ='#3b6064', '1 - Normal' = 'gray'))  +
+  #scale_fill_manual('N samples', values = c('#c9e4ca', '#87bba2', '#55828b', '#3b6064'))  +
   ylab('MB') + 
   xlab('SPN') +
   ggtitle('Sample Forest') + 
   theme_minimal() 
 
 mm <- mem_sample + mem_phylo + mem_fastq + plot_layout(guides = 'collect')
+mm
 ggsave(filename = 'plot_memory_ProCESS.png', plot = mm, width = 12, height = 3, units = 'in', dpi = 600)
 ggsave(filename = 'plot_memory_ProCESS.pdf', plot = mm, width = 12, height = 3, units = 'in', dpi = 600)
 

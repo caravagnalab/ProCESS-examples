@@ -30,13 +30,15 @@ plt_sarek <- memory_sarek %>%
   filter(type != 'normal') %>% 
   ggplot()+
   geom_col(aes(x = spn, y = GB/1000, fill = as.factor(N))) +
-  scale_fill_manual('N samples', values = c('#7CCAD5', '#A0A6BE', '#C481A7', '#454995'))  +
+  scale_fill_manual('N samples', values = c('#c9e4ca', '#87bba2', '#55828b', '#3b6064'))  +
   ylab('TB') +
-  facet_grid(.~cov) +
+  facet_grid(.~factor(cov, levels = c(50,100,150))) +
   ggtitle('nf-core/sarek') +
   xlab('SPN') + 
   theme_minimal() +
   plot_annotation(caption = 'Data from 3 purities and normal')
+plt_sarek
+
 ggsave(filename = 'plot_sarek_memory.png', plot = plt_sarek, width = 8, height = 4, units = 'in', dpi = 600)
 ggsave(filename = 'plot_sarek_memory.pdf', plot = plt_sarek, width = 8, height = 4, units = 'in', dpi = 600)
 
@@ -48,12 +50,13 @@ plt_sarek_all <- memory_sarek %>%
   filter(type != 'normal') %>% 
   ggplot()+
   geom_col(aes(x = spn, y = GB/1000, fill = as.factor(N))) +
-  scale_fill_manual('N samples', values = c('#7CCAD5', '#A0A6BE', '#C481A7', '#454995'))  +
+  #scale_fill_manual('N samples', values = c('#7CCAD5', '#A0A6BE', '#C481A7', '#454995'))  +
+  scale_fill_manual('N samples', values = c('#c9e4ca', '#87bba2', '#55828b', '#3b6064'))  +
   ylab('TB') +
   ggtitle('nf-core/sarek') +
   xlab('SPN') + 
   theme_minimal() +
-  plot_annotation(caption = 'Data from 50x and 100x coverage, 3 purities and normal')
+  plot_annotation(caption = 'Data from 50x, 100x, 150x coverage, 3 purities and normal')
 ggsave(filename = 'plot_sarek_memory_all.png', plot = plt_sarek_all, width = 5, height = 4, units = 'in', dpi = 600)
 ggsave(filename = 'plot_sarek_memory_all.pdf', plot = plt_sarek_all, width = 5, height = 4, units = 'in', dpi = 600)
 
