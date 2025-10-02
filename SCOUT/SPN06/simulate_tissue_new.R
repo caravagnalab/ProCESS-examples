@@ -17,7 +17,7 @@ library(dplyr)
 
 
 dir <- getwd()
-outdir <- "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/SPN06/process_new/"
+outdir <- "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/SPN06/process/"
 setwd(outdir)
 seed = 19999
 set.seed(seed)
@@ -175,7 +175,7 @@ chemo2_start <- sim$get_clock()
 
 sim$update_rates("Clone 5", rates = c(growth = 0, death = 1))
 
-sim$run_until(sim$var("Clone 5") <= 100)
+sim$run_until(sim$var("Clone 5") <= 100) #originally 100
 
 #-------------------------------------------------------------------------------
 #------------------------ Rising of Clones III : Clone 6 ----------------------------
@@ -272,14 +272,5 @@ chemo_timing <- list(
 )
 saveRDS(chemo_timing, paste0(outdir, "chemo_timing.rds"))
 message("DONE!, everything safe and sound")
-
-
-#-------------------------------------------------------------------------------
-#----------------------------------- PLOTS -------------------------------------
-#-------------------------------------------------------------------------------
-#plot_state(sim)
-#plot_tissue(sim)
-#plot_muller(sim)
-
 
 
