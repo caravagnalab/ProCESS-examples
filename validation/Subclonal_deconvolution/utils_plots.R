@@ -3,9 +3,11 @@ get_table = function(path, tool, env) {
 
   if (file.exists(filename)) {
     cli::cli_text("Loading existing table {file.path(path, filename)}")
-    return(
-      readRDS(filename)
-    )
+    if (nrow(readRDS(filename)) == 0) {
+      unlink(filename)
+      return(NULL)
+    }
+    readRDS(filename)
   } else {
     cli::cli_text("Generating table {file.path(path, filename)}")
     tryCatch(expr={

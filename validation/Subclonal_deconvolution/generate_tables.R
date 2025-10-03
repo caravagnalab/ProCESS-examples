@@ -29,6 +29,9 @@ combs = expand.grid(coverage=coverage_list,
                     spn=spn_list)
 
 if (!is.na(i)) {
+  missing_files = readRDS(file.path(save_path, "missing_files.rds"))
+  if (!i %in% missing_files$i) cli::cli_abort("File already present")
+
   coverage = combs[i, "coverage"]
   purity = combs[i, "purity"]
   vcf_caller = combs[i, "vcf_caller"]
@@ -69,8 +72,11 @@ if (join_tables) {
     table_viber = get_table(save_path, "viber", env)
     table_process = get_table(save_path, "process", env)
 
-    if (any(sapply(list(table_pyclonevi, table_mobster, table_viber, table_process), is.null)))
-      return(NULL)
+    if (all(sapply(list(table_pyclonevi, table_mobster, table_viber), is.null)))
+      next
+    
+    if (is.null(table_process))
+      next
 
     table_joined_tools = rbind(table_pyclonevi, table_mobster, table_viber)
 
@@ -78,9 +84,11 @@ if (join_tables) {
       full_join(table_process) %>%
       mutate(cluster_id_process=ifelse(is.na(cluster_id_process), "FP", cluster_id_process),
              tool=ifelse(is.na(tool), "FN", tool)) %>%
-      filter(tool!="FN")
+      filter(tool!="FN") %>%
+      mutate(cluster_id_tool=as.character(cluster_id_tool))
 
-    full_table = bind_rows(full_table, table_joined)
+    full_table = bind_rows(full_table, table_joined) %>% 
+      mutate(vcf_caller=vcf_caller, cna_caller=cna_caller)
     rm(table_joined)
   }
 

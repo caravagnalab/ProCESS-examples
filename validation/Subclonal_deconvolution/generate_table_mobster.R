@@ -12,6 +12,8 @@ samples = list.dirs(path_m, recursive=F, full.names=F)  # get_sample_names(spn, 
 
 print(samples)
 
+if (!dir.exists(path_m)) cli::cli_abort("Mobster directory does not exist")
+
 final_table = lapply(samples, function(sample_name) {
   
   print(file.path(path_m,
@@ -54,4 +56,4 @@ final_table = lapply(samples, function(sample_name) {
 
 cli::cli_text("Saving {tool} table for {spn} and simulation {simulation_id} in {out_path}")
 
-saveRDS(final_table, out_path)
+if (dir.exists(path_m)) saveRDS(final_table, out_path)
