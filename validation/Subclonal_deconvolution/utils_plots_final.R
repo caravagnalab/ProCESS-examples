@@ -1,0 +1,185 @@
+plot_scatter_process_single = function(table_wide, s1,s2, color_palette){
+  ggplot()+
+    geom_point(data=table_wide,aes(x=eval(parse(text = s1)),
+                                   y = eval(parse(text = s2)),
+                                   color = cluster_id_process),
+               size=0.5) +
+    scale_color_manual(values=color_palette)+
+    theme_minimal() +
+    labs(
+      color = "Cluster",
+      x = s1,
+      y = s2
+    )+
+    xlim(0, 1)+
+    ylim(0, 1)
+  
+}
+
+plot_scatter_tool_single = function(table_wide, s1, s2, color_palette){
+  ggplot()+
+    geom_point(data=table_wide,aes(x=eval(parse(text = s1)),
+                                   y = eval(parse(text = s2)),
+                                   color = cluster_id_tool),
+               size=0.5) +
+    scale_color_manual(values=color_palette)+
+    theme_minimal() +
+    labs(
+      color = "Cluster",
+      x = s1,
+      y = s2
+    )+
+    xlim(0, 1)+
+    ylim(0, 1)
+  
+}
+
+get_plots_path = function(save_path, tool, spn, simulation_id, plot_name) {
+  file.path(save_path, "plots", paste0(plot_name, "_", tool, "_", spn, "_", simulation_id, ".png"))
+}
+
+get_table_path = function(save_path, tool, spn, simulation_id) {
+  file.path(save_path, "tables", paste0("table_", tool, "_", spn, "_", simulation_id, ".rds"))
+}
+
+plot_scatter_process = function(table, sample_names, color_palette_process){
+  table_wide = table %>%
+    select(patient_id, sample_id, mutation_id, cluster_id_process, vaf_process) %>%
+    pivot_wider(values_from="vaf_process", names_from="sample_id")
+  
+  table_wide <- table_wide %>%
+    filter(!is.na(cluster_id_process))
+  
+  table_wide[is.na(table_wide)] = 0.0
+  
+  sample_names = as.character(sample_names)
+  cm = combn(sample_names, 2)
+  
+  plots <- apply(
+    cm,
+    2,
+    function(w) plot_scatter_process_single(table_wide, s1 = w[1], s2 = w[2], color_palette=color_palette_process)
+  )
+  if(cm %>% ncol() == 1){
+    nrows = 1
+    ncols = 1
+    
+  }else{
+    num_pairs = cm %>% ncol()
+    ncols = min(3, num_pairs) # max 3 cols
+    nrows = ceiling(num_pairs / ncols)
+  }
+  
+  plot_to_save = ggarrange(
+    plotlist = plots,
+    ncol = ncols,
+    nrow = nrows,
+    common.legend = T,
+    legend = "bottom")
+  
+  # wrap_plots(plots, guides = 'collect')
+  
+  plot_to_save
+}
+
+
+plot_scatter_tool = function(table_tool, color_palette, sample_names){
+  
+  table_wide = table_tool %>%
+    select(patient_id, sample_id, mutation_id, cluster_id_tool, vaf_tool) %>%
+    pivot_wider(values_from="vaf_tool", names_from="sample_id")
+  
+  table_wide <- table_wide %>%
+    filter(!is.na(cluster_id_tool))
+  
+  table_wide[is.na(table_wide)] = 0.0
+  
+  table_wide$cluster_id_tool <- factor(
+    table_wide$cluster_id_tool,
+    levels = sort(unique(table_wide$cluster_id_tool))
+  )
+  
+  sample_names = as.character(sample_names)
+  cm = combn(sample_names, 2)
+  
+  plots <- apply(
+    cm,
+    2,
+    function(w) plot_scatter_tool_single(table_wide, s1 = w[1], s2 = w[2], color_palette)
+  )
+  if(cm %>% ncol() == 1){
+    nrows = 1
+    ncols = 1
+    
+  }else{
+    num_pairs = cm %>% ncol()
+    ncols = min(3, num_pairs) # max 3 cols
+    nrows = ceiling(num_pairs / ncols)
+  }
+  
+  plot_to_save = ggarrange(
+    plotlist = plots,
+    ncol = ncols,
+    nrow = nrows,
+    common.legend = T,
+    legend = "bottom")
+
+  plot_to_save = plot_to_save + plot_layout(guides = 'collect')
+  plot_to_save
+}
+
+
+plot_mutations_on_tree = function(table_tool, 
+                                  process_seq, 
+                                  sample_forest,
+                                  phylo_forest,
+                                  color_palette_tool, 
+                                  color_palette_process){
+  
+  # Here I need to do a join between the process table of this simulation and the tool table
+  join_table = table_tool %>%
+    inner_join(process_seq) %>% 
+    select(chr, chr_pos, ref, alt, mutation_id, cluster_id_tool, cluster_id_process, vaf_tool)
+  
+  mutations_with_cell = join_table %>% 
+    rowwise() %>%
+    mutate(cell_id=phylo_forest$get_first_occurrences(Mutation(
+      chr, chr_pos, ref, alt
+    ))[[1]]) %>%
+    ungroup()
+  
+  # tool
+  cells_labels_tool = mutations_with_cell %>% 
+    select(mutation_id, cell_id, cluster_id_tool) %>% 
+    group_by(cell_id) %>% 
+    summarise(label_list=list(cluster_id_tool)) %>% 
+    rowwise() %>% 
+    mutate(label=names(sort(table(label_list[[1]]), decreasing=TRUE))[1]) %>% 
+    ungroup() %>% 
+    select(-label_list)
+  
+  final_labels_tool = sample_forest$get_nodes() %>% as_tibble() %>% 
+    left_join(cells_labels_tool)
+  
+  pl_sticks_tool = plot_sticks(sample_forest, labels=final_labels_tool, cls = color_palette_tool) %>%
+    annotate_forest(sample_forest, samples=TRUE, drivers=TRUE)
+  
+  # Process
+  cells_labels_process = mutations_with_cell %>% 
+    select(mutation_id, cell_id, cluster_id_process) %>% 
+    group_by(cell_id) %>% 
+    summarise(label_list=list(cluster_id_process)) %>% 
+    rowwise() %>% 
+    mutate(label=names(sort(table(label_list[[1]]), decreasing=TRUE))[1]) %>% 
+    ungroup() %>% 
+    select(-label_list)
+  
+  final_labels_process = sample_forest$get_nodes() %>% as_tibble() %>% 
+    left_join(cells_labels_process)
+  
+  pl_sticks_process = plot_sticks(sample_forest, labels=final_labels_process, cls = color_palette_process) %>%
+    annotate_forest(sample_forest, samples=TRUE, drivers=TRUE)
+  
+  return(list(pl_sticks_tool,pl_sticks_process))
+}
+  

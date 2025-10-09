@@ -1,6 +1,7 @@
 tool = "mobster"
 
-source("~/GitHub/ProCESS-examples/validation/Subclonal_deconvolution/generate_table_main.R")
+# source("~/GitHub/ProCESS-examples/validation/Subclonal_deconvolution/generate_table_main.R")
+source("/orfeo/cephfs/scratch/cdslab/erivar00/GitHub/ProCESS-examples/validation/Subclonal_deconvolution/generate_table_main.R")
 
 # tool = "mobster"
 out_path = get_table_path(save_path, tool, spn, simulation_id)

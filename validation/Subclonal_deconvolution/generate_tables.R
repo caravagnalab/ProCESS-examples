@@ -6,10 +6,10 @@ cat(paste("\nArguments:", paste(args, collapse=", "), "\n"))
 
 join_tables = as.logical(args[1])
 i = as.integer(args[2])
-
 print(i)
 
-github_path = "~/GitHub/ProCESS-examples/"
+# github_path = "~/GitHub/ProCESS-examples/"
+github_path = '/orfeo/cephfs/scratch/cdslab/erivar00/GitHub/ProCESS-examples/'
 main_path = "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/"
 save_path = file.path(github_path, "validation/Subclonal_deconvolution/")
 
@@ -20,7 +20,7 @@ coverage_list = c(50, 100, 150, 200)
 purity_list = c(0.3, 0.6, 0.9)
 vcf_caller_list = c("mutect2", "strelka", "freebayes")
 cna_caller_list = c("ascat", "sequenza", "battenberg")
-spn_list = paste("SPN", 1:7, sep="0")
+spn_list = paste("SPN", 3:7, sep="0")
 
 combs = expand.grid(coverage=coverage_list,
                     purity=purity_list,
@@ -29,8 +29,8 @@ combs = expand.grid(coverage=coverage_list,
                     spn=spn_list)
 
 if (!is.na(i)) {
-  missing_files = readRDS(file.path(save_path, "missing_files.rds"))
-  if (!i %in% missing_files$i) cli::cli_abort("File already present")
+  # missing_files = readRDS(file.path(save_path, "missing_files.rds"))
+  # if (!i %in% missing_files$i) cli::cli_abort("File already present")
 
   coverage = combs[i, "coverage"]
   purity = combs[i, "purity"]
@@ -48,6 +48,7 @@ if (!is.na(i)) {
   table_pyclonevi = get_table(save_path, "pyclonevi", env)
   table_mobster = get_table(save_path, "mobster", env)
   table_viber = get_table(save_path, "viber", env)
+  table_viber_h = get_table(save_path, "viber_heuristics", env)
   table_process = get_table(save_path, "process", env)
 }
 

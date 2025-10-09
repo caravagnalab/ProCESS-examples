@@ -1,6 +1,7 @@
 tool = "pyclonevi"
 
-source("~/GitHub/ProCESS-examples/validation/Subclonal_deconvolution/generate_table_main.R")
+# source("~/GitHub/ProCESS-examples/validation/Subclonal_deconvolution/generate_table_main.R")
+source("/orfeo/cephfs/scratch/cdslab/erivar00/GitHub/ProCESS-examples/validation/Subclonal_deconvolution/generate_table_main.R")
 
 # tool = "pyclonevi"
 out_path = get_table_path(save_path, tool, spn, simulation_id)
@@ -48,7 +49,7 @@ final_table = input %>%
          is_tail_tool=FALSE) %>% 
   
   group_by(cluster_id_tool, sample_id) %>%
-  mutate(ccf_tool=mean(ccf_tool, na.rm = TRUE)/purity) %>%
+  mutate(ccf_tool=mean(ccf_tool, na.rm = TRUE)) %>%
   ungroup()
 
 # add clonal cluster

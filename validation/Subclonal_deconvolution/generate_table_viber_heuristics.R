@@ -1,9 +1,7 @@
-tool = "viber"
-
 # source("~/GitHub/ProCESS-examples/validation/Subclonal_deconvolution/generate_table_main.R")
 source("/orfeo/cephfs/scratch/cdslab/erivar00/GitHub/ProCESS-examples/validation/Subclonal_deconvolution/generate_table_main.R")
 
-# tool = "viber"
+tool = "viber_heuristics"
 out_path = get_table_path(save_path, tool, spn, simulation_id)
 
 cli::cli_text("Generating {tool} table for {spn} and simulation {simulation_id}")
@@ -14,9 +12,10 @@ path_v = get_tumourevo_subclonal(spn,
                                  vcf_caller=vcf_caller,
                                  cna_caller=cna_caller,
                                  sample=spn,
-                                 tool=tool)
+                                 tool='viber')
 
-obj = readRDS(path_v$viber_best_st_fit_rds)
+obj = readRDS(path_v$viber_best_st_heuristic_fit_rds)
+
 
 final_table = obj$data %>% 
   mutate(cluster_id_tool=obj$labels$cluster.Binomial) %>% 
