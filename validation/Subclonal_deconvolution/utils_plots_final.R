@@ -1,56 +1,129 @@
-plot_scatter_process_single = function(table_wide, s1,s2, color_palette){
-  ggplot()+
-    geom_point(data=table_wide,aes(x=eval(parse(text = s1)),
-                                   y = eval(parse(text = s2)),
-                                   color = cluster_id_process),
-               size=0.5) +
-    scale_color_manual(values=color_palette)+
-    theme_minimal() +
-    labs(
-      color = "Cluster",
-      x = s1,
-      y = s2
-    )+
-    xlim(0, 1)+
-    ylim(0, 1)
-  
+plot_scatter_process_single = function(table_wide, s1,s2, color_palette,driver){
+  if(driver==F){
+    ggplot()+
+      geom_point(data=table_wide,aes(x=eval(parse(text = s1)),
+                                     y = eval(parse(text = s2)),
+                                     color = cluster_id_process),
+                 size=0.5) +
+      scale_color_manual(values=color_palette)+
+      theme_minimal() +
+      labs(
+        color = "Cluster",
+        x = s1,
+        y = s2
+      )+
+      xlim(0, 1)+
+      ylim(0, 1)
+  }else{
+    ggplot() + 
+      geom_point(data = table_wide, 
+                 aes(x = .data[[s1]], y =.data[[s2]], col = .data$cluster_id_process), 
+                 size = .5, alpha = 1) +
+      scale_color_manual(values=color_palette)+
+      theme_minimal() +
+      labs(
+        color = "Cluster",
+        x = s1,
+        y = s2
+      )+
+      xlim(0, 1)+
+      ylim(0, 1)+
+      ggtitle('') +
+      xlab(s1) +
+      ylab(s2) + 
+      geom_point(
+        data = subset(table_wide, is_driver_process == TRUE),
+        aes(x = .data[[s1]], y = .data[[s2]]),
+        color = "black", size = 1, shape = 15
+      ) +
+      ggrepel::geom_label_repel(
+        data = subset(table_wide, is_driver_process == TRUE),
+        aes(x = .data[[s1]], y = .data[[s2]], label =.data$gene, color = .data$cluster_id_process),
+        #color = 'black',
+        size = 3,
+        nudge_y = 0,
+        nudge_x = 0,
+        show.legend = FALSE
+      )  +
+      guides(color = guide_legend(override.aes = list(size = 3, alpha=1)))
+  }
 }
 
-plot_scatter_tool_single = function(table_wide, s1, s2, color_palette){
-  ggplot()+
-    geom_point(data=table_wide,aes(x=eval(parse(text = s1)),
-                                   y = eval(parse(text = s2)),
-                                   color = cluster_id_tool),
-               size=0.5) +
-    scale_color_manual(values=color_palette)+
-    theme_minimal() +
-    labs(
-      color = "Cluster",
-      x = s1,
-      y = s2
-    )+
-    xlim(0, 1)+
-    ylim(0, 1)
-  
+plot_scatter_tool_single = function(table_wide, s1, s2, color_palette, type){
+  if(type =='original'){
+    ggplot()+
+      geom_point(data=table_wide,aes(x=eval(parse(text = s1)),
+                                     y = eval(parse(text = s2)),
+                                     color = cluster_id_tool),
+                 size=0.5) +
+      scale_color_manual(values=color_palette)+
+      theme_minimal() +
+      labs(
+        color = "Cluster",
+        x = s1,
+        y = s2
+      )+
+      xlim(0, 1)+
+      ylim(0, 1)
+  }else{
+    ggplot() + 
+      geom_point(data = table_wide, 
+                 aes(x = .data[[s1]], y =.data[[s2]], col = .data$cluster_id_tool_interpreted), 
+                 size = .5, alpha = 1) +
+      scale_color_manual(values=color_palette)+
+      theme_minimal() +
+      labs(
+        color = "Cluster",
+        x = s1,
+        y = s2
+      )+
+      xlim(0, 1)+
+      ylim(0, 1)+
+      ggtitle('') +
+      xlab(s1) +
+      ylab(s2) + 
+      geom_point(
+        data = subset(table_wide, is_driver_tool == TRUE),
+        aes(x = .data[[s1]], y = .data[[s2]]),
+        color = "black", size = 1, shape = 15
+      ) +
+      ggrepel::geom_label_repel(
+        data = subset(table_wide, is_driver_tool == TRUE),
+        aes(x = .data[[s1]], y = .data[[s2]], label =.data$gene, color = .data$cluster_id_tool_interpreted),
+        #color = 'black',
+        size = 3,
+        nudge_y = 0,
+        nudge_x = 0,
+        show.legend = FALSE
+      )  +
+      guides(color = guide_legend(override.aes = list(size = 3, alpha=1)))
+  }
 }
 
 get_plots_path = function(save_path, tool, spn, simulation_id, plot_name) {
   file.path(save_path, "plots", paste0(plot_name, "_", tool, "_", spn, "_", simulation_id, ".png"))
 }
 
+get_plots_path_shared = function(save_path, tool, spn, simulation_id, plot_name) {
+  file.path(save_path, "subclonal/plots", paste0(plot_name, "_", tool, "_", spn, "_", simulation_id, ".png"))
+}
+
 get_table_path = function(save_path, tool, spn, simulation_id) {
   file.path(save_path, "tables", paste0("table_", tool, "_", spn, "_", simulation_id, ".rds"))
 }
 
-plot_scatter_process = function(table, sample_names, color_palette_process){
+plot_scatter_process = function(table, sample_names, color_palette_process, driver=T){
   table_wide = table %>%
-    select(patient_id, sample_id, mutation_id, cluster_id_process, vaf_process) %>%
+    mutate(gene=driver_label_process) %>% 
+    select(patient_id, sample_id, mutation_id, cluster_id_process, vaf_process, is_driver_process,gene) %>%
     pivot_wider(values_from="vaf_process", names_from="sample_id")
   
   table_wide <- table_wide %>%
     filter(!is.na(cluster_id_process))
   
-  table_wide[is.na(table_wide)] = 0.0
+  # table_wide[is.na(table_wide)] = 0.0
+  table_wide <- table_wide %>%
+    mutate(across(starts_with("Spn"), ~replace_na(., 0.0)))
   
   sample_names = as.character(sample_names)
   cm = combn(sample_names, 2)
@@ -58,7 +131,7 @@ plot_scatter_process = function(table, sample_names, color_palette_process){
   plots <- apply(
     cm,
     2,
-    function(w) plot_scatter_process_single(table_wide, s1 = w[1], s2 = w[2], color_palette=color_palette_process)
+    function(w) plot_scatter_process_single(table_wide, s1 = w[1], s2 = w[2], color_palette=color_palette_process, driver)
   )
   if(cm %>% ncol() == 1){
     nrows = 1
@@ -83,21 +156,40 @@ plot_scatter_process = function(table, sample_names, color_palette_process){
 }
 
 
-plot_scatter_tool = function(table_tool, color_palette, sample_names){
+plot_scatter_tool = function(table_tool, color_palette, sample_names, type ='original'){
   
-  table_wide = table_tool %>%
-    select(patient_id, sample_id, mutation_id, cluster_id_tool, vaf_tool) %>%
-    pivot_wider(values_from="vaf_tool", names_from="sample_id")
+  if(type =='original'){
+    table_wide = table_tool %>%
+      select(patient_id, sample_id, mutation_id, cluster_id_tool, vaf_tool) %>%
+      pivot_wider(values_from="vaf_tool", names_from="sample_id")
+    
+    table_wide <- table_wide %>%
+      filter(!is.na(cluster_id_tool))
+    
+    table_wide[is.na(table_wide)] = 0.0
+    
+    table_wide$cluster_id_tool <- factor(
+      table_wide$cluster_id_tool,
+      levels = sort(unique(table_wide$cluster_id_tool))
+    )
   
-  table_wide <- table_wide %>%
-    filter(!is.na(cluster_id_tool))
-  
-  table_wide[is.na(table_wide)] = 0.0
-  
-  table_wide$cluster_id_tool <- factor(
-    table_wide$cluster_id_tool,
-    levels = sort(unique(table_wide$cluster_id_tool))
-  )
+  }else if(type=='interpreted'){
+    table_wide = table_tool %>%
+      select(patient_id, sample_id, mutation_id, cluster_id_tool_interpreted, vaf_tool, is_driver_tool, driver_label_tool) %>%
+      mutate(gene=driver_label_tool) %>% 
+      pivot_wider(values_from="vaf_tool", names_from="sample_id")
+    
+    table_wide <- table_wide %>%
+      filter(!is.na(cluster_id_tool_interpreted))
+    
+    table_wide <- table_wide %>%
+      mutate(across(starts_with("Spn"), ~replace_na(., 0.0)))
+    
+    table_wide$cluster_id_tool_interpreted <- factor(
+      table_wide$cluster_id_tool_interpreted,
+      levels = sort(unique(table_wide$cluster_id_tool_interpreted))
+    )
+  }
   
   sample_names = as.character(sample_names)
   cm = combn(sample_names, 2)
@@ -105,7 +197,7 @@ plot_scatter_tool = function(table_tool, color_palette, sample_names){
   plots <- apply(
     cm,
     2,
-    function(w) plot_scatter_tool_single(table_wide, s1 = w[1], s2 = w[2], color_palette)
+    function(w) plot_scatter_tool_single(table_wide, s1 = w[1], s2 = w[2], color_palette, type=type)
   )
   if(cm %>% ncol() == 1){
     nrows = 1
