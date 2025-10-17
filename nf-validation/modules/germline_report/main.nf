@@ -1,8 +1,8 @@
 process GENERATE_GERMLINE_REPORT {
     tag "${meta.spn}-generate_report"
     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
-        'docker://lvaleriani/process_validation:v1' :
-        'docker.io/lvaleriani/process_validation:v1' }"
+        'docker://lvaleriani/process_validation:v2' :
+        'docker.io/lvaleriani/process_validation:v2' }"
 
     input:
     tuple val(meta), val(rds_list), val(caller), path(process_rds)

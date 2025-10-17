@@ -1,5 +1,8 @@
 process GENERATE_SOMATIC_REPORT_ALL_COMBINATION {
     tag "${meta.spn}_somatic"
+    container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
+        'docker://lvaleriani/process_validation:v2' :
+        'docker.io/lvaleriani/process_validation:v2' }"
 
     input:
     tuple val(meta), val(rds_list), val(combinations)
