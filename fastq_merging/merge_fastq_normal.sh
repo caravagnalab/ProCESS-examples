@@ -1,10 +1,11 @@
 #!/bin/bash
 #SBATCH --partition=GENOA
 
-spn="$1"
+sample_id="$1"
 read="$2"
 sample_type="$3"
 purity="$4"
+spn="$5"
 
 echo "Running on:"
 echo "  SPN: $spn"
@@ -19,8 +20,8 @@ if [[ "$sample_type" == "normal" ]]; then
     input_files="$fastq_dir/n*_normal_sample.${read}.fastq.gz"
     output_file="$output_dir/${spn}_normal.${read}.fastq.gz"
 elif [[ "$sample_type" == "tumour" ]]; then
-    input_files="$fastq_dir/t*_${spn}.${read}.fastq.gz"
-    output_file="$output_dir/${spn}_purity_${purity}.${read}.fastq.gz"
+    input_files="$fastq_dir/t*_${sample_id}.${read}.fastq.gz"
+    output_file="$output_dir/${sample_id}_purity_${purity}.${read}.fastq.gz"
 else
     echo "Error: Unknown type '$type'. Exiting."
     exit 1
