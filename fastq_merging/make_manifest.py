@@ -2,8 +2,9 @@ import os
 import json
 import re
 import argparse
+import pandas as pd
 
-def create_json(input_folder, output_json, sample):
+def create_json(input_folder, output_json, sample, ena_submission_file):
     # Template
     template = {
         "study": "PRJEB97253",
@@ -34,7 +35,11 @@ def create_json(input_folder, output_json, sample):
 
     # Fill in name and sample
     template["name"] = sample
-    template["sample"] = "" 
+
+
+    ena_runs=pd.read_csv(ena_submission_file)
+
+    template["sample"] = str(ena_runs.loc[ena_runs["title"] == sample, "id"].iloc[0])
     # Add all FASTQ files
     for f in fastq_files:
         template["fastq"].append({
@@ -55,7 +60,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Generate JSON from FASTQ files.")
     parser.add_argument("-i", "--input", required=True, help="Input folder containing FASTQ files.")
     parser.add_argument("-o", "--output", default="sample_metadata.json", help="Output JSON file name.")
-    parser.add_argument("-s", "--sample", required=True, help="Sample name, fastq prefix")
+    parser.add_argument("-s", "--sample", required=True, help="Sample name, fastq prefix"),
+    parser.add_argument("-ef", "--ena_submission_file", required=True, help="Runs report on ENA")
     args = parser.parse_args()
 
-    create_json(args.input, args.output, args.sample)
+    create_json(args.input, args.output, args.sample, args.ena_submission_file)

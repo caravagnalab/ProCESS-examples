@@ -4,7 +4,7 @@
 
 sample_id="$1"
 sample_type="$2"
-
+purity="$3"
 
 echo "Running on:"
 echo "  SPN: $spn"
@@ -12,7 +12,7 @@ echo "  SPN: $spn"
 if [[ "$sample_type" == "normal" ]]; then
     sample_prefix="${sample_id}_normal"
 elif [[ "$sample_type" == "tumour" ]]; then
-    sample_prefix="${sample_id}"
+    sample_prefix="${sample_id}_${purity}"
 else
     echo "Error: Unknown type '$type'. Exiting."
     exit 1
