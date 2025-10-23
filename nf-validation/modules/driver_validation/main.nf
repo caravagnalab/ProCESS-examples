@@ -1,8 +1,8 @@
 process DRIVER_VALIDATION_COMBINATION {
     tag "${meta.spn}_${meta.coverage}_${meta.purity}-driver_validation"
     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
-        'docker://lvaleriani/process_validation:v1' :
-        'docker.io/lvaleriani/process_validation:v1' }"
+        'docker://lvaleriani/process_validation:v2' :
+        'docker.io/lvaleriani/process_validation:v2' }"
 
     input:
     tuple val(meta), val(path), val(vcf_caller), val(cna_caller)

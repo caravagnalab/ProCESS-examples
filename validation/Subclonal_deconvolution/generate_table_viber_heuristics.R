@@ -25,7 +25,8 @@ final_table = obj$data %>%
          coverage=coverage,
          purity=purity,
          tool=tool) %>% 
-  select(patient_id, coverage, purity, tool, mutation_id, cluster_id_tool, starts_with("VAF")) %>% 
+  mutate(driver_label_tool=gene, is_driver_tool=driver) %>%
+  select(patient_id, coverage, purity, tool, mutation_id, cluster_id_tool, starts_with("VAF"), driver_label_tool, is_driver_tool) %>% 
   
   mutate(driver_label_tool=NA, is_driver_tool=FALSE) %>%
   

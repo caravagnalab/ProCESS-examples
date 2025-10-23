@@ -1,5 +1,8 @@
 process GENERATE_SOMATIC_REPORT_ALL_CALLER {
     tag "${meta.spn}_${meta.coverage}_${meta.purity}"
+    container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
+        'docker://lvaleriani/process_validation:v2' :
+        'docker.io/lvaleriani/process_validation:v2' }"
 
     input:
     tuple val(meta), val(rds_process_list), val(process_sample), val(process), val(rds_caller_list), val(caller_sample), val(caller)

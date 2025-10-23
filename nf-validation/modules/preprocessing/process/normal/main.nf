@@ -2,8 +2,8 @@ process PROCESS_GERMLINE_PREPROCESS {
 
     tag { "${meta.spn}_${caller}" }
     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
-        'docker://lvaleriani/process_validation:v1' :
-        'docker.io/lvaleriani/process_validation:v1' }"
+        'docker://lvaleriani/process_validation:v2' :
+        'docker.io/lvaleriani/process_validation:v2' }"
 
     input:
     tuple val(meta), val(caller), path(rds_file)
