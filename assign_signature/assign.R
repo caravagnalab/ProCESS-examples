@@ -8,12 +8,13 @@ source('../getters/process_getters.R')
 
 base = "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/assing_signature/"
 
-option_list <- list(make_option(c("--spn_id"), type = "character", default = 'SPN0'),
+option_list <- list(make_option(c("--spn_id"), type = "character", default = 'SPN06'),
                     make_option(c("--purity"), type = "double", default = 0.9),
                     make_option(c("--coverage"), type = "integer", default = 100),
                     make_option(c("--cna_caller"), type = "character", default = 'ascat'),
                     make_option(c("--vcf_caller"), type = "character", default = 'mutect2'),
-                    make_option(c("--signature"), type = "character", default = 'BASCULE')
+                    make_option(c("--signature"), type = "character", default = 'BASCULE'),
+                    make_option(c("--new"), type = "logical", default = TRUE)
 )
 
 opt_parser <- OptionParser(option_list = option_list)
@@ -39,29 +40,45 @@ pur = opt$purity
 cna_caller <- opt$cna_caller
 vcf_caller <- opt$vcf_caller
 
-subclonal='viber'
-for(subclonal in c('viber', 'pyclonevi')){
+for (subclonal in c('viber',  'viber_heuristic', 'pyclonevi')){#'pyclonevi',
   print(subclonal)
   
   out_data = paste0(base, spn, '/', cov, 'x_', pur, 'p_', vcf_caller, '_', cna_caller, '/', subclonal, '_', signature_tool, '/')
   dir.create(out_data, recursive = T, showWarnings = F)
   
-  data_subclonal <- get_tumourevo_subclonal(spn = spn, 
-                                            coverage = cov, 
-                                            purity = pur, 
-                                            tool = subclonal,
-                                            vcf_caller = vcf_caller,
-                                            cna_caller = cna_caller)
+  if (opt$new & signature_tool == 'SigProfiler'){
+    print('Deleting old files')
+    unlink(paste0(out_data, '/*'), recursive = T)
+  }
+  
+  if (subclonal == 'viber_heuristic'){
+    data_subclonal <- get_tumourevo_subclonal(spn = spn, 
+                                              coverage = cov, 
+                                              purity = pur, 
+                                              tool = 'viber',
+                                              vcf_caller = vcf_caller,
+                                              cna_caller = cna_caller)
+  } else{
+    data_subclonal <- get_tumourevo_subclonal(spn = spn, 
+                                              coverage = cov, 
+                                              purity = pur, 
+                                              tool = subclonal,
+                                              vcf_caller = vcf_caller,
+                                              cna_caller = cna_caller)
+  }
   
   # get data
   if (subclonal == 'viber' & length(data_subclonal) != 0){
     fit <- readRDS(data_subclonal$viber_best_st_fit_rds)
-    
     data_table <- bind_cols(cluster = fit$x$cluster.Binomial, fit$data) %>% 
       select(cluster, chr, from, ref, alt) %>% 
       distinct()
-    stats_cluster <- data_table %>% group_by(cluster) %>% summarize(N = n()) 
-  
+  } else if (subclonal == 'viber_heuristic' & length(data_subclonal) != 0){
+    fit_heuristic <- readRDS(data_subclonal$viber_best_st_heuristic_fit_rds)
+    data_table <- bind_cols(cluster = fit_heuristic$x$cluster.Binomial, fit_heuristic$data) %>% 
+      select(cluster, chr, from, ref, alt) %>% 
+      distinct() %>% 
+      mutate(cluster = ifelse(is.na(cluster), 'NotAssigned', cluster)) 
   } else if (subclonal == 'pyclonevi' & length(data_subclonal) != 0){
     fit <- read.table(data_subclonal$cluster_table_csv, header = T, sep = '\t') %>% 
       select(mutation_id, cluster) %>% 
@@ -108,7 +125,6 @@ for(subclonal in c('viber', 'pyclonevi')){
           SigProfilerMatrixGeneratorR(project = spn, genome = "GRCh38", matrix_path = out_data, plot=T)
         }
     }
-      
     
     for (context in c('SBS96', 'ID83')){
       print(context)
@@ -177,24 +193,26 @@ for(subclonal in c('viber', 'pyclonevi')){
         }
         
         if (file.exists(data_id)){
-          to_keep <- stats_cluster %>% filter(N > 100) %>% pull(cluster)
+          #to_keep <- stats_cluster %>% filter(N > 100) %>% pull(cluster)
           
           sig_matrix <- read.table(data_id, header = T)
           rownames(sig_matrix) <- sig_matrix$MutationType
           sig_matrix <- sig_matrix %>% select(!MutationType)
           sig_counts <- t(sig_matrix) %>% as.data.frame()
           rownames(sig_counts) <- sub("^[^_]+_(.*)", "\\1", rownames(sig_counts))
-          sig_counts <- sig_counts[to_keep,]
+          #sig_counts <- sig_counts[to_keep,]
           
           if (context == 'SBS96'){
             cat = list(bascule::COSMIC_sbs[signature,] %>% as.data.frame())
             cat[[1]] = cat[[1]][rownames(cat[[1]]) != 'NA',]
             names(cat) = c("SBS")
+            sig_counts = sig_counts[rowSums(sig_counts) > 0,]
             input = list("SBS"=sig_counts)
           } else {
             cat = list(bascule::COSMIC_indels[signature,] %>% as.data.frame())
             cat[[1]] = cat[[1]][rownames(cat[[1]]) != 'NA',]
             names(cat) = c("ID")
+            sig_counts = sig_counts[rowSums(sig_counts) > 0,]
             input = list("ID"=sig_counts)
           }
           

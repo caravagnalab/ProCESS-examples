@@ -9,8 +9,8 @@ library(ComplexHeatmap)
 source("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/getters/process_getters.R")
 # source("compute_FGA.R")
 scout_dir <-"/orfeo/cephfs/scratch/cdslab/shared/SCOUT/"
-SPNS <- c("SPN01","SPN02","SPN03","SPN04","SPN06","SPN07")
-COVERAGES <- c("50","100","150")
+SPNS <- c("SPN01","SPN02","SPN03","SPN04", "SPN06")
+COVERAGES <- c("50","100", "150")
 PURITIES <- c("0.3","0.6","0.9")
 SPN_colors <-c("SPN01"='steelblue', "SPN02"='seagreen', "SPN03"='goldenrod', 
                "SPN04"='coral', "SPN06"='palevioletred', "SPN07"='indianred3')
@@ -176,25 +176,25 @@ graphics = list(
 )
 
 column_ha <- HeatmapAnnotation(
-  fga = anno_barplot(fga_values),
-  fgs = anno_barplot(fgs_values),
+  fga = anno_barplot(fga_values, beside = T, border = F, bar_width = 1, gp = gpar(fill = '#DBD7D2', col = 'white'), height = unit(1, "cm")),
+  fgs = anno_barplot(fgs_values, beside = T, border = F, bar_width = 1, gp = gpar(fill = '#DBD7D2', col = 'white'), height = unit(1, "cm")),
   #coverage = anno_simple(coverages, col= col_coverages),
   spn = spn_ids, 
   # tool = tools,
   col = list(spn=SPN_colors),
-  annotation_label = c("fraction of genome altered", 
-                      "fraction of genome subclonal", 
-                      "SPN ID")
+  annotation_label = c('FGA',#"fraction of genome altered", 
+                      'FGS', #"fraction of genome subclonal", 
+                      "SPN")
 )
 
 column_bottom_ha <- HeatmapAnnotation(
-  true_ploidy = anno_barplot(true_ploidy_values),
-  WGD = anno_customize(wgd_values, graphics = graphics)
+  true_ploidy = anno_barplot(true_ploidy_values,  beside = T, border = F, bar_width = 1, gp = gpar(fill = '#DBD7D2', col = 'white'), height = unit(1, "cm")),
+  WGD = anno_customize(wgd_values, graphics = graphics),
+  annotation_label = c('True ploidy', 'WGD')
   #coverage = anno_simple(coverages, col= col_coverages),
   # # tool = tools,
   # col = list(true_ploidy=col_fun_true_ploidy)
 )
-
 
 row_ha <- rowAnnotation(
   coverage = coverages,
@@ -258,12 +258,12 @@ names(col_fun_precision)<-labels_precision
 h_purity = ComplexHeatmap::Heatmap(list_purities,cluster_rows = F,cluster_columns = F,
                                 top_annotation = column_ha,col=col_fun_classes_purity,
                                 left_annotation = row_ha,show_column_names = F,
-                                show_row_names = F,rect_gp = gpar(col = "black", lwd = 1),
                                 column_split = tools,
                                 row_title = "Purity",
                                 row_title_side = "right",
-                                row_title_gp = gpar(fontsize = 12, lineheight = 0.8,fontface="bold"),
-                                row_title_rot = 90,
+                                row_title_gp = gpar(fontsize = 12, lineheight = 0.8),
+                                row_title_rot = 0,
+                                show_row_names = F,rect_gp = gpar(col = "white", lwd = 1),  
                                 name = "Purity estimation classes"
 )
 # col_fun_ploidy = circlize::colorRamp2(c(-3,0, 3), c("forestgreen","white", "darkorange"))
@@ -271,12 +271,12 @@ h_ploidy = ComplexHeatmap::Heatmap(list_ploidy,cluster_rows = F,cluster_columns 
                                    # top_annotation = column_ha,
                                    left_annotation = row_ha,
                                    col=col_fun_classes_ploidy, show_column_names = F,
-                                   show_row_names = F,rect_gp = gpar(col = "black", lwd = 1),
                                    column_split = tools,
                                    row_title = "Ploidy",
                                    row_title_side = "right",
-                                   row_title_gp = gpar(fontsize = 12, lineheight = 0.8,fontface="bold"),
-                                   row_title_rot = 90,
+                                   row_title_gp = gpar(fontsize = 12, lineheight = 0.8),
+                                   row_title_rot = 0,
+                                   show_row_names = F,rect_gp = gpar(col = "white", lwd = 1),  
                                    name = "Ploidy estimation classes"
 )
 #col_fun_correctness_clonal = circlize::colorRamp2(c(0, 1), c("white", "goldenrod2"))
@@ -285,10 +285,10 @@ h_correc = ComplexHeatmap::Heatmap(list_correctness_clonal,cluster_rows = F,clus
                                    left_annotation = row_ha,
                                    row_title = "% correctly\ninferred CNA",
                                    row_title_side = "right",
-                                   row_title_gp = gpar(fontsize = 12, lineheight = 0.8,fontface="bold"),
-                                   row_title_rot = 90,
+                                   row_title_gp = gpar(fontsize = 12, lineheight = 0.8),
+                                   row_title_rot = 0,
+                                   show_row_names = F,rect_gp = gpar(col = "white", lwd = 1),  
                                    col=col_fun_classes_correct, show_column_names = F,
-                                   show_row_names = F,rect_gp = gpar(col = "black", lwd = 1),
                                    column_split = tools,
                                    name = "Correclty inferred clonal CNAs"
 )
@@ -301,28 +301,28 @@ h_precision_bp = ComplexHeatmap::Heatmap(list_bp_precision,cluster_rows = F,clus
                                    show_column_names = F,
                                    row_title = "Precison",
                                    row_title_side = "right",
-                                   row_title_gp = gpar(fontsize = 12, lineheight = 0.8,fontface="bold"),
-                                   row_title_rot = 90,
-                                   show_row_names = F,rect_gp = gpar(col = "black", lwd = 1),
-                                   column_split = tools,
+                                   row_title_gp = gpar(fontsize = 12, lineheight = 0.8),
+                                   row_title_rot = 0,
+                                   show_row_names = F,rect_gp = gpar(col = "white", lwd = 1),                                   column_split = tools,
                                    name = "Precision break point"
 )
 h_recall_bp = ComplexHeatmap::Heatmap(list_bp_recall,cluster_rows = F,cluster_columns = F,
                                          # top_annotation = column_ha,
-                                          bottom_annotation = column_bottom_ha,
+                                         bottom_annotation = column_bottom_ha,
                                          left_annotation = row_ha,
                                          col=col_fun_recall,
-                                         row_title = "Recall",
+                                         row_title = "Recall\nbreakpoint",
                                          row_title_side = "right",
-                                         row_title_gp = gpar(fontsize = 12, lineheight = 0.8,fontface="bold"),
-                                         row_title_rot = 90,
+                                         row_title_gp = gpar(fontsize = 12, lineheight = 0.8),
+                                         row_title_rot = 0,
                                          show_column_names = F,
-                                         show_row_names = F,rect_gp = gpar(col = "black", lwd = 1),
+                                         show_row_names = F,rect_gp = gpar(col = "white", lwd = 1),
                                          column_split = tools,
-                                         name = "Recall break point"
+                                         name = "Recall breakpoint"
 )
+
 h_final_cna <- h_purity %v% h_ploidy %v% h_correc %v% h_precision_bp %v% h_recall_bp
-pdf("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/validation/SCOUT/Final_CNA_SCOUT_Validation.pdf",width = 15,height = 10)
+#pdf("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/validation/SCOUT/Final_CNA_SCOUT_Validation.pdf",width = 15,height = 10)
 draw(
   h_final_cna,
   heatmap_legend_side = "bottom",

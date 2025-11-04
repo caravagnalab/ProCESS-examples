@@ -41,7 +41,7 @@ library(patchwork)
 # }) %>% do.call("bind_rows", .)
 # saveRDS(object = df, file = '/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/somatic/somatic.rds')
 
-df <- readRDS('somatic.rds')
+df <- readRDS('/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/somatic/somatic.rds')
 
 purity_colors = c("#bfd3e6", "#8c96c6", "#810f7c")
 coverage_colors = c("#ccece6", "#66c2a4", "#006d2c")
@@ -66,10 +66,9 @@ coverage_line <- df %>%
   ylab('Normalized sensitivity') + 
   xlab('CCF_bin') + 
   geom_smooth(method = "loess") +
-  scale_x_continuous(labels = unique(df$CCF_bin), breaks=seq(1,length(unique(df$CCF_bin)),1)) + 
-  facet_wrap(~muts) +
+  scale_x_continuous(labels = unique(df$CCF_bin), breaks=seq(2,length(unique(df$CCF_bin))+1,1)) +   facet_wrap(~muts) +
   theme_minimal()+
-  theme(axis.text.x = element_text(angle = 30, vjust = 1.2, hjust=1))
+  theme(axis.text.x = element_text(angle = 30, vjust = 1, hjust=1))
 
 purity_line <- df %>% 
   dplyr::group_by(sample_id, caller, spn, cov, muts) %>% 
@@ -80,11 +79,10 @@ purity_line <- df %>%
   scale_fill_manual('Purity', values = purity_colors) + 
   ylab('Normalized sensitivity') + 
   xlab('CCF_bin') + 
-  scale_x_continuous(labels = unique(df$CCF_bin), breaks=seq(1,length(unique(df$CCF_bin)),1)) + 
-  geom_smooth(method = "loess") +
+  scale_x_continuous(labels = unique(df$CCF_bin), breaks=seq(2,length(unique(df$CCF_bin))+1,1)) +   geom_smooth(method = "loess") +
   facet_wrap(~muts) +
   theme_minimal()+
-  theme(axis.text.x = element_text(angle = 30, vjust = 1.2, hjust=1))
+  theme(axis.text.x = element_text(angle = 30, vjust = 1, hjust=1))
 
 caller_line <- df %>% 
   dplyr::group_by(sample_id, pur, spn, cov, muts) %>% 
@@ -96,12 +94,14 @@ caller_line <- df %>%
   ylab('Normalized sensitivity') + 
   xlab('CCF_bin') + 
   geom_smooth(method = "loess") +
-  scale_x_continuous(labels = unique(df$CCF_bin), breaks=seq(1,length(unique(df$CCF_bin)),1)) + 
+  scale_x_continuous(labels = unique(df$CCF_bin), breaks=seq(2,length(unique(df$CCF_bin))+1,1)) + 
   facet_wrap(~muts) +
   theme_minimal()+
-  theme(axis.text.x = element_text(angle = 30, vjust = 1.2, hjust=1))
+  theme(axis.text.x = element_text(angle = 30, vjust = 1))#, hjust=1))
 
-line <- caller_line + purity_line + coverage_line + plot_layout(nrow = 3)
+line <- caller_line + purity_line + coverage_line + plot_layout(nrow = 3) + plot_annotation(tag_levels = 'A')
+ggsave(plot = line, filename = '/orfeo/cephfs/scratch/area/lvaleriani/tesi/sarek/all_sarek.pdf',width = 6, height = 8, units = 'in')
+
 
 tmp <- df %>% 
   dplyr::mutate(CCF_bin = case_when(
