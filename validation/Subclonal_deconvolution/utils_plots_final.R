@@ -1,4 +1,4 @@
-plot_scatter_process_single = function(table_wide, s1,s2, color_palette,driver){
+plot_scatter_process_single = function(table_wide, s1,s2, color_palette, driver){
   if(driver==F){
     ggplot()+
       geom_point(data=table_wide,aes(x=eval(parse(text = s1)),
@@ -43,7 +43,8 @@ plot_scatter_process_single = function(table_wide, s1,s2, color_palette,driver){
         size = 3,
         nudge_y = 0,
         nudge_x = 0,
-        show.legend = FALSE
+        show.legend = FALSE,
+        max.overlaps = Inf
       )  +
       guides(color = guide_legend(override.aes = list(size = 3, alpha=1)))
   }
@@ -66,6 +67,17 @@ plot_scatter_tool_single = function(table_wide, s1, s2, color_palette, type){
       xlim(0, 1)+
       ylim(0, 1)
   }else{
+    # geom_text_repel(
+      #   data = table_wide,
+      #   aes(x = .data[[s1]], y = .data[[s2]], label = .data$cluster_id_tool_interpreted),
+      #   max.overlaps = Inf
+      # ) +
+      # geom_text_repel(
+      #   data = table_wide,
+      #   aes(x = .data[[s1]], y = .data[[s2]], label =.data$gene),
+      #   max.overlaps = Inf
+      # ) +
+      # ggrepel::geom_text_repel(data = table_wide, aes(x = .data[[s1]], y = .data[[s2]], label =.data$gene), max.overlaps = Inf)+ 
     ggplot() + 
       geom_point(data = table_wide, 
                  aes(x = .data[[s1]], y =.data[[s2]], col = .data$cluster_id_tool_interpreted), 
@@ -94,9 +106,11 @@ plot_scatter_tool_single = function(table_wide, s1, s2, color_palette, type){
         size = 3,
         nudge_y = 0,
         nudge_x = 0,
-        show.legend = FALSE
+        show.legend = FALSE,
+        max.overlaps = Inf
       )  +
       guides(color = guide_legend(override.aes = list(size = 3, alpha=1)))
+    
   }
 }
 
@@ -113,6 +127,11 @@ get_table_path = function(save_path, tool, spn, simulation_id) {
 }
 
 plot_scatter_process = function(table, sample_names, color_palette_process, driver=T){
+  # table = join_table_process
+  if(spn=='SPN07'){
+    table = table %>%
+      distinct(patient_id, sample_id, mutation_id, .keep_all = TRUE)
+  }
   table_wide = table %>%
     mutate(gene=driver_label_process) %>% 
     select(patient_id, sample_id, mutation_id, cluster_id_process, vaf_process, is_driver_process,gene) %>%
@@ -128,6 +147,8 @@ plot_scatter_process = function(table, sample_names, color_palette_process, driv
   sample_names = as.character(sample_names)
   cm = combn(sample_names, 2)
   
+  # s1 = cm[[1]]
+  # s2 = cm[[2]]
   plots <- apply(
     cm,
     2,
@@ -156,10 +177,10 @@ plot_scatter_process = function(table, sample_names, color_palette_process, driv
 }
 
 
-plot_scatter_tool = function(table_tool, color_palette, sample_names, type ='original'){
+plot_scatter_tool = function(final_table, color_palette, sample_names, type ='original'){
   
   if(type =='original'){
-    table_wide = table_tool %>%
+    table_wide = final_table %>%
       select(patient_id, sample_id, mutation_id, cluster_id_tool, vaf_tool) %>%
       pivot_wider(values_from="vaf_tool", names_from="sample_id")
     
@@ -174,7 +195,11 @@ plot_scatter_tool = function(table_tool, color_palette, sample_names, type ='ori
     )
   
   }else if(type=='interpreted'){
-    table_wide = table_tool %>%
+    if(spn=='SPN07'){
+      final_table = final_table %>%
+        distinct(patient_id, sample_id, mutation_id, .keep_all = TRUE)
+    }
+    table_wide = final_table %>%
       select(patient_id, sample_id, mutation_id, cluster_id_tool_interpreted, vaf_tool, is_driver_tool, driver_label_tool) %>%
       mutate(gene=driver_label_tool) %>% 
       pivot_wider(values_from="vaf_tool", names_from="sample_id")
@@ -193,7 +218,8 @@ plot_scatter_tool = function(table_tool, color_palette, sample_names, type ='ori
   
   sample_names = as.character(sample_names)
   cm = combn(sample_names, 2)
-  
+  # s1 = cm[[1]]
+  # s2 = cm[[2]]
   plots <- apply(
     cm,
     2,

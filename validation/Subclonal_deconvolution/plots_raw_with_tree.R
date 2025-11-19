@@ -6,8 +6,18 @@ library(patchwork)
 library(randnet)
 library(scales)
 
-spn = 'SPN04'
-coverage=100
+# coverage_list = c(50, 100, 150, 200)
+# purity_list = c(0.3, 0.6, 0.9)
+# vcf_caller_list = c("mutect2", "strelka", "freebayes")
+# cna_caller_list = c("ascat", "sequenza", "battenberg")
+# spn_list = paste("SPN", 3:7, sep="0")
+
+spn = 'SPN07'
+if(spn=='SPN02'){
+  coverage=50
+}else{
+  coverage=100
+}
 purity=0.9
 vcf_caller = "mutect2"
 cna_caller = "ascat"
@@ -35,7 +45,7 @@ process_seq = seq_results %>%
 ### Plot process labels ####
 table_process = readRDS(get_table_path(save_path, 'process', spn, simulation_id)) # process table in folder tables/
 
-tool = 'viber_heuristics'
+tool = 'viber'
 table_tool = readRDS(get_table_path(save_path, tool, spn, simulation_id))
 if(tool =='viber_heuristics'){
   table_tool = table_tool %>%
@@ -61,7 +71,7 @@ color_palette_process = hue_pal()(length(unique(table_process$cluster_id_process
   setNames(str_sort(unique(table_process$cluster_id_process), numeric=T))
 
 sample_names = sort(unique(table_process$sample_id))
-scatter_process = plot_scatter_process(join_table_process, sample_names, color_palette_process)
+scatter_process = plot_scatter_process(join_table_process, sample_names, color_palette_process, driver=F)
 scatter_process
 
 
@@ -92,10 +102,18 @@ if(spn=='SPN03'){
   width=40
   height=50
   design="aaaaaa\ncccccc"
-}else{
+}else if(spn == 'SPN04' | spn=='SPN02'){
   width=40
   height=50
   design="aa####\ncccccc\ncccccc"
+}else if(spn =='SPN01'){
+  width=40
+  height=50
+  design="aaaaaa\ncccccc\ncccccc"
+}else if(spn=='SPN06' | spn=='SPN07'){
+  width=40
+  height=60
+  design="aaaaaa\ncccccc"
 }
 
 patch_t = patchwork::wrap_plots(
@@ -108,8 +126,11 @@ patch_t = patchwork::wrap_plots(
   theme(plot.tag=element_text(size=12, face="bold"),
         plot.title = element_text(size=12, face="bold", hjust=0.5))
 
-ggsave(get_plots_path(save_path, tool, spn, simulation_id, plot_name="final"), plot = patch_t,
+ggsave(get_plots_path(save_path, tool, spn, simulation_id, plot_name="raw_with_tree/final"), plot = patch_t,
        device=png, width=width, height=height, units="cm")
+ggsave(get_plots_path_shared(main_path, tool, spn, simulation_id, plot_name="raw_with_tree/final"), plot = patch_t,
+       device="png", width=width, height=height, units="cm")
+
 
 patch_pr = patchwork::wrap_plots(
   scatter_process + theme(legend.position="bottom") + labs(title="Process clusters"), 
@@ -119,6 +140,8 @@ patch_pr = patchwork::wrap_plots(
   theme(plot.tag=element_text(size=12, face="bold"),
         plot.title = element_text(size=12, face="bold", hjust=0.5))
 
-ggsave(get_plots_path(save_path, 'process', spn, simulation_id, plot_name=paste0("final_",tool)), plot = patch_pr,
+ggsave(get_plots_path(save_path, 'process', spn, simulation_id, plot_name=paste0("raw_with_tree/final_",tool)), plot = patch_pr,
        device=png, width=width, height=height, units="cm")
 
+ggsave(get_plots_path_shared(main_path, tool, spn, simulation_id, plot_name=paste0("raw_with_tree/final_",tool)), plot = patch_t,
+       device="png", width=width, height=height, units="cm")

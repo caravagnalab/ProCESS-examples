@@ -52,7 +52,7 @@ mut_process_with_clusterid = mut_process %>%
     values_to="vaf_process" # this is the VAF!
   ) %>%
   rename(cluster_id_process=label)
-
+print("Ciao")
 # saveRDS(mut_process_with_clusterid, file="/orfeo/cephfs/scratch/cdslab/erivar00/GitHub/ProCESS-examples/validation/Subclonal_deconvolution/tables/mut_process_with_clusterid.RdS")
 # mut_process_with_clusterid = readRDS(file="/orfeo/cephfs/scratch/cdslab/erivar00/GitHub/ProCESS-examples/validation/Subclonal_deconvolution/tables/mut_process_with_clusterid.RdS")
 
@@ -66,7 +66,7 @@ sample_cell_ids = sample_forest$get_nodes() %>%
   rename(sample_id=sample)
 # saveRDS(sample_cell_ids, file="/orfeo/cephfs/scratch/cdslab/erivar00/GitHub/ProCESS-examples/validation/Subclonal_deconvolution/tables/sample_cell_ids.RdS")
 # sample_cell_ids = readRDS(file="/orfeo/cephfs/scratch/cdslab/erivar00/GitHub/ProCESS-examples/validation/Subclonal_deconvolution/tables/sample_cell_ids.RdS")
-
+print("Ciao1")
 
 # all sequenced mutations and cell ids
 mut_cells = phylo_forest$get_sampled_cell_mutations() %>%
@@ -77,7 +77,7 @@ mut_cells = phylo_forest$get_sampled_cell_mutations() %>%
             .groups="drop")
 # saveRDS(mut_cells, file="/orfeo/cephfs/scratch/cdslab/erivar00/GitHub/ProCESS-examples/validation/Subclonal_deconvolution/tables/mut_cells.RdS")
 # mut_cells = readRDS(file="/orfeo/cephfs/scratch/cdslab/erivar00/GitHub/ProCESS-examples/validation/Subclonal_deconvolution/tables/mut_cells.RdS")
-
+print("Ciao2")
 
 # keep only mutations with non-zero frequency
 final_table = mut_process_with_clusterid %>%
@@ -90,10 +90,10 @@ final_table = mut_process_with_clusterid %>%
   ungroup()
 # saveRDS(final_table, file="/orfeo/cephfs/scratch/cdslab/erivar00/GitHub/ProCESS-examples/validation/Subclonal_deconvolution/tables/final_table_pre.RdS")
 # final_table = readRDS(file="/orfeo/cephfs/scratch/cdslab/erivar00/GitHub/ProCESS-examples/validation/Subclonal_deconvolution/tables/final_table_pre.RdS")
-
+print("Ciao3")
 
 final_table = final_table %>% 
-  mutate(is_clonal_process=ifelse(cluster_id_process==get_clonal_cluster_process(final_table), TRUE, FALSE)) %>% 
+  # mutate(is_clonal_process=ifelse(cluster_id_process==get_clonal_cluster_process(final_table), TRUE, FALSE)) %>% 
   
   select(-cell_id, -cells_w_mutation, -sample_cell_ids, -Ntot, -n_cells) %>% 
   mutate(n_clones_process=length(unique(cluster_id_process))) %>% 

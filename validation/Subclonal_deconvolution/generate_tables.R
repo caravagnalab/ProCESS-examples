@@ -6,13 +6,13 @@ cat(paste("\nArguments:", paste(args, collapse=", "), "\n"))
 
 join_tables = as.logical(args[1])
 i = as.integer(args[2])
-i = 1
 print(i)
 
 # github_path = "~/GitHub/ProCESS-examples/"
 github_path = '/orfeo/cephfs/scratch/cdslab/erivar00/GitHub/ProCESS-examples/'
 main_path = "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/"
-save_path = file.path(github_path, "validation/Subclonal_deconvolution/")
+# save_path = file.path(github_path, "validation/Subclonal_deconvolution/")
+save_path = file.path(main_path, "subclonal/")
 
 setwd(main_path)
 source(file.path(save_path, "utils_plots.R"))
@@ -24,10 +24,11 @@ source(file.path(save_path, "utils_plots.R"))
 # spn_list = paste("SPN", 3:7, sep="0")
 
 coverage_list = c(100)
+# coverage_list = c(50)
 purity_list = c(0.9)
 vcf_caller_list = c("mutect2")
 cna_caller_list = c("ascat")
-spn_list = paste("SPN", 3:4, sep="0")
+spn_list = paste("SPN", 3, sep="0")
 
 combs = expand.grid(coverage=coverage_list,
                     purity=purity_list,
@@ -38,7 +39,7 @@ combs = expand.grid(coverage=coverage_list,
 if (!is.na(i)) {
   # missing_files = readRDS(file.path(save_path, "missing_files.rds"))
   # if (!i %in% missing_files$i) cli::cli_abort("File already present")
-
+  
   coverage = combs[i, "coverage"]
   purity = combs[i, "purity"]
   vcf_caller = combs[i, "vcf_caller"]
@@ -56,7 +57,9 @@ if (!is.na(i)) {
   table_mobster = get_table(save_path, "mobster", env)
   table_viber = get_table(save_path, "viber", env)
   table_viber_h = get_table(save_path, "viber_heuristics", env)
+  table_process_viber = get_table(save_path, "process_viber", env)
   table_process = get_table(save_path, "process", env)
+  
 }
 
 

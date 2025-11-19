@@ -5,9 +5,21 @@ library(ggpubr)
 library(patchwork)
 library(randnet)
 library(scales)
+library(ggrepel)
 
-spn = 'SPN03'
-coverage=100
+# coverage_list = c(50, 100, 150, 200)
+# purity_list = c(0.3, 0.6, 0.9)
+# vcf_caller_list = c("mutect2", "strelka", "freebayes")
+# cna_caller_list = c("ascat", "sequenza", "battenberg")
+# spn_list = paste("SPN", 3:7, sep="0")
+
+spn = 'SPN02'
+if(spn=='SPN02'){
+  coverage=50
+}else{
+  coverage=100
+}
+
 purity=0.9
 vcf_caller = "mutect2"
 cna_caller = "ascat"
@@ -20,7 +32,8 @@ save_path = file.path(github_path, "validation/Subclonal_deconvolution/")
 source(file.path(save_path, "utils_plots_final.R"))
 source(file.path(save_path, "generate_table_main.R"))
 
-drivers_table = readRDS(file.path(main_path,"/drivers/all_drivers.rds"))
+# drivers_table = readRDS(file.path(main_path,"/drivers/all_drivers.rds"))
+drivers_table = readRDS(file.path(main_path,"drivers", spn, "process_drivers.rds"))
 
 drivers_table = drivers_table %>% filter(SPN==spn)  %>%
   mutate(mutation_id=paste0(spn, ":", chr, ":", start,  ":", alt)) %>% 
@@ -35,8 +48,9 @@ table_process = table_process %>% left_join(drivers_table, by = 'mutation_id') %
   select(-driver_label_process) %>% 
   mutate(driver_label_process=code)
 
+tool = 'viber'
 # SPN03:9:136496197: deve diventare SPN03:9:136496196:C
-if(spn=='SPN03'){
+if(spn=='SPN03' & tool != 'process_viber'){
   table_process = table_process %>% mutate(mutation_id = if_else(
     mutation_id=="SPN03:9:136496197:",
     'SPN03:9:136496196:C',
@@ -44,12 +58,15 @@ if(spn=='SPN03'){
   ))
 }
 
-tool = 'viber'
 table_tool = readRDS(get_table_path(save_path, tool, spn, simulation_id))
 
 if(tool =='viber_heuristics'){
   table_tool = table_tool %>%
     mutate(cluster_id_tool = replace_na(cluster_id_tool, 'NA'))
+}
+if(tool =='process_viber'){
+  table_tool = table_tool %>%
+    mutate(sample_id = paste0(spn,"_",sample_id))
 }
 
 join_table_tool = table_tool %>% left_join(table_process) # keep all mut in tool
@@ -88,8 +105,10 @@ color_palette_tool["Subclonal"] = "#cccccc"
 sample_names = sort(unique(table_process$sample_id))
 
 # Scatterplot tool
+# color_palette = color_palette_tool
 plot_tool = plot_scatter_tool(final_table, color_palette_tool, sample_names, type ='interpreted')
 plot_tool
+
 
 # Scatterplot process
 color_palette_process = hue_pal()(length(unique(table_process$cluster_id_process))) %>% 
@@ -122,15 +141,24 @@ table_to_save = final_table_interpreted %>% select(patient_id, sample_id,coverag
                                                    vaf_process, driver_label_process, 
                                                    cluster_id_tool_interpreted)
 
-saveRDS(table_to_save, file.path(main_path, "subclonal/metrics_tables", paste0(tool, "_", spn, "_", simulation_id, ".rds")))
+saveRDS(table_to_save, file.path(main_path, "subclonal/tables_interpreted", paste0(tool, "_", spn, "_", simulation_id, ".rds")))
+saveRDS(table_to_save, file.path(save_path, "subclonal/tables_interpreted", paste0(tool, "_", spn, "_", simulation_id, ".rds")))
 
 if(spn=='SPN03'){
   width=40
   height=50
   design="aaaaaa\nbbbbbb"
-}else{
+}else if(spn=='SPN01'){
+  width=40
+  height=25
+  design="aaaaaa\nbbbbbb"
+}else if(spn=='SPN06' | spn=='SPN07'){
+  width=40
+  height=70
+  design="aaaaaa\nbbbbbb"
+}else if(spn=='SPN02' | spn=='SPN04'){
   width=20
-  height=8
+  height=12
   design="aaabbb"
 }
 
@@ -144,11 +172,17 @@ patch_t = patchwork::wrap_plots(
   theme(plot.tag=element_text(size=12, face="bold"),
         plot.title = element_text(size=12, face="bold", hjust=0.5))
 
-ggsave(get_plots_path(save_path, tool, spn, simulation_id, plot_name="interpreted"), plot = patch_t,
-       device=png, width=width, height=height, units="cm")
+if(startsWith(tool, 'process_')){
+  # CAN BE CHANGED
+  plot_name = 'interpreted_drivers/interpreted'
+}else{
+  plot_name = 'interpreted/interpreted'
+}
+ggsave(get_plots_path(save_path, tool, spn, simulation_id, plot_name=plot_name), plot = patch_t,
+       device="png", width=width, height=height, units="cm")
 
-ggsave(get_plots_path_shared(main_path, tool, spn, simulation_id, plot_name="interpreted"), plot = patch_t,
-       device=png, width=width, height=height, units="cm")
+ggsave(get_plots_path_shared(main_path, tool, spn, simulation_id, plot_name=plot_name), plot = patch_t,
+       device="png", width=width, height=height, units="cm")
 
 ### Write NMI values ####
 
