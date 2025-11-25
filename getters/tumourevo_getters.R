@@ -32,7 +32,7 @@ dir_getter <- function(
   
   ptr <- paste(paste0(coverage, "x"), paste0(purity, "p"), vcf_caller, cna_caller, sep = "_")
   all_dirs <- list.dirs(path = MAIN_PATH, full.names = T, recursive = FALSE)
-  matched_dir <- all_dirs[grepl(ptr, basename(all_dirs))]
+  matched_dir <- file.path(MAIN_PATH,ptr)
   
   return(matched_dir)
 }
@@ -377,4 +377,3 @@ get_tumourevo_signatures <- function(
   }
   
 }
-
