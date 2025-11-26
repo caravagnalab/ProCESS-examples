@@ -124,9 +124,10 @@ df_all_combs_SPN_cna_long <- df_all_combs_SPN_cna %>%
   ) %>% 
   mutate(delta_type=case_when(delta_type=="delta_ploidy" ~ "Ploidy",
                               delta_type=="delta_purity" ~ "Purity"))
-
-plt_purity_ploidy <- ggplot(df_all_combs_SPN_cna_long, aes(
+saveRDS(object = plt_breakpoint,file = "plt_breakpoint.rds")
+plt_purity_ploidy_old <- ggplot(df_all_combs_SPN_cna_long, aes(
   x = reorder(tool, delta_value, \(x) sd(x, na.rm = TRUE)),
+  # x = true_purity_label,
   y = delta_value,
   group = interaction(tool, true_purity_label)
 )) +
@@ -162,8 +163,56 @@ plt_purity_ploidy <- ggplot(df_all_combs_SPN_cna_long, aes(
   
   # Facet grid: delta_type as rows, true purity as columns
   facet_grid(delta_type ~ true_purity_label, scales = "free_y") +
-  
   labs(y = "Deviation", x = "") + my_ggplot_theme()+
   theme(axis.text.x = element_text(angle = 30,hjust = 1),
         axis.title.x = element_blank())
-plt_purity_ploidy
+
+saveRDS(object = plt_purity_ploidy_old,file = "plt_purity_ploidy_old.rds")
+
+
+plt_purity_ploidy <-df_all_combs_SPN_cna_long %>% 
+  ggplot(aes(
+  # x = reorder(tool, delta_value, \(x) sd(x, na.rm = TRUE)),
+  x = true_purity_label,
+  y = delta_value
+  # group = interaction(tool, true_purity_label)
+)) +
+  
+  
+  geom_boxplot(alpha = 0.3, outlier.shape = NA) +
+  # scale_color_manual(name = "CNA caller", values = col_cna_tools) +
+  # scale_fill_manual(name = "CNA caller", values = col_cna_tools) +
+  
+  ggnewscale::new_scale_color() +
+  ggnewscale::new_scale_fill() +
+  
+  # Jitter points colored by FGA class
+  geom_jitter(aes(color = fga_class, fill = fga_class, shape = correct_estimation_class),
+              position = position_jitterdodge(jitter.width = 0.2, dodge.width = 0.75),
+              size = 2, alpha = 0.5) +
+  scale_color_manual(name = "FGA class", values = c("High FGA"="indianred2","Low FGA"="dodgerblue3")) +
+  scale_fill_manual(name = "FGA class", values = c("High FGA"="indianred2","Low FGA"="dodgerblue3")) +
+  scale_shape_manual(name = "Estimation class",
+                     values = c("correctly estimated"=16,
+                                "underestimated"=25,
+                                "overestimated"=24)) +
+  
+  # Horizontal lines
+  geom_hline(aes(yintercept = 0), linetype = "solid", color = "grey40") +
+  geom_hline(data = subset(df_all_combs_SPN_cna_long, delta_type=="Purity"),
+             aes(yintercept = 0.2), linetype = "dashed", color = "grey") +
+  geom_hline(data = subset(df_all_combs_SPN_cna_long, delta_type=="Purity"),
+             aes(yintercept = -0.2), linetype = "dashed", color = "grey") +
+  geom_hline(data = subset(df_all_combs_SPN_cna_long, delta_type=="Ploidy"),
+             aes(yintercept = 1), linetype = "dashed", color = "grey") +
+  geom_hline(data = subset(df_all_combs_SPN_cna_long, delta_type=="Ploidy"),
+             aes(yintercept = -1), linetype = "dashed", color = "grey") +
+  
+  # Facet grid: delta_type as rows, true purity as columns
+  # facet_grid(delta_type ~ true_purity_label, scales = "free_y") +
+  facet_wrap(~delta_type, scales = "free_y", labeller = as_labeller(
+    c(Ploidy = "Estimated Ploidy", Purity = "Estimated Purity"))) +
+  labs(y = "Deviation", x = "") + my_ggplot_theme()+
+  theme(axis.text.x = element_text(angle = 30,hjust = 1),
+        axis.title.x = element_blank())
+saveRDS(object = plt_purity_ploidy,file = "plt_purity_ploidy.rds")
