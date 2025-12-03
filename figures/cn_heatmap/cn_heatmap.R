@@ -15,6 +15,10 @@ setwd('/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/cn_h
 source('../../getters/process_getters.R')
 source('utils.R')
 
+samples_levels <- lapply(c('SPN01', 'SPN02', 'SPN03', 'SPN04', 'SPN06', 'SPN07'), function(spn){
+  samples <- get_sample_names(spn)
+}) %>% unlist()
+
 cna_data_all <- tibble()
 for (spn in c('SPN01', 'SPN02', 'SPN04', 'SPN03', 'SPN06', 'SPN07')){
   samples <- get_sample_names(spn)
@@ -33,17 +37,19 @@ for (spn in c('SPN01', 'SPN02', 'SPN04', 'SPN03', 'SPN06', 'SPN07')){
     filter(!(CN_type == 'clonal' & ratio <= lower))  %>% 
     mutate(ratio = ifelse(ratio < upper & ratio > lower, ratio, 1)) %>% 
     mutate(ratio = round(ratio, digits=1)) %>% 
-    filter(ratio != 0) %>% 
-    mutate(sample_id = paste(sample_id, ratio, sep = ':'))
+    filter(ratio != 0) 
   
   cna_data_all <- bind_rows(cna_data_all, x) 
 }
-out <- segment_fixed_windows(cna_data_all, window_size = 1000000)  # 100 kb windows
+out <- segment_fixed_windows(cna_data_all, window_size = 1000000) %>% 
+  mutate(sample_id = factor(sample_id, levels = samples_levels)) %>% 
+  arrange(sample_id, desc(ratio)) %>% 
+  mutate(sample_id = paste(sample_id, ratio, sep = ':'))
 
 ######## for karotype
 wide_df_kar <- out %>%
   mutate(CN=Major+minor ) %>% 
-  na.omit() %>% 
+  #na.omit() %>% 
   mutate(sample_id=as.character(sample_id)) %>% 
   select(chr, from, to, sample_id, CN) %>% # Select only relevant columns
   pivot_wider(names_from = sample_id, values_from = CN) %>% 
@@ -52,41 +58,41 @@ wide_df_kar <- out %>%
   filter(chr %in% paste0("chr", 1:22))
   
 chr_level = paste0("chr", 1:22)
-wide_df_kar <- wide_df_kar %>% mutate(chr = factor(chr, levels = chr_level)) %>% arrange(chr)
+wide_df_kar <- wide_df_kar %>% mutate(chr = factor(chr, levels = chr_level)) #%>% arrange(chr)
 
 chr <- wide_df_kar$chr
-
 subgroup = tibble(sample_id = colnames(wide_df_kar %>% select(-chr, -from, -to)))
 subgroup = subgroup %>%
   tidyr::separate(col = sample_id, into = c('sample_id', 'ratio'), sep = ':', convert = T) %>% 
   tidyr::separate(col = sample_id, into = c('spn', 'tmp'), sep = '_', remove = F) %>% 
-  select(-tmp)
+  select(-tmp) #%>% 
+  #arrange(sample_id, desc(ratio))
 
-library(circlize)
+
 col_spn <- c("SPN01"='steelblue', "SPN02"='seagreen', "SPN03"='goldenrod', 
-             "SPN04"='coral', "SPN05"="magenta4","SPN06"='palevioletred', "SPN07"='indianred3')
+             "SPN04"='darkorange', "SPN05"="magenta4","SPN06"='palevioletred', "SPN07"='indianred3')
 col_proportion <- colorRamp2(c(0, 1), c("white", 'dodgerblue4'))
-col_sample <-  c('#f1696bff', 
-                           '#8fbd8cff', 
-                           '#87c7d6ff', 
-                           '#bac3deff', 
-                           '#d7bfd9ff', 
-                           '#a8a2a1ff', 
-                           '#cfadb3ff', 
-                           '#3c609aff', 
-                           '#9a4564ff', 
-                           '#fbcb5bff', 
-                           '#c2b280ff', 
-                           '#d47e2dff', 
-                           '#5f8676ff', 
-                 '#0c8281ff', 
-                 '#f5a55fff', 
-                 '#7d287eff', 
-                 '#2e4f4fff', 
-                 '#c4ddbcff', 
-                 '#996869ff', 
-                 '#daa627ff', 
-                 '#bc8f8fff')
+col_sample <-  c('steelblue1', 
+                 'steelblue2', 
+                 'steelblue3', 
+                 'seagreen3', 
+                 'seagreen4', 
+                 'goldenrod1', 
+                 'goldenrod2', 
+                 'goldenrod3', 
+                 'goldenrod4',
+                 'darkorange1', 
+                 'darkorange3', 
+                 'palevioletred1', 
+                 'palevioletred2', 
+                 'palevioletred', 
+                 'palevioletred3', 
+                 'palevioletred4', 
+                 'indianred1', 
+                 'indianred2', 
+                 'indianred',
+                 'indianred3', 
+                 'indianred4')
 names(col_sample) <- unique(subgroup$sample_id)
 col_sample <- col_sample[!is.na(names(col_sample))]
 
@@ -100,7 +106,7 @@ row_ha = rowAnnotation(proportion = subgroup$ratio,
 )
 
 # Create a named vector to assign colors to each chromosome level
-colors <- rep(c("gray", "black"), length.out = length(levels(chr)))
+colors <- rep(c("gray", "gray30"), length.out = length(levels(chr)))
 color_map <- setNames(colors, levels(chr))
 chr_colors <- color_map[chr]
 column_ha = HeatmapAnnotation(chromosome = chr, 
@@ -123,12 +129,12 @@ my_palette <- c(
 
 
 tmp <- wide_df_kar %>% select(-chr, -from, -to)
-Heatmap(t(tmp),
+ht <- Heatmap(t(tmp),
         name = "CNV",
         col = my_palette,
         column_split = chr,
         top_annotation = column_ha,
-        row_split = subgroup$sample_id,
+        row_split = subgroup$spn,
         right_annotation = row_ha,
         #cluster_columns = T,
         column_title_gp = gpar(fontsize = 10),
@@ -140,6 +146,9 @@ Heatmap(t(tmp),
         heatmap_legend_param = list(direction = "horizontal", title_position = "lefttop"), 
         use_raster = F)
 
+pdf('cn_heatmap.pdf', width = 13, height = 4)
+draw(ht, heatmap_legend_side = "right", annotation_legend_side = 'right') #annotation_legend_list = sign_legends)
+dev.off()
 
 
 
