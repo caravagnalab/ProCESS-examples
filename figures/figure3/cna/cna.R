@@ -65,6 +65,9 @@ df_all_combs_SPN_cna <- df_all_combs_SPN_cna %>%
 
 
 
+
+
+
 plt_breakpoint <- df_all_combs_SPN_cna %>% 
   group_by(tool, fga_class, coverage, true_purity) %>%
   summarise(
@@ -103,13 +106,13 @@ plt_breakpoint
 
 df_all_combs_SPN_cna_long <- df_all_combs_SPN_cna %>%
   mutate(correct_purity_estimation_class = case_when(
-    abs(delta_purity) < 0.2 ~ "correctly estimated",
-    delta_purity > 0.2 ~ "underestimated",
-    delta_purity < -0.2 ~ "overestimated"),
+    abs(delta_purity) < 0.15 ~ "correctly estimated",
+    delta_purity > 0.15 ~ "underestimated",
+    delta_purity < -0.15 ~ "overestimated"),
     correct_ploidy_estimation_class = case_when(
-      abs(delta_ploidy) < 1 ~ "correctly estimated",
-      delta_ploidy > 1 ~ "underestimated",
-      delta_ploidy < -1 ~ "overestimated"),
+      abs(delta_ploidy) < 0.7 ~ "correctly estimated",
+      delta_ploidy > 0.7 ~ "underestimated",
+      delta_ploidy < -0.7 ~ "overestimated"),
     true_purity_label = paste0('Purity =', true_purity)
   ) %>%
   pivot_longer(
@@ -124,6 +127,21 @@ df_all_combs_SPN_cna_long <- df_all_combs_SPN_cna %>%
   ) %>% 
   mutate(delta_type=case_when(delta_type=="delta_ploidy" ~ "Ploidy",
                               delta_type=="delta_purity" ~ "Purity"))
+
+df_plot <- df_all_combs_SPN_cna_long %>%
+  count(fga_class, delta_type, correct_estimation_class) %>%
+  group_by(fga_class, delta_type) %>%
+  mutate(prop = n / sum(n))
+
+ggplot(df_plot, aes(x = "", y = prop, fill = correct_estimation_class)) +
+  geom_col(width = 1, color = "white",alpha=0.7) +
+  coord_polar(theta = "y") +
+  facet_grid(fga_class ~ delta_type) +
+  theme_void() +
+  scale_fill_manual(values = c("overestimated"="indianred2","underestimated"="dodgerblue3","correctly estimated"="springgreen4"))
+  labs(fill = "Estimation class")+
+  theme(legend.position = "bottom")
+
 saveRDS(object = plt_breakpoint,file = "plt_breakpoint.rds")
 plt_purity_ploidy_old <- ggplot(df_all_combs_SPN_cna_long, aes(
   x = reorder(tool, delta_value, \(x) sd(x, na.rm = TRUE)),

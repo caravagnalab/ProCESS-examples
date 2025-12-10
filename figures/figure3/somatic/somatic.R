@@ -18,7 +18,7 @@ df_all_SPN_somatic = lapply(1:nrow(params_grid), function(i) {
   purity = params_grid[i,]$pur
   spn = params_grid[i,]$spn
 
-  file =  paste0('/orfeo/scratch/cdslab/shared/SCOUT/VALIDATION/', spn ,'/somatic/', coverage,'x_',purity,'p/report/',mut_type,'/metrics.rds')
+  file =  paste0('/orfeo/scratch/cdslab/shared/SCOUT/VALIDATION/', spn ,'/somatic/', coverage,'x_',purity,'p/report/',mut_type,'/metrics_new_binning.rds')
 
   if (file.exists(file)) {
     metrics = readRDS(file)
@@ -40,6 +40,10 @@ df_all_SPN_somatic = lapply(1:nrow(params_grid), function(i) {
     dplyr::bind_cols(parsed_metrics, params_grid[i,])
   }
 }) %>% do.call("bind_rows", .)
+
+df_all_SPN_somatic <- df_all_SPN_somatic %>% 
+  mutate(CCF_bin=case_when(CCF_bin=="Clonal"~"95-100%",
+                           TRUE ~ CCF_bin))
 #saveRDS(object = df, file = '/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/somatic/somatic.rds')
 # 
 # df <- readRDS(
@@ -62,18 +66,19 @@ df_all_SPN_somatic = lapply(1:nrow(params_grid), function(i) {
 #   theme_minimal()+
 #   theme(axis.text.x = element_text(angle = 30, vjust = 1, hjust=1))+xlab("CCF bin")
 coverage_line_boxes <- df_all_SPN_somatic %>% 
-  dplyr::group_by(sample_id, pur, spn, cov, muts) %>% 
-  dplyr::select(sensitivity, cov, CCF_bin) %>% 
-  dplyr::mutate(normalized_sens = sensitivity / max(sensitivity)) %>% 
+  # dplyr::group_by(sample_id, pur, spn, cov, muts) %>% 
+  # dplyr::select(sensitivity, cov, CCF_bin) %>% 
+  # dplyr::mutate(normalized_sens = sensitivity / max(sensitivity)) %>% 
+  dplyr::mutate(normalized_sens = sensitivity) %>% 
   ggplot(mapping = aes(x = as.factor(CCF_bin), y = normalized_sens, col = as.factor(cov), fill = as.factor(cov))) +
   stat_summary(fun = "median", fun.min=function(x) boxplot.stats(x)$stats[2],fun.max=function(x) boxplot.stats(x)$stats[4],aes(colour = as.factor(cov)), 
-               linewidth = 1, size=0.5,position = position_dodge(width = 0.8))+ 
-  geom_smooth(aes(group = cov), method = "loess", se = FALSE,linewidth = 0.5,alpha = 1) +  # trend line
+               linewidth = 1, size=0.5,position = position_dodge(width = 0.5))+ 
+  # geom_smooth(aes(group = cov), method = "loess", se = FALSE,linewidth = 0.5,alpha = 1) +  # trend line
   scale_color_manual('Coverage', values = coverage_colors) + 
   scale_fill_manual('Coverage', values = coverage_colors) + 
   ylab('') +
   xlab('CCF_bin') +
-  geom_vline(xintercept = "10-25%",
+  geom_hline(yintercept = 0.5,
              linetype = "dashed", color = "grey40")+
   facet_wrap(~muts) +
   my_ggplot_theme()+
@@ -98,17 +103,18 @@ coverage_line_boxes <- df_all_SPN_somatic %>%
 #   facet_wrap(~muts) +
 #   theme(axis.text.x = element_text(angle = 30, vjust = 1, hjust=1),axis.title.x = element_blank())
 purity_line_boxes <- df_all_SPN_somatic %>% 
-  dplyr::group_by(sample_id, pur, spn, cov, muts) %>% 
-  dplyr::select(sensitivity, pur, CCF_bin) %>% 
-  dplyr::mutate(normalized_sens = sensitivity / max(sensitivity)) %>% 
+  # dplyr::group_by(sample_id, pur, spn, cov, muts) %>% 
+  # dplyr::select(sensitivity, pur, CCF_bin) %>% 
+  # dplyr::mutate(normalized_sens = sensitivity / max(sensitivity)) %>% 
+  dplyr::mutate(normalized_sens = sensitivity) %>% 
   ggplot(mapping = aes(x = as.factor(CCF_bin), y = normalized_sens, col = as.factor(pur), fill = as.factor(pur))) +
   stat_summary(fun = "median", fun.min=function(x) boxplot.stats(x)$stats[2],fun.max=function(x) boxplot.stats(x)$stats[4],aes(colour =  as.factor(pur)), 
-               linewidth = 1, size=0.5,position = position_dodge(width = 0.8))+
-  geom_smooth(aes(group = pur), method = "loess", se = FALSE,linewidth = 0.5,alpha = 1) +  # trend line
+               linewidth = 1, size=0.5,position = position_dodge(width = 0.5))+
+  # geom_smooth(aes(group = pur), method = "loess", se = FALSE,linewidth = 0.5,alpha = 1) +  # trend line
   scale_color_manual('Purity', values = purity_colors) + 
   scale_fill_manual('Purity', values = purity_colors) + 
-  ylab('Normalized sensitivity') + 
-  geom_vline(xintercept = "10-25%",
+  ylab('Sensitivity') + 
+  geom_hline(yintercept = 0.5,
              linetype = "dashed", color = "grey40")+
   # xlab('CCF_bin') + 
   facet_wrap(~muts) +
@@ -135,18 +141,18 @@ purity_line_boxes <- df_all_SPN_somatic %>%
 #   theme_minimal()+
 #   theme(axis.text.x = element_text(angle = 30, vjust = 1),axis.title.x = element_blank())
 caller_line_boxes <- df_all_SPN_somatic %>% 
-  dplyr::group_by(sample_id, pur, spn, cov, muts) %>% 
-  dplyr::select(sensitivity, caller, CCF_bin) %>% 
-  dplyr::mutate(normalized_sens = sensitivity / max(sensitivity)) %>% 
+  # dplyr::group_by(sample_id, pur, spn, cov, muts) %>% 
+  # dplyr::select(sensitivity, caller, CCF_bin) %>% 
+  dplyr::mutate(normalized_sens = sensitivity) %>% 
   ggplot(mapping = aes(x = as.factor(CCF_bin), y = normalized_sens, col = as.factor(caller), fill = as.factor(caller))) +
   stat_summary(fun = "median", fun.min=function(x) boxplot.stats(x)$stats[2],fun.max=function(x) boxplot.stats(x)$stats[4],aes(colour = caller), 
-               linewidth = 1, size=0.5,position = position_dodge(width = 0.8))+
-  geom_smooth(aes(group = caller), method = "loess", se = FALSE,linewidth = 0.5,alpha = 1) +  # trend line
+               linewidth = 1, size=0.5,position = position_dodge(width = 0.5))+
+  # geom_smooth(aes(group = caller), method = "loess", se = FALSE,linewidth = 0.5,alpha = 1) +  # trend line
   scale_color_manual('Somatic caller', values = col_somatic_tools) + 
   scale_fill_manual('Somatic caller', values = col_somatic_tools) + 
   ylab('') +
-  geom_vline(xintercept = "10-25%",
-             linetype = "dashed", color = "grey40",)+
+  geom_hline(yintercept = 0.5,
+             linetype = "dashed", color = "grey40")+
   facet_wrap(~muts) +
   my_ggplot_theme()+
   theme(axis.text.x =element_blank(),axis.ticks.x =element_blank(), 
@@ -158,7 +164,7 @@ caller_line_boxes <- df_all_SPN_somatic %>%
 somatic_panel <- caller_line_boxes + purity_line_boxes + coverage_line_boxes + plot_layout(nrow = 3,heights = 1) &
   theme(plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")) 
 
-ggsave(plot = somatic_panel, filename = 'somatic.pdf',width = 8, height = 10, units = 'in')
+ggsave(plot = somatic_panel, filename = '/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/somatic/somatic.pdf',width = 8, height = 10, units = 'in')
 #ggsave(plot = line, filename = '/orfeo/cephfs/scratch/area/lvaleriani/tesi/sarek/all_sarek.pdf',width = 6, height = 8, units = 'in')
 
 
