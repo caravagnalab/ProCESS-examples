@@ -1,4 +1,3 @@
-rm(list=ls())
 library(ProCESS)
 library(ggplot2)
 library(ggpubr)
@@ -146,13 +145,14 @@ interesting_genes_tbl <- df_all_combs_SPN_driver %>%
 
 
 driver_cna_vaf <- df_all_combs_SPN_driver %>% 
+  mutate(fga_class = ifelse(is.na(fga_class), "High FGA", fga_class)) %>% 
   ggplot(aes(x=delta_vaf,y = delta_cn))+
-  geom_density2d(aes(color=purity.process),alpha=0.5)+
+  #geom_density2d(aes(color=purity.process),alpha=0.5)+
   scale_color_manual(values = purity_colors,name="Purity")+
   ggnewscale::new_scale_color()+
   geom_point(aes(color=fga_class,shape=WGD))+
   scale_color_manual(name = "FGA class", values = c("High FGA"="indianred3","Low FGA"="dodgerblue3"),na.value = "indianred3") +
-  scale_shape_manual(values = c("not WGD"=16,"WGD"=1))+
+  scale_shape_manual(values = c("not WGD"=16,"WGD"=1)) +
   scale_x_continuous(breaks = scales::pretty_breaks(n=3),limits = c(-0.05,0.05))+
   ggnewscale::new_scale_color()+
   # geom_label_repel(
