@@ -13,18 +13,47 @@ library(ggrepel)
 # cna_caller_list = c("ascat", "sequenza", "battenberg")
 # spn_list = paste("SPN", 3:7, sep="0")
 
-spn = 'SPN02'
-if(spn=='SPN02'){
-  coverage=50
-}else{
-  coverage=100
-}
-
-purity=0.9
+spn = 'SPN07'
+purity=0.6
 vcf_caller = "mutect2"
 cna_caller = "ascat"
-simulation_id = paste0(coverage, "x_", purity, "p_", vcf_caller, "_", cna_caller)
+coverage = 150
 
+
+spns = c('SPN01', 'SPN02', 'SPN03', 'SPN04', 'SPN06', 'SPN07')
+spns = c('SPN03', 'SPN04')
+
+coverage_list = c(100)
+coverage_list = c(50,150)
+purity_list = c(0.3, 0.6, 0.9)
+vcf_caller_list = c("mutect2")
+cna_caller_list = c("ascat")
+spn_list = c('SPN01', 'SPN02', 'SPN03', 'SPN04', 'SPN06', 'SPN07')
+tool = 'viber'
+
+combs = expand.grid(coverage=coverage_list,
+                    purity=purity_list,
+                    vcf_caller=vcf_caller_list,
+                    cna_caller=cna_caller_list,
+                    spn=spn_list)
+
+# for(spn in spns){
+for(i in 1:nrow(combs)){
+  
+  # if(spn=='SPN02'){
+  #   coverage=100
+  # }else{
+  #   coverage=100
+  # }
+  coverage = combs[i, "coverage"]
+  purity = combs[i, "purity"]
+  vcf_caller = combs[i, "vcf_caller"]
+  cna_caller = combs[i, "cna_caller"]
+  spn = combs[i, "spn"]
+  
+  simulation_id = paste0(coverage, "x_", purity, "p_", vcf_caller, "_", cna_caller)
+  
+simulation_id = paste0(coverage, "x_", purity, "p_", vcf_caller, "_", cna_caller)
 github_path = '/orfeo/cephfs/scratch/cdslab/erivar00/GitHub/ProCESS-examples/'
 main_path = "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/"
 save_path = file.path(github_path, "validation/Subclonal_deconvolution/")
@@ -33,9 +62,11 @@ source(file.path(save_path, "utils_plots_final.R"))
 source(file.path(save_path, "generate_table_main.R"))
 
 # drivers_table = readRDS(file.path(main_path,"/drivers/all_drivers.rds"))
-drivers_table = readRDS(file.path(main_path,"drivers", spn, "process_drivers.rds"))
 
-drivers_table = drivers_table %>% filter(SPN==spn)  %>%
+# True process drivers
+true_drivers_table = readRDS(file.path(main_path,"drivers", spn, "process_drivers.rds"))
+
+true_drivers_table = true_drivers_table %>% filter(SPN==spn)  %>%
   mutate(mutation_id=paste0(spn, ":", chr, ":", start,  ":", alt)) %>% 
   select(mutation_id, code)
 
@@ -44,7 +75,8 @@ mut_process = get_mutations(spn=spn, type="tumour", coverage=coverage, purity=pu
 table_process = readRDS(get_table_path(save_path, 'process', spn, simulation_id)) # process table in folder tables/
 
 # Join process table with drivers
-table_process = table_process %>% left_join(drivers_table, by = 'mutation_id') %>% 
+  # now in process_table we have a column "code" with the drivers gene names
+table_process = table_process %>% left_join(true_drivers_table, by = 'mutation_id') %>% 
   select(-driver_label_process) %>% 
   mutate(driver_label_process=code)
 
@@ -78,7 +110,7 @@ nmi_complete = randnet::NMI(as.factor(join_table_process$cluster_id_tool),
 ari_complete = aricode::ARI(as.factor(join_table_process$cluster_id_tool), 
             as.factor(join_table_process$cluster_id_process))
 
-### Find cluster/driver in tool
+### Find cluster/driver in tool and add column cluster_id_tool_interpreted
 driver_clusters_tool = join_table_tool %>%
   distinct(cluster_id_tool, is_driver_tool) %>% 
   filter(is_driver_tool == TRUE) %>% 
@@ -87,6 +119,19 @@ driver_clusters_tool = join_table_tool %>%
 final_table = join_table_tool %>%
   mutate(cluster_id_tool_interpreted = if_else(
     !(cluster_id_tool %in% driver_clusters_tool),
+    'Subclonal',
+    as.character(cluster_id_tool)
+  ))
+
+### Find cluster/driver in process and add column cluster_id_tool_interpreted_driver
+driver_clusters_process = join_table_tool %>%
+  distinct(cluster_id_tool, is_driver_process) %>% 
+  filter(is_driver_process == TRUE) %>% 
+  pull(cluster_id_tool)
+
+final_table = final_table %>%
+  mutate(cluster_id_tool_interpreted_driver = if_else(
+    !(cluster_id_tool %in% driver_clusters_process),
     'Subclonal',
     as.character(cluster_id_tool)
   ))
@@ -123,7 +168,13 @@ final_table_interpreted = join_table_process %>%
     !(cluster_id_tool %in% driver_clusters_tool),
     'Subclonal',
     as.character(cluster_id_tool)
+  )) %>%
+  mutate(cluster_id_tool_interpreted_driver = if_else(
+    !(cluster_id_tool %in% driver_clusters_process),
+    'Subclonal',
+    as.character(cluster_id_tool)
   ))
+
 nmi_interpreted = randnet::NMI(as.factor(final_table_interpreted$cluster_id_tool_interpreted),
                              as.factor(final_table_interpreted$cluster_id_process))
 
@@ -134,15 +185,17 @@ ari_interpreted = aricode::ARI(as.factor(final_table_interpreted$cluster_id_tool
 # patient_id, sample_id, coverage, purity, tool, mutation_id, driver_label_tool,
 # is_driver_tool, cluster_id_tool, vaf_tool, is_driver_process, cluster_id_process,
 # vaf_process, driver_label_process, cluster_id_tool_interpreted
-table_to_save = final_table_interpreted %>% select(patient_id, sample_id,coverage, purity, 
-                                                   tool, mutation_id, driver_label_tool,
-                                                   is_driver_tool, cluster_id_tool, vaf_tool, 
-                                                   is_driver_process, cluster_id_process,
-                                                   vaf_process, driver_label_process, 
-                                                   cluster_id_tool_interpreted)
+# table_to_save = final_table_interpreted %>% select(patient_id, sample_id,coverage, purity, 
+#                                                    tool, mutation_id, driver_label_tool,
+#                                                    is_driver_tool, cluster_id_tool, vaf_tool, 
+#                                                    is_driver_process, cluster_id_process,
+#                                                    vaf_process, driver_label_process, 
+#                                                    cluster_id_tool_interpreted)
 
+table_to_save = final_table_interpreted 
 saveRDS(table_to_save, file.path(main_path, "subclonal/tables_interpreted", paste0(tool, "_", spn, "_", simulation_id, ".rds")))
-saveRDS(table_to_save, file.path(save_path, "subclonal/tables_interpreted", paste0(tool, "_", spn, "_", simulation_id, ".rds")))
+saveRDS(table_to_save, file.path(save_path, "tables_interpreted", paste0(tool, "_", spn, "_", simulation_id, ".rds")))
+# }
 
 if(spn=='SPN03'){
   width=40
@@ -183,6 +236,8 @@ ggsave(get_plots_path(save_path, tool, spn, simulation_id, plot_name=plot_name),
 
 ggsave(get_plots_path_shared(main_path, tool, spn, simulation_id, plot_name=plot_name), plot = patch_t,
        device="png", width=width, height=height, units="cm")
+
+}
 
 ### Write NMI values ####
 

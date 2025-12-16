@@ -38,8 +38,8 @@ final_table = obj$data %>%
          is_tail_tool=cluster_id_tool=="Tail",
          n_clones_tool = n_distinct(cluster_id_tool)) %>% 
   
-  # group_by(cluster_id_tool, sample_id) %>%
-  group_by(cluster_id_tool) %>%
+  group_by(cluster_id_tool, sample_id) %>%
+  # group_by(cluster_id_tool) %>%
   mutate(ccf_tool=mean(ccf_tool, na.rm=TRUE)) %>%
   ungroup() %>% 
   

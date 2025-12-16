@@ -33,9 +33,9 @@ final_table = input %>%
   
   mutate(vaf_tool=alt_counts / (ref_counts + alt_counts)) %>% 
   
-  select(patient_id, sample_id, mutation_id, driver_label, is_driver, cluster_id, cellular_prevalence, vaf_tool) %>%
+  select(patient_id, sample_id, mutation_id, driver_label, is_driver, cluster_id, cellular_prevalence, vaf_tool, minor_cn, major_cn) %>%
   
-  rename(ccf_tool=cellular_prevalence, cluster_id_tool=cluster_id, 
+  dplyr::rename(ccf_tool=cellular_prevalence, cluster_id_tool=cluster_id, 
          is_driver_tool=is_driver, driver_label_tool=driver_label) %>%
   mutate(is_driver_tool=ifelse(is_driver_tool=="False", FALSE, TRUE),
          driver_label_tool=replace(driver_label_tool, !is_driver_tool, NA)) %>% 

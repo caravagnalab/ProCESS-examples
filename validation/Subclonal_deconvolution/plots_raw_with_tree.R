@@ -12,7 +12,7 @@ library(scales)
 # cna_caller_list = c("ascat", "sequenza", "battenberg")
 # spn_list = paste("SPN", 3:7, sep="0")
 
-spn = 'SPN07'
+spn = 'SPN06'
 if(spn=='SPN02'){
   coverage=50
 }else{

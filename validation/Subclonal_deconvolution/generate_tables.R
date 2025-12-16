@@ -11,8 +11,8 @@ print(i)
 # github_path = "~/GitHub/ProCESS-examples/"
 github_path = '/orfeo/cephfs/scratch/cdslab/erivar00/GitHub/ProCESS-examples/'
 main_path = "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/"
-# save_path = file.path(github_path, "validation/Subclonal_deconvolution/")
-save_path = file.path(main_path, "subclonal/")
+save_path = file.path(github_path, "validation/Subclonal_deconvolution/")
+# save_path_shared = file.path(main_path, "subclonal/")
 
 setwd(main_path)
 source(file.path(save_path, "utils_plots.R"))
@@ -23,12 +23,11 @@ source(file.path(save_path, "utils_plots.R"))
 # cna_caller_list = c("ascat", "sequenza", "battenberg")
 # spn_list = paste("SPN", 3:7, sep="0")
 
-coverage_list = c(100)
-# coverage_list = c(50)
-purity_list = c(0.9)
+coverage_list = c(50,100, 150)
+purity_list = c(0.3, 0.6, 0.9)
 vcf_caller_list = c("mutect2")
 cna_caller_list = c("ascat")
-spn_list = paste("SPN", 3, sep="0")
+spn_list = paste("SPN", 1:7, sep="0")
 
 combs = expand.grid(coverage=coverage_list,
                     purity=purity_list,
@@ -36,7 +35,8 @@ combs = expand.grid(coverage=coverage_list,
                     cna_caller=cna_caller_list,
                     spn=spn_list)
 
-if (!is.na(i)) {
+# if (!is.na(i)) {
+for(i in 1:nrow(combs)){
   # missing_files = readRDS(file.path(save_path, "missing_files.rds"))
   # if (!i %in% missing_files$i) cli::cli_abort("File already present")
   
@@ -53,13 +53,15 @@ if (!is.na(i)) {
                       simulation_id=simulation_id),
                  parent=globalenv())
   
-  table_pyclonevi = get_table(save_path, "pyclonevi", env)
-  table_mobster = get_table(save_path, "mobster", env)
-  table_viber = get_table(save_path, "viber", env)
-  table_viber_h = get_table(save_path, "viber_heuristics", env)
-  table_process_viber = get_table(save_path, "process_viber", env)
-  table_process = get_table(save_path, "process", env)
+  # table_pyclonevi = get_table(save_path, "pyclonevi", env)
   
+  table_mobster = get_table(save_path, "mobster", env)
+  # 
+  # table_viber = get_table(save_path, "viber", env)
+  # 
+  # table_viber_h = get_table(save_path, "viber_heuristics", env)
+  # 
+  # table_process = get_table(save_path, "process", env)
 }
 
 

@@ -37,8 +37,8 @@ final_table = obj$data %>%
          is_tail_tool=cluster_id_tool=="Tail",
          n_clones_tool = n_distinct(cluster_id_tool)) %>% 
   
-  # group_by(cluster_id_tool, sample_id) %>%
-  group_by(cluster_id_tool) %>%
+  group_by(cluster_id_tool, sample_id) %>%
+  # group_by(cluster_id_tool) %>%
   mutate(ccf_tool=mean(ccf_tool, na.rm=TRUE)) %>%
   ungroup() %>% 
   
@@ -47,8 +47,6 @@ final_table = obj$data %>%
 final_table = final_table %>% 
   mutate(is_clonal_tool=ifelse(cluster_id_tool==get_clonal_cluster_tool(final_table), TRUE, FALSE),
          is_subclonal_tool=!is_tail_tool & !is_clonal_tool)
-
-
 
 cli::cli_text("Saving {tool} table for {spn} and simulation {simulation_id} in {out_path}")
 

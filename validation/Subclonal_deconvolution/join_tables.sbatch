@@ -1,5 +1,6 @@
 #!/bin/bash
 #SBATCH --time=05:00:00
+#SBATCH -A cdslab
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=8
 #SBATCH --job-name=subclonal
@@ -8,6 +9,6 @@
 #SBATCH --output=./logs/log-%A
 
 module load R/4.4.1
-
-Rscript /orfeo/cephfs/scratch/cdslab/ebusca00/GitHub/ProCESS-examples/validation/Subclonal_deconvolution/generate_tables.R TRUE
+export R_LIBS_USER=/u/cdslab/erivar00/new_r_env
+Rscript /orfeo/cephfs/scratch/cdslab/erivar00/GitHub/ProCESS-examples/validation/Subclonal_deconvolution/generate_tables.R TRUE
 
