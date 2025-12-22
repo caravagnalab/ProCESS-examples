@@ -157,7 +157,7 @@ caller_line_boxes <- df_all_SPN_somatic %>%
     position = position_dodge(width = 0.5)
   ) +
   geom_line(
-    data = med_df,
+    data = median_df_tools,
     aes(
       x = CCF_bin,
       y = sensitivity,
