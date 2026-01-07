@@ -13,7 +13,7 @@ option_list <- list(make_option(c("--spn_id"), type = "character", default = 'SP
                     make_option(c("--coverage"), type = "integer", default = 100),
                     make_option(c("--cna_caller"), type = "character", default = 'ascat'),
                     make_option(c("--vcf_caller"), type = "character", default = 'mutect2'),
-                    make_option(c("--signature"), type = "character", default = 'SigProfiler'),
+                    make_option(c("--signature"), type = "character", default = 'BASCULE'),
                     make_option(c("--new"), type = "logical", default = FALSE)
 )
 
@@ -205,30 +205,30 @@ for (tool in c('viber', 'pyclonevi')){
                    make_plots=TRUE)
         
       } else if (signature_tool == 'BASCULE'){
-        out_data_raw = paste0(out, spn, '/', cov, 'x_', pur, 'p_', mut_caller, '_', cna_caller, '/', tool, '_', 'SigProfiler', '_raw/')
-        out_data_int = paste0(out, spn, '/', cov, 'x_', pur, 'p_', mut_caller, '_', cna_caller, '/', tool, '_', 'SigProfiler', '_int/')
+        out_data_raw_new = paste0(out, spn, '/', cov, 'x_', pur, 'p_', mut_caller, '_', cna_caller, '/', tool, '_', 'SigProfiler', '_raw/')
+        out_data_int_new = paste0(out, spn, '/', cov, 'x_', pur, 'p_', mut_caller, '_', cna_caller, '/', tool, '_', 'SigProfiler', '_int/')
         
         if (context == 'SBS96'){
-          data_id_raw = paste0(out_data_raw, '/output/SBS/', spn, '.SBS96.all')
-          data_id_int = paste0(out_data_int, '/output/SBS/', spn, '.SBS96.all')
+          data_id_raw = paste0(out_data_raw_new, '/output/SBS/', spn, '.SBS96.all')
+          data_id_int = paste0(out_data_int_new, '/output/SBS/', spn, '.SBS96.all')
           
           c_type = "96"
         }  else if (context == 'ID83'){
-          data_id_raw = paste0(out_data_raw, '/output/ID/', spn, '.ID83.all')
-          data_id_int = paste0(out_data_raw, '/output/ID/', spn, '.ID83.all')
+          data_id_raw = paste0(out_data_raw_new, '/output/ID/', spn, '.ID83.all')
+          data_id_int = paste0(out_data_int_new, '/output/ID/', spn, '.ID83.all')
           
           c_type = "83"
         }
         
         if (file.exists(data_id_raw) & file.exists(data_id_int)){
           
-          for(type in c('raw', 'int')){
+          for (type in c('raw', 'int')){
             if ( type == 'raw'){
               data_id = data_id_raw
-              out = out_raw
+              out_new = out_raw
             } else {
               data_id = data_id_int
-              out = out_int
+              out_new = out_int
             }
           
             sig_matrix <- read.table(data_id, header = T)
@@ -273,10 +273,10 @@ for (tool in c('viber', 'pyclonevi')){
               store_fits = TRUE,
               seed_list = 10
             )
-            saveRDS(object = x, file = paste0(out,"/bascule_fit_", type, ".rds"))
+            saveRDS(object = x, file = paste0(out_new,"/bascule_fit_", type, ".rds"))
   
             exp = plot_exposures(x=x, sample_name = T)
-            ggplot2::ggsave(filename = paste0(out,"/bascule_exposure_", type, ".pdf"),plot=exp, width = 8, height = 8, units = 'in', dpi = 300)
+            ggplot2::ggsave(filename = paste0(out_new,"/bascule_exposure_", type, ".pdf"),plot=exp, width = 8, height = 8, units = 'in', dpi = 300)
           }
         }
       }
