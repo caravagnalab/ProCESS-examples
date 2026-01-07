@@ -141,7 +141,8 @@ plt_breakpoint <- df_all_combs_SPN_cna %>%
     x = "Mean recall",
     y = "Mean precision"
   )+
-  facet_wrap(~tool)
+  facet_wrap(~tool) +
+  theme(legend.position = 'bottom')
 
 plt_breakpoint
 
@@ -199,7 +200,10 @@ scatter_purity_ploidy <- df_all_combs_SPN_cna_all_metrics %>%
   my_ggplot_theme() +
   scale_y_continuous(breaks = c(0,0.7,1.5,2))+
   xlab("Absoulte delta purity") +
-  ylab("Absoulte delta ploidy")
+  ylab("Absoulte delta ploidy") +
+  theme(legend.position = 'bottom',
+        legend.box = "vertical",
+        legend.spacing.y = unit(0.00001, "cm"))
 scatter_purity_ploidy
 
 ##### Alluvial plot
@@ -225,17 +229,17 @@ alluvial_plot <- ggplot(df, aes(x = tool, stratum = class, alluvium = id,fill=cl
     )
   ) +
   my_ggplot_theme() +
-  theme(panel.border = element_blank())+
+  theme(panel.border = element_blank(), legend.position = 'bottom')+
   xlab("")+ 
-  scale_x_discrete(expand = c(0.1, 0.1))
+  scale_x_discrete(expand = c(0.1, 0.1)) 
 alluvial_plot
 
 
 plt_breakpoint/scatter_purity_ploidy/alluvial_plot
-ggsave(plot = scatter_purity_ploidy, filename = '/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/cna/scatter_ploidy_purity.pdf',
-       width = 6, height = 3, units = 'cm')
-ggsave(plot = alluvial_plot, filename = '/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/cna/alluvial_plot.pdf',
-       width = 15, height = 5, units = 'cm')
+# ggsave(plot = scatter_purity_ploidy, filename = '/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/cna/scatter_ploidy_purity.pdf',
+#        width = 6, height = 3, units = 'cm')
+# ggsave(plot = alluvial_plot, filename = '/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/cna/alluvial_plot.pdf',
+#        width = 15, height = 5, units = 'cm')
 
 ############# OLD STAFF ################
 # df <- df_all_combs_SPN_cna %>% 
