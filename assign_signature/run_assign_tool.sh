@@ -44,5 +44,5 @@ echo $spn
 echo $purity
 echo $coverage
 
-Rscript ${path}/assign_signature/assign_tool.R --spn_id "${spn}" --coverage "$coverage" --purity "$purity" --signature "SigProfiler"
+#Rscript ${path}/assign_signature/assign_tool.R --spn_id "${spn}" --coverage "$coverage" --purity "$purity" --signature "SigProfiler"
 Rscript ${path}/assign_signature/assign_tool.R --spn_id "${spn}" --coverage "$coverage" --purity "$purity" --signature "BASCULE"

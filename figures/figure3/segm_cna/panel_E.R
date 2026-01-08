@@ -58,14 +58,21 @@ df_all_combs_SPN <- df_all_combs_SPN %>% mutate(tool = case_when(
 ))
 
 cna_corr <- df_all_combs_SPN %>%
+  #filter(coverage == 50, true_purity == '0.9') %>% 
   ggplot(aes(x = tool, y = correctness_clonal*100, col = tool)) +
-  geom_violin(size = .3, 
-              show.legend = F) + 
-  geom_boxplot(size = .3, 
-               width = 0.1, outlier.size = .6) +
-  scale_color_manual('CN caller',values = c('deepskyblue4', 'maroon', 'sienna')) +
+  #geom_violin(size = .5, 
+  #            show.legend = F) + 
+  geom_boxplot(size = .5, 
+               width = 0.2, outlier.size = .6) +
+  geom_jitter(size = .5, width = .1, alpha = .5) +
+  scale_color_manual('CN caller',values = c('ASCAT' = 'mediumpurple3', 'Sequenza' = 'darkorange2', 'Battenberg' = 'steelblue3', 'ProCESS' = 'gray')) +
   theme_minimal() +
   xlab('Tool') + 
-  ylim(70, 100) +
+  ylim(75, 100) +
   ylab('% correct CN') + 
   my_ggplot_theme()
+cna_corr
+
+ggsave(plot = cna_corr,
+       filename = '/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/figure3/segm_cna/plot_cn/v7.pdf',
+       width = 4, height = 4)
