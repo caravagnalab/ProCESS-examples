@@ -16,7 +16,7 @@ library(tidyr)
 source("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/getters/process_getters.R")
 # source("compute_FGA.R")
 scout_dir <-"/orfeo/cephfs/scratch/cdslab/shared/SCOUT/"
-SPNS <- c("SPN01","SPN02","SPN03","SPN04", "SPN06", 'SPN07')
+SPNS <- c("SPN01","SPN02","SPN03","SPN04", "SPN05","SPN06", 'SPN07')
 COVERAGES <- c("50","100", "150")
 PURITIES <- c("0.3","0.6","0.9")
 
