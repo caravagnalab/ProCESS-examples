@@ -3,11 +3,11 @@
 #SBATCH -A cdslab
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=4
-#SBATCH --array=1-63
+#SBATCH --array=1
 #SBATCH --job-name=subclonal
-#SBATCH --mem=200GB
-#SBATCH --partition EPYC
-#SBATCH --output=./logs/log-%A-%a
+#SBATCH --mem=150GB
+#SBATCH --partition THIN
+#SBATCH --output=./logs/aa_log-%A-%a
 
 module load R/4.4.1
 export R_LIBS_USER=/u/cdslab/erivar00/new_r_env

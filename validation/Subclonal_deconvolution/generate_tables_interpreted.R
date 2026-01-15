@@ -7,19 +7,20 @@ library(randnet)
 library(scales)
 library(ggrepel)
 
-spn = 'SPN07'
+spn = 'SPN02'
 purity=0.9
 vcf_caller = "mutect2"
 cna_caller = "ascat"
-coverage = 150
+coverage = 100
 
 coverage_list = c(50,100,150)
 purity_list = c(0.3, 0.6, 0.9)
 vcf_caller_list = c("mutect2")#, "strelka", "freebayes")
 cna_caller_list = c("ascat")#, "sequenza", "battenberg")
 spn_list = c('SPN01', 'SPN02', 'SPN03', 'SPN04', 'SPN06', 'SPN07')
-spn_list = c('SPN02')
+spn_list = c('SPN05')
 tool = 'mobster'
+univariate = F
 
 combs = expand.grid(coverage=coverage_list,
                     purity=purity_list,
@@ -59,8 +60,11 @@ for(i in 1:nrow(combs)){
   
   # Get process table
   mut_process = get_mutations(spn=spn, type="tumour", coverage=coverage, purity=purity)
-  table_process = readRDS(get_table_path(save_path, 'process', spn, simulation_id)) # process table in folder tables/
-
+  if(univariate==F){
+    table_process = readRDS(get_table_path(save_path, 'process', spn, simulation_id)) # process table in folder tables/
+  }else{
+    table_process = readRDS(get_table_path(save_path, 'process_univariate', spn, simulation_id)) # process table in folder tables/
+  }
   # Join process table with drivers
     # now in process_table we have a column "code" with the drivers gene names
   table_process = table_process %>% left_join(true_drivers_table, by = 'mutation_id') %>% 
@@ -148,9 +152,14 @@ for(i in 1:nrow(combs)){
   #                                                    cluster_id_tool_interpreted)
   
   table_to_save = final_table_interpreted 
-  saveRDS(table_to_save, file.path(main_path, "subclonal/tables_interpreted", paste0(tool, "_", spn, "_", simulation_id, ".rds")))
-  saveRDS(table_to_save, file.path(save_path, "tables_interpreted", paste0(tool, "_", spn, "_", simulation_id, ".rds")))
-
+  if(univariate == F){
+    saveRDS(table_to_save, file.path(main_path, "subclonal/tables_interpreted", paste0(tool, "_", spn, "_", simulation_id, ".rds")))
+    saveRDS(table_to_save, file.path(save_path, "tables_interpreted", paste0(tool, "_", spn, "_", simulation_id, ".rds")))
+  }else{
+    saveRDS(table_to_save, file.path(main_path, "subclonal/tables_interpreted", paste0(tool, "_univariate_", spn, "_", simulation_id, ".rds")))
+    saveRDS(table_to_save, file.path(save_path, "tables_interpreted", paste0(tool, "_univariate_", spn, "_", simulation_id, ".rds")))
+    
+  }
 }
 
 

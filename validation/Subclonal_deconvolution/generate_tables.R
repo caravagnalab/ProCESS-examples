@@ -17,13 +17,13 @@ save_path = file.path(github_path, "validation/Subclonal_deconvolution/")
 setwd(main_path)
 source(file.path(save_path, "utils_plots.R"))
 
-# coverage_list = c(50, 100, 150, 200)
+# coverage_list = c(50,100, 150)
 # purity_list = c(0.3, 0.6, 0.9)
-# vcf_caller_list = c("mutect2", "strelka", "freebayes")
-# cna_caller_list = c("ascat", "sequenza", "battenberg")
-# spn_list = paste("SPN", 3:7, sep="0")
+# vcf_caller_list = c("mutect2")
+# cna_caller_list = c("ascat")
+# spn_list = paste("SPN", 1:7, sep="0")
 
-coverage_list = c(50,100, 150)
+coverage_list = c(50,100,150)
 purity_list = c(0.3, 0.6, 0.9)
 vcf_caller_list = c("mutect2")
 cna_caller_list = c("ascat")
@@ -35,8 +35,8 @@ combs = expand.grid(coverage=coverage_list,
                     cna_caller=cna_caller_list,
                     spn=spn_list)
 
-# if (!is.na(i)) {
-for(i in 1:nrow(combs)){
+if (!is.na(i)) {
+# for(i in 1:nrow(combs)){
   # missing_files = readRDS(file.path(save_path, "missing_files.rds"))
   # if (!i %in% missing_files$i) cli::cli_abort("File already present")
   
@@ -54,14 +54,15 @@ for(i in 1:nrow(combs)){
                  parent=globalenv())
   
   # table_pyclonevi = get_table(save_path, "pyclonevi", env)
-  
-  table_mobster = get_table(save_path, "mobster", env)
   # 
+  # table_mobster = get_table(save_path, "mobster", env)
+  # #
   # table_viber = get_table(save_path, "viber", env)
   # 
   # table_viber_h = get_table(save_path, "viber_heuristics", env)
   # 
-  # table_process = get_table(save_path, "process", env)
+  table_process = get_table(save_path, "process_new", env)
+  # table_process = get_table(save_path, "process_univariate", env)
 }
 
 
