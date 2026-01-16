@@ -38,7 +38,7 @@ plot_scatter_process_single = function(table_wide, s1,s2, color_palette, driver)
       ) +
       ggrepel::geom_label_repel(
         data = subset(table_wide, is_driver_process == TRUE),
-        aes(x = .data[[s1]], y = .data[[s2]], label =.data$gene, color = .data$cluster_id_process),
+        aes(x = .data[[s1]], y = .data[[s2]], label =.data$code, color = .data$cluster_id_process),
         #color = 'black',
         size = 3,
         nudge_y = 0,
