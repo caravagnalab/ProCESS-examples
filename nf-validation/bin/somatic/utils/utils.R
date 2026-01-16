@@ -625,7 +625,8 @@ analyze_ccf_performance <- function(seq_res_long, caller_res, only_pass,
                                     min_vaf_caller = 0.0,
                                     min_ccf_threshold = 0.02) {
   
-  ccf_bins = c(-Inf, 0, 0.01, 0.02, 0.03, 0.05, 0.1, 0.25, 0.5, .99, 1.0)
+  # ccf_bins = c(-Inf, 0, 0.01, 0.02, 0.03, 0.05, 0.1, 0.25, 0.5, .99, 1.0)
+  ccf_bins = c(-Inf, 0, 0.05, 0.1, 0.25, 0.5, 0.75,0.95, 1.0)
   ccf_bins = ccf_bins[ccf_bins < 1.0]
   ccf_bins = c(ccf_bins, 1.0) %>% sort()
   
@@ -853,8 +854,8 @@ get_multi_caller_report <- function(seq_res_long, caller_res_list, sample_info, 
   
   # Upset plot 
   # CCF binning
-  ccf_bins <- c(-Inf, 0, .01, .02, .03, 0.05, 0.1, 0.2, 0.3, 0.5, 0.99, 1.0)
-  
+  # ccf_bins <- c(-Inf, 0, .01, .02, .03, 0.05, 0.1, 0.2, 0.3, 0.5, 0.99, 1.0)
+  ccf_bins = c(-Inf, 0, 0.05, 0.1, 0.25, 0.5, 0.75,0.95, 1.0)
   ccf_labels <- sapply(2:(length(ccf_bins) - 2), function(i) {
     paste0(paste0(ccf_bins[i:(i + 1)] * 100, collapse = "–"), "%")
   })
