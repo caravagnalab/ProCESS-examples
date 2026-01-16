@@ -164,7 +164,7 @@ plot_scatter_process = function(table, sample_names, color_palette_process, driv
     nrows = ceiling(num_pairs / ncols)
   }
   
-  plot_to_save = ggarrange(
+  plot_to_save = ggpubr::ggarrange(
     plotlist = plots,
     ncol = ncols,
     nrow = nrows,
@@ -235,7 +235,7 @@ plot_scatter_tool = function(final_table, color_palette, sample_names, type ='or
     nrows = ceiling(num_pairs / ncols)
   }
   
-  plot_to_save = ggarrange(
+  plot_to_save = ggpubr::ggarrange(
     plotlist = plots,
     ncol = ncols,
     nrow = nrows,

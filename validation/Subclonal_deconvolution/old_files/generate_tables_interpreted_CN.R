@@ -7,20 +7,18 @@ library(randnet)
 library(scales)
 library(ggrepel)
 
-spn = 'SPN02'
-purity=0.9
+spn = 'SPN07'
+purity=0.6
 vcf_caller = "mutect2"
 cna_caller = "ascat"
-coverage = 100
+coverage = 150
 
-coverage_list = c(50,100,150)
+coverage_list = c(50, 100, 150)
 purity_list = c(0.3, 0.6, 0.9)
 vcf_caller_list = c("mutect2")#, "strelka", "freebayes")
 cna_caller_list = c("ascat")#, "sequenza", "battenberg")
 spn_list = c('SPN01', 'SPN02', 'SPN03', 'SPN04', 'SPN06', 'SPN07')
-spn_list = c('SPN05')
-tool = 'mobster'
-univariate = F
+tool = 'pyclonevi'
 
 combs = expand.grid(coverage=coverage_list,
                     purity=purity_list,
@@ -54,17 +52,13 @@ for(i in 1:nrow(combs)){
   true_drivers_table = true_drivers_table  %>% rowwise() %>% 
     mutate(code=replace(code, is.na(code), paste0(type, '_', CNA_type, '_', chr, '_', start, '_', end)),
            mutation_id=paste0(spn, ":", chr, ":", start,  ":", alt)) %>% 
-    ungroup() %>% 
-    select(mutation_id, code)
+    ungroup()
 
   
   # Get process table
   mut_process = get_mutations(spn=spn, type="tumour", coverage=coverage, purity=purity)
-  if(univariate==F){
-    table_process = readRDS(get_table_path(save_path, 'process', spn, simulation_id)) # process table in folder tables/
-  }else{
-    table_process = readRDS(get_table_path(save_path, 'process_univariate', spn, simulation_id)) # process table in folder tables/
-  }
+  table_process = readRDS(get_table_path(save_path, 'process', spn, simulation_id)) # process table in folder tables/
+
   # Join process table with drivers
     # now in process_table we have a column "code" with the drivers gene names
   table_process = table_process %>% left_join(true_drivers_table, by = 'mutation_id') %>% 
@@ -102,21 +96,52 @@ for(i in 1:nrow(combs)){
               as.factor(join_table_final$cluster_id_process))
 
   ### Find cluster/driver in tool and add column cluster_id_tool_interpreted
-  driver_clusters_tool = join_table_tool %>%
-    distinct(cluster_id_tool, is_driver_tool) %>%
-    filter(is_driver_tool == TRUE) %>%
-    pull(cluster_id_tool)
-  # 
   # driver_clusters_tool = join_table_tool %>%
-  #   filter(is_driver_tool == TRUE | !is.na(cna_driver)) %>%
-  #   pull(cluster_id_tool) %>% unique()
-  # 
-  # final_table = join_table_tool %>%
-  #   mutate(cluster_id_tool_interpreted = if_else(
-  #     !(cluster_id_tool %in% driver_clusters_tool),
-  #     'Subclonal',
-  #     as.character(cluster_id_tool)
-  #   ))
+  #   distinct(cluster_id_tool, is_driver_tool) %>% 
+  #   filter(is_driver_tool == TRUE) %>% 
+  #   pull(cluster_id_tool)
+  
+  check_CN_driver = function(df, true_drivers_table){
+    CNA_drivers = true_drivers_table %>% filter(type=="CNA")
+    
+    a = lapply(1:nrow(df), function(j) {
+      mutation_id = df[j, "mutation_id"]
+      minor_cn = df[j, "minor_cn"]
+      major_cn = df[j, "major_cn"]
+      
+      splt = strsplit(mutation_id, split=":")[[1]]
+      chr = splt[[2]]
+      pos = splt[[3]]
+      
+      lapply(1:nrow(CNA_drivers), function(i) {
+        if (chr != CNA_drivers[i,"chr"]) return(NA)
+        if (pos > CNA_drivers[i, "start"] & pos < CNA_drivers[i, "end"]) return(CNA_drivers[i, "code"])
+        if (CNA_drivers[i, "CNA_type"] == "D")
+          if (minor_cn < 1 | major_cn < 1) return(CNA_drivers[i, "code"])
+        return(NA)
+      }) %>% unlist()
+    }) %>% unlist() %>% unique() %>% purrr::discard(function(x) is.na(x))
+    
+    if (length(a) == 0) return(NA)
+    a
+    
+  }
+  
+  join_table_tool = join_table_tool %>%
+    group_by(cluster_id_tool) %>% 
+    mutate(cna_driver=check_CN_driver(data.frame(mutation_id=mutation_id, minor_cn=minor_cn, major_cn=major_cn), true_drivers_table)) %>% 
+    ungroup()
+  
+  driver_clusters_tool = join_table_tool %>% 
+    filter(is_driver_tool == TRUE | !is.na(cna_driver)) %>% 
+    pull(cluster_id_tool) %>% unique()
+  
+  final_table = join_table_tool %>%
+    mutate(cluster_id_tool_interpreted = if_else(
+      !(cluster_id_tool %in% driver_clusters_tool),
+      'Subclonal',
+      as.character(cluster_id_tool)
+    ))
   
   ### Find cluster/driver in process and add column cluster_id_tool_interpreted_driver
   if(tool != 'mobster'){
@@ -125,12 +150,12 @@ for(i in 1:nrow(combs)){
       !(cluster_id_tool %in% driver_clusters_tool),
       'Subclonal',
       as.character(cluster_id_tool)
-    )) #%>%
-    # mutate(cluster_id_tool_interpreted_driver = if_else(
-    #   !(cluster_id_tool %in% driver_clusters_process),
-    #   'Subclonal',
-    #   as.character(cluster_id_tool)
-    # ))
+    )) %>%
+    mutate(cluster_id_tool_interpreted_driver = if_else(
+      !(cluster_id_tool %in% driver_clusters_process),
+      'Subclonal',
+      as.character(cluster_id_tool)
+    ))
 
   nmi_interpreted = randnet::NMI(as.factor(final_table_interpreted$cluster_id_tool_interpreted),
                                as.factor(final_table_interpreted$cluster_id_process))
@@ -152,14 +177,9 @@ for(i in 1:nrow(combs)){
   #                                                    cluster_id_tool_interpreted)
   
   table_to_save = final_table_interpreted 
-  if(univariate == F){
-    saveRDS(table_to_save, file.path(main_path, "subclonal/tables_interpreted", paste0(tool, "_", spn, "_", simulation_id, ".rds")))
-    saveRDS(table_to_save, file.path(save_path, "tables_interpreted", paste0(tool, "_", spn, "_", simulation_id, ".rds")))
-  }else{
-    saveRDS(table_to_save, file.path(main_path, "subclonal/tables_interpreted", paste0(tool, "_univariate_", spn, "_", simulation_id, ".rds")))
-    saveRDS(table_to_save, file.path(save_path, "tables_interpreted", paste0(tool, "_univariate_", spn, "_", simulation_id, ".rds")))
-    
-  }
+  saveRDS(table_to_save, file.path(main_path, "subclonal/tables_interpreted", paste0(tool, "_", spn, "_", simulation_id, ".rds")))
+  saveRDS(table_to_save, file.path(save_path, "tables_interpreted", paste0(tool, "_", spn, "_", simulation_id, ".rds")))
+
 }
 
 

@@ -13,7 +13,7 @@ library(ggrepel)
 # cna_caller_list = c("ascat", "sequenza", "battenberg")
 # spn_list = paste("SPN", 3:7, sep="0")
 
-spn = 'SPN07'
+spn = 'SPN01'
 purity=0.6
 vcf_caller = "mutect2"
 cna_caller = "ascat"
@@ -72,7 +72,7 @@ true_drivers_table = true_drivers_table %>% filter(SPN==spn)  %>%
 
 # Get process table
 mut_process = get_mutations(spn=spn, type="tumour", coverage=coverage, purity=purity)
-table_process = readRDS(get_table_path(save_path, 'process', spn, simulation_id)) # process table in folder tables/
+table_process = readRDS(get_table_path(save_path, 'process_new', spn, simulation_id)) # process table in folder tables/
 
 # Join process table with drivers
   # now in process_table we have a column "code" with the drivers gene names
