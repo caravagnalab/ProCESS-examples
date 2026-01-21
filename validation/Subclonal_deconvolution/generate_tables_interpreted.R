@@ -18,8 +18,7 @@ purity_list = c(0.3, 0.6, 0.9)
 vcf_caller_list = c("mutect2")#, "strelka", "freebayes")
 cna_caller_list = c("ascat")#, "sequenza", "battenberg")
 spn_list = c('SPN01', 'SPN02', 'SPN03', 'SPN04', 'SPN06', 'SPN07')
-spn_list = c('SPN05')
-tool = 'mobster'
+tool = 'viber'
 univariate = F
 
 combs = expand.grid(coverage=coverage_list,
@@ -27,7 +26,13 @@ combs = expand.grid(coverage=coverage_list,
                     vcf_caller=vcf_caller_list,
                     cna_caller=cna_caller_list,
                     spn=spn_list)
-# tool = 'viber'
+
+github_path = '/orfeo/cephfs/scratch/cdslab/erivar00/GitHub/ProCESS-examples/'
+main_path = "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/"
+save_path = file.path(github_path, "validation/Subclonal_deconvolution/")
+
+source(file.path(save_path, "generate_table_main.R"))
+source(file.path(save_path, "utils_tables.R"))
 
 # for(spn in spn_list){
 for(i in 1:nrow(combs)){
@@ -39,31 +44,22 @@ for(i in 1:nrow(combs)){
   spn = combs[i, "spn"]
   
   simulation_id = paste0(coverage, "x_", purity, "p_", vcf_caller, "_", cna_caller)
-  
-  # simulation_id = paste0(coverage, "x_", purity, "p_", vcf_caller, "_", cna_caller)
-  github_path = '/orfeo/cephfs/scratch/cdslab/erivar00/GitHub/ProCESS-examples/'
-  main_path = "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/"
-  save_path = file.path(github_path, "validation/Subclonal_deconvolution/")
 
-  source(file.path(save_path, "generate_table_main.R"))
-  source(file.path(save_path, "utils_plots.R"))
-  
   # True process drivers
   true_drivers_table = readRDS(file.path(main_path,"drivers", spn, "process_drivers.rds")) %>% as_tibble()
   
   true_drivers_table = true_drivers_table  %>% rowwise() %>% 
     mutate(code=replace(code, is.na(code), paste0(type, '_', CNA_type, '_', chr, '_', start, '_', end)),
            mutation_id=paste0(spn, ":", chr, ":", start,  ":", alt)) %>% 
-    ungroup() %>% 
+    ungroup() %>%
     select(mutation_id, code)
 
-  
   # Get process table
   mut_process = get_mutations(spn=spn, type="tumour", coverage=coverage, purity=purity)
   if(univariate==F){
-    table_process = readRDS(get_table_path(save_path, 'process', spn, simulation_id)) # process table in folder tables/
+    table_process = readRDS(get_table_path(paste0(main_path, "validation_subclonal/"), 'process', spn, simulation_id)) # process table in folder tables/
   }else{
-    table_process = readRDS(get_table_path(save_path, 'process_univariate', spn, simulation_id)) # process table in folder tables/
+    table_process = readRDS(get_table_path(paste0(main_path, "validation_subclonal/"), 'process', spn, simulation_id)) # process table in folder tables/
   }
   # Join process table with drivers
     # now in process_table we have a column "code" with the drivers gene names
@@ -80,84 +76,78 @@ for(i in 1:nrow(combs)){
       mutation_id
     ))
   }
+  
+  # ----------- Create Clonal clusters process ------------- ##
+  # Save the total number of sample to select clonal clusters (i.e. ccf > 0.95 in n_samples clusters)
+  n_samples = length(table_process$sample_id %>% unique())
+  
+  c = table_process %>%
+    distinct(cluster_id_process, sample_id) %>%   # keep unique pairs
+    dplyr::count(cluster_id_process) %>% filter(n==n_samples) %>% 
+    select(cluster_id_process)
+  
+  table_process = table_process %>% 
+    group_by(cluster_id_process) %>% 
+    mutate(
+      is_clonal_process = if_else(
+        dplyr::first(cluster_id_process) %in% c$cluster_id_process, # first returns the first value in the current group
+        all(ccf_process > 0.95),
+        FALSE
+      )
+    ) %>% 
+    # mutate(is_clonal_process=replace(FALSE, all(ccf_process > 0.95), TRUE)) %>% ungroup() %>% 
+    dplyr::mutate(cluster_id_process_full = cluster_id_process) %>% 
+    dplyr::mutate(cluster_id_process=replace(cluster_id_process_full, is_clonal_process==TRUE, 'Clonal'))
+  
+  # ----------- Create Clonal clusters process ------------- ##
+  
 
-  table_tool = readRDS(get_table_path(save_path, tool, spn, simulation_id))
-
-  if(tool =='viber_heuristics'){
-    table_tool = table_tool %>%
-      mutate(cluster_id_tool = replace_na(cluster_id_tool, 'NA'))
-  }
-  if(tool =='process_viber'){
-    table_tool = table_tool %>%
-      mutate(sample_id = paste0(spn,"_",sample_id))
-  }
+  table_tool = readRDS(get_table_path(paste0(main_path, "validation_subclonal/"), tool, spn, simulation_id))
 
   join_table_tool = table_tool %>% left_join(table_process) # keep all mut in tool
   join_table_final = join_table_tool %>% filter(!is.na(cluster_id_process)) # only mutations present in both
-
-  nmi_complete = randnet::NMI(as.factor(join_table_final$cluster_id_tool),
-                      as.factor(join_table_final$cluster_id_process))
+  join_table_tool = join_table_tool %>% filter(!is.na(cluster_id_process))
   
-  ari_complete = aricode::ARI(as.factor(join_table_final$cluster_id_tool), 
-              as.factor(join_table_final$cluster_id_process))
-
+  
   ### Find cluster/driver in tool and add column cluster_id_tool_interpreted
   driver_clusters_tool = join_table_tool %>%
     distinct(cluster_id_tool, is_driver_tool) %>%
     filter(is_driver_tool == TRUE) %>%
     pull(cluster_id_tool)
-  # 
-  # driver_clusters_tool = join_table_tool %>%
-  #   filter(is_driver_tool == TRUE | !is.na(cna_driver)) %>%
-  #   pull(cluster_id_tool) %>% unique()
-  # 
-  # final_table = join_table_tool %>%
-  #   mutate(cluster_id_tool_interpreted = if_else(
-  #     !(cluster_id_tool %in% driver_clusters_tool),
-  #     'Subclonal',
-  #     as.character(cluster_id_tool)
-  #   ))
+ 
+  ### Find cluster/driver in process and add column cluster_id_tool_interpreted_driver
+  driver_clusters_process = join_table_tool %>%
+    distinct(cluster_id_tool, is_driver_process) %>%
+    filter(is_driver_process == TRUE) %>%
+    pull(cluster_id_tool)
+  
   
   ### Find cluster/driver in process and add column cluster_id_tool_interpreted_driver
   if(tool != 'mobster'){
-  final_table_interpreted = join_table_final %>%
-    mutate(cluster_id_tool_interpreted = if_else(
-      !(cluster_id_tool %in% driver_clusters_tool),
-      'Subclonal',
-      as.character(cluster_id_tool)
-    )) #%>%
-    # mutate(cluster_id_tool_interpreted_driver = if_else(
-    #   !(cluster_id_tool %in% driver_clusters_process),
-    #   'Subclonal',
-    #   as.character(cluster_id_tool)
-    # ))
-
-  nmi_interpreted = randnet::NMI(as.factor(final_table_interpreted$cluster_id_tool_interpreted),
-                               as.factor(final_table_interpreted$cluster_id_process))
-  
-  ari_interpreted = aricode::ARI(as.factor(final_table_interpreted$cluster_id_tool_interpreted),
-                              as.factor(final_table_interpreted$cluster_id_process))
+    final_table_interpreted = join_table_final %>%
+      mutate(cluster_id_tool_interpreted = if_else(
+        !(cluster_id_tool %in% driver_clusters_tool),
+        'Subclonal',
+        as.character(cluster_id_tool)
+      )) %>%
+      # also add cluster_id_tool_interpreted_driver
+      mutate(cluster_id_tool_interpreted_driver = if_else(
+        !(cluster_id_tool %in% driver_clusters_process),
+        'Subclonal',
+        as.character(cluster_id_tool)
+      ))
+    
   }else{
     final_table_interpreted = join_table_final
   }
-  # La tabella da salvare è final_table_interpreted, dove devo salvare le colonne:
-  # patient_id, sample_id, coverage, purity, tool, mutation_id, driver_label_tool,
-  # is_driver_tool, cluster_id_tool, vaf_tool, is_driver_process, cluster_id_process,
-  # vaf_process, driver_label_process, cluster_id_tool_interpreted
-  # table_to_save = final_table_interpreted %>% select(patient_id, sample_id,coverage, purity, 
-  #                                                    tool, mutation_id, driver_label_tool,
-  #                                                    is_driver_tool, cluster_id_tool, vaf_tool, 
-  #                                                    is_driver_process, cluster_id_process,
-  #                                                    vaf_process, driver_label_process, 
-  #                                                    cluster_id_tool_interpreted)
   
   table_to_save = final_table_interpreted 
   if(univariate == F){
-    saveRDS(table_to_save, file.path(main_path, "subclonal/tables_interpreted", paste0(tool, "_", spn, "_", simulation_id, ".rds")))
-    saveRDS(table_to_save, file.path(save_path, "tables_interpreted", paste0(tool, "_", spn, "_", simulation_id, ".rds")))
+    saveRDS(table_to_save, file.path(main_path, "validation_subclonal/tables_interpreted", paste0(tool, "_", spn, "_", simulation_id, ".rds")))
+    # saveRDS(table_to_save, file.path(save_path, "tables_interpreted", paste0(tool, "_", spn, "_", simulation_id, ".rds")))
   }else{
-    saveRDS(table_to_save, file.path(main_path, "subclonal/tables_interpreted", paste0(tool, "_univariate_", spn, "_", simulation_id, ".rds")))
-    saveRDS(table_to_save, file.path(save_path, "tables_interpreted", paste0(tool, "_univariate_", spn, "_", simulation_id, ".rds")))
+    saveRDS(table_to_save, file.path(main_path, "validation_subclonal/tables_interpreted", paste0(tool, "_univariate_", spn, "_", simulation_id, ".rds")))
+    # saveRDS(table_to_save, file.path(save_path, "tables_interpreted", paste0(tool, "_univariate_", spn, "_", simulation_id, ".rds")))
     
   }
 }
