@@ -38,7 +38,7 @@ plot_scatter_process_single = function(table_wide, s1,s2, color_palette, driver)
       ) +
       ggrepel::geom_label_repel(
         data = subset(table_wide, is_driver_process == TRUE),
-        aes(x = .data[[s1]], y = .data[[s2]], label =.data$code, color = .data$cluster_id_process),
+        aes(x = .data[[s1]], y = .data[[s2]], label =.data$gene, color = .data$cluster_id_process),
         #color = 'black',
         size = 3,
         nudge_y = 0,
@@ -46,17 +46,21 @@ plot_scatter_process_single = function(table_wide, s1,s2, color_palette, driver)
         show.legend = FALSE,
         max.overlaps = Inf
       )  +
-      guides(color = guide_legend(override.aes = list(size = 3, alpha=1)))
+      guides(
+        color = guide_legend(
+          ncol = 1,
+          override.aes = list(size = 3, alpha = 1)
+        )
+      )
   }
 }
 
 plot_scatter_tool_single = function(table_wide, s1, s2, color_palette, type){
   if(type =='original'){
-    ggplot()+
-      geom_point(data=table_wide,aes(x=eval(parse(text = s1)),
-                                     y = eval(parse(text = s2)),
-                                     color = cluster_id_tool),
-                 size=0.5) +
+    ggplot() + 
+      geom_point(data = table_wide, 
+                 aes(x = .data[[s1]], y =.data[[s2]], col = .data$cluster_id_tool), 
+                 size = .5, alpha = 1) +
       scale_color_manual(values=color_palette)+
       theme_minimal() +
       labs(
@@ -65,19 +69,14 @@ plot_scatter_tool_single = function(table_wide, s1, s2, color_palette, type){
         y = s2
       )+
       xlim(0, 1)+
-      ylim(0, 1)
-  }else{
-    # geom_text_repel(
-      #   data = table_wide,
-      #   aes(x = .data[[s1]], y = .data[[s2]], label = .data$cluster_id_tool_interpreted),
-      #   max.overlaps = Inf
-      # ) +
-      # geom_text_repel(
-      #   data = table_wide,
-      #   aes(x = .data[[s1]], y = .data[[s2]], label =.data$gene),
-      #   max.overlaps = Inf
-      # ) +
-      # ggrepel::geom_text_repel(data = table_wide, aes(x = .data[[s1]], y = .data[[s2]], label =.data$gene), max.overlaps = Inf)+ 
+      ylim(0, 1)+
+      guides(
+        color = guide_legend(
+          ncol = 1,
+          override.aes = list(size = 3, alpha = 1)
+        )
+      )
+  }else if(type=='interpreted'){
     ggplot() + 
       geom_point(data = table_wide, 
                  aes(x = .data[[s1]], y =.data[[s2]], col = .data$cluster_id_tool_interpreted), 
@@ -109,7 +108,50 @@ plot_scatter_tool_single = function(table_wide, s1, s2, color_palette, type){
         show.legend = FALSE,
         max.overlaps = Inf
       )  +
-      guides(color = guide_legend(override.aes = list(size = 3, alpha=1)))
+      guides(
+        color = guide_legend(
+          ncol = 1,
+          override.aes = list(size = 3, alpha = 1)
+        )
+      )
+  }else if(type=='interpreted_driver'){
+    ggplot() + 
+      geom_point(data = table_wide, 
+                 aes(x = .data[[s1]], y =.data[[s2]], col = .data$cluster_id_tool_interpreted_driver), 
+                 size = .5, alpha = 1) +
+      scale_color_manual(values=color_palette)+
+      theme_minimal() +
+      labs(
+        color = "Cluster",
+        x = s1,
+        y = s2
+      )+
+      xlim(0, 1)+
+      ylim(0, 1)+
+      ggtitle('') +
+      xlab(s1) +
+      ylab(s2) + 
+      geom_point(
+        data = subset(table_wide, is_driver_process == TRUE),
+        aes(x = .data[[s1]], y = .data[[s2]]),
+        color = "black", size = 1, shape = 15
+      ) +
+      ggrepel::geom_label_repel(
+        data = subset(table_wide, is_driver_process == TRUE),
+        aes(x = .data[[s1]], y = .data[[s2]], label =.data$gene, color = .data$cluster_id_tool_interpreted_driver),
+        #color = 'black',
+        size = 3,
+        nudge_y = 0,
+        nudge_x = 0,
+        show.legend = FALSE,
+        max.overlaps = Inf
+      )  +
+      guides(
+        color = guide_legend(
+          ncol = 1,
+          override.aes = list(size = 3, alpha = 1)
+        )
+      )
     
   }
 }
@@ -126,7 +168,7 @@ get_table_path = function(save_path, tool, spn, simulation_id) {
   file.path(save_path, "tables", paste0("table_", tool, "_", spn, "_", simulation_id, ".rds"))
 }
 
-plot_scatter_process = function(table, sample_names, color_palette_process, driver=T){
+plot_scatter_process = function(table, sample_names, color_palette_process, driver=T, vertical = F){
   # table = join_table_process
   if(spn=='SPN07'){
     table = table %>%
@@ -154,14 +196,20 @@ plot_scatter_process = function(table, sample_names, color_palette_process, driv
     2,
     function(w) plot_scatter_process_single(table_wide, s1 = w[1], s2 = w[2], color_palette=color_palette_process, driver)
   )
-  if(cm %>% ncol() == 1){
-    nrows = 1
-    ncols = 1
-    
+  
+  if(vertical == F){
+    if(cm %>% ncol() == 1){
+      nrows = 1
+      ncols = 1
+      
+    }else{
+      num_pairs = cm %>% ncol()
+      ncols = min(3, num_pairs) # max 3 cols
+      nrows = ceiling(num_pairs / ncols)
+    }
   }else{
-    num_pairs = cm %>% ncol()
-    ncols = min(3, num_pairs) # max 3 cols
-    nrows = ceiling(num_pairs / ncols)
+    ncols = 1
+    nrows = length(plots)
   }
   
   plot_to_save = ggpubr::ggarrange(
@@ -169,7 +217,7 @@ plot_scatter_process = function(table, sample_names, color_palette_process, driv
     ncol = ncols,
     nrow = nrows,
     common.legend = T,
-    legend = "bottom")
+    legend = "right")
   
   # wrap_plots(plots, guides = 'collect')
   
@@ -177,7 +225,9 @@ plot_scatter_process = function(table, sample_names, color_palette_process, driv
 }
 
 
-plot_scatter_tool = function(final_table, color_palette, sample_names, type ='original'){
+# plot_scatter_tool(final_table, color_palette=color_palette_tool, sample_names, type ='interpreted', vertical = vertical)
+plot_scatter_tool = function(final_table, color_palette, sample_names, 
+                             type ='original', vertical = F){
   
   if(type =='original'){
     table_wide = final_table %>%
@@ -193,7 +243,7 @@ plot_scatter_tool = function(final_table, color_palette, sample_names, type ='or
       table_wide$cluster_id_tool,
       levels = sort(unique(table_wide$cluster_id_tool))
     )
-  
+    
   }else if(type=='interpreted'){
     if(spn=='SPN07'){
       final_table = final_table %>%
@@ -214,6 +264,28 @@ plot_scatter_tool = function(final_table, color_palette, sample_names, type ='or
       table_wide$cluster_id_tool_interpreted,
       levels = sort(unique(table_wide$cluster_id_tool_interpreted))
     )
+  }else if(type=='interpreted_driver'){
+    
+    if(spn=='SPN07'){
+      final_table = final_table %>%
+        distinct(patient_id, sample_id, mutation_id, .keep_all = TRUE)
+    }
+    table_wide = final_table %>%
+      select(patient_id, sample_id, mutation_id, cluster_id_tool_interpreted_driver, 
+             vaf_tool, is_driver_tool, is_driver_process, driver_label_tool,driver_label_process) %>%
+      mutate(gene=driver_label_process) %>% 
+      pivot_wider(values_from="vaf_tool", names_from="sample_id")
+    
+    table_wide <- table_wide %>%
+      filter(!is.na(cluster_id_tool_interpreted_driver))
+    
+    table_wide <- table_wide %>%
+      mutate(across(starts_with("Spn"), ~replace_na(., 0.0)))
+    
+    table_wide$cluster_id_tool_interpreted_driver <- factor(
+      table_wide$cluster_id_tool_interpreted_driver,
+      levels = sort(unique(table_wide$cluster_id_tool_interpreted_driver))
+    )
   }
   
   sample_names = as.character(sample_names)
@@ -225,14 +297,20 @@ plot_scatter_tool = function(final_table, color_palette, sample_names, type ='or
     2,
     function(w) plot_scatter_tool_single(table_wide, s1 = w[1], s2 = w[2], color_palette, type=type)
   )
-  if(cm %>% ncol() == 1){
-    nrows = 1
-    ncols = 1
-    
+  
+  if(vertical == F){
+    if(cm %>% ncol() == 1){
+      nrows = 1
+      ncols = 1
+      
+    }else{
+      num_pairs = cm %>% ncol()
+      ncols = min(3, num_pairs) # max 3 cols
+      nrows = ceiling(num_pairs / ncols)
+    }
   }else{
-    num_pairs = cm %>% ncol()
-    ncols = min(3, num_pairs) # max 3 cols
-    nrows = ceiling(num_pairs / ncols)
+    ncols = 1
+    nrows = length(plots)
   }
   
   plot_to_save = ggpubr::ggarrange(
@@ -240,8 +318,8 @@ plot_scatter_tool = function(final_table, color_palette, sample_names, type ='or
     ncol = ncols,
     nrow = nrows,
     common.legend = T,
-    legend = "bottom")
-
+    legend = "right")
+  
   plot_to_save = plot_to_save + plot_layout(guides = 'collect')
   plot_to_save
 }
@@ -300,4 +378,4 @@ plot_mutations_on_tree = function(table_tool,
   
   return(list(pl_sticks_tool,pl_sticks_process))
 }
-  
+
