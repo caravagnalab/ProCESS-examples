@@ -1,7 +1,7 @@
 #### HEATMAP annotation coloring
 
 SPN_colors <-c("SPN01"='steelblue', "SPN02"='seagreen', "SPN03"='goldenrod', 
-               "SPN04"='coral', "SPN06"='palevioletred', "SPN07"='indianred3')
+               "SPN04"='coral', "SPN05"="magenta4","SPN06"='palevioletred', "SPN07"='indianred3')
 
 purity_colors = c("0.3"="#bfd3e6", "0.6"="#8c96c6", "0.9"="#810f7c")
 coverage_colors = c("50"="#ccece6", "100"="#66c2a4", "150"="#006d2c")
@@ -10,6 +10,9 @@ coverage_colors = c("50"="#ccece6", "100"="#66c2a4", "150"="#006d2c")
 col_mut_types <-c("SNV"="black", "INDEL"="grey")
 col_ccf_classes<-c("Subclonal Low CCF"="#f8cec9","Subclonal High CCF"="#f09e92","Clonal"="#e65d4a")
 
+
+col_cna_tools <- c("ASCAT"='deepskyblue4', "Battenberg"='maroon', "Sequenza"='sienna2')
+
 sbs_colors = setNames(
   nm = c("SBS1",
          "SBS17b",
@@ -17,13 +20,16 @@ sbs_colors = setNames(
          "SBS5",
          "SBS88",
          "SBS10b",
-         "SBS6",
+         "SBS13",
          "SBS9",
          "SBS25",
          "SBS4",
          "SBS11",
          "SBS3" ,
-         "SBS26"), 
+         "SBS26",
+         "SBS2",
+         "SBS10a",
+         "SBS31"), 
   object = c('#f1696bff', 
              '#8fbd8cff', 
              '#87c7d6ff', 
@@ -36,7 +42,10 @@ sbs_colors = setNames(
              '#fbcb5bff', 
              '#c2b280ff', 
              '#d47e2dff', 
-             '#5f8676ff')
+             '#5f8676ff',
+             'forestgreen',
+             'orange',
+             'brown4')
 )
 id_colors = setNames(
   nm = c('ID1', 
@@ -46,6 +55,7 @@ id_colors = setNames(
          "ID7",  
          "ID8",   
          "ID9",  
+         "ID3",
          "ID18"), 
   object = c('#0c8281ff', 
              '#f5a55fff', 
@@ -53,6 +63,7 @@ id_colors = setNames(
              '#2e4f4fff', 
              '#c4ddbcff', 
              '#996869ff', 
-             '#daa627ff', 
+             '#daa627ff',
+             'sienna3',
              '#bc8f8fff')
 )
