@@ -36,10 +36,10 @@ col_ccf_classes<-c("Subclonal Low CCF"="#f8cec9","Subclonal High CCF"="#f09e92",
 col_cna_tools <- c("ASCAT"='deepskyblue4', "Battenberg"='maroon', "Sequenza"='sienna2')
 col_somatic_tools = c(
   "ProCESS" = "gray80",
-  "mutect2" = "lightsteelblue",
+  "Mutect2" = "orange3",
   "mutect2 (all)" = "steelblue4",  # darker steelblue
-  "strelka" = "coral",
-  "strelka (all)" = "coral4",     # darker coral
+  "Strelka2" =  "lightsteelblue",#"coral",
+  "strelka (all)" ="orange4", # "coral4",     # darker coral
   "freebayes" = "#8FBC8B",
   "freebayes (all)" = "#228B22"   # darker green (ForestGreen )
 )

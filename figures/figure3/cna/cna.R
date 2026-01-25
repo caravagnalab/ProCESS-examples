@@ -21,7 +21,7 @@ COVERAGES <- c("50","100", "150")
 PURITIES <- c("0.3","0.6","0.9")
 
 source("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/utils_plot.R")
-WGD_samples <- c("SPN01_1.1","SPN01_1.3","SPN06_3.1","SPN06_3.2")
+WGD_samples <- c("SPN01_1.1","SPN01_1.3","SPN06_3.2")
 
 validation_dir <- "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/VALIDATION"
 params_grid = expand.grid(COVERAGES, PURITIES)
@@ -61,7 +61,7 @@ df_all_combs_SPN_cna <- do.call("rbind",df_all_SPN_cna)
 fga_fgs_df <- readRDS(file = "/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/fga_df.rds") %>% 
   dplyr::rename(sample=spn)
 df_all_combs_SPN_cna <- df_all_combs_SPN_cna %>% 
-  select(!c("fga","fgs")) %>% 
+  dplyr::select(!c("fga","fgs")) %>% 
   left_join(fga_fgs_df) %>% 
   mutate(tool = case_when(
     tool == 'ascat' ~ 'ASCAT',
@@ -69,11 +69,15 @@ df_all_combs_SPN_cna <- df_all_combs_SPN_cna %>%
     tool == 'battenberg' ~ 'Battenberg',
   ))  %>% 
   mutate(abs_delta_purity=abs(delta_purity)) %>% 
-  mutate(abs_delta_ploidy=abs(delta_ploidy))
+  mutate(abs_delta_ploidy=abs(delta_ploidy)) %>% 
+  mutate(tool = factor(tool, levels = c("ASCAT","Sequenza","Battenberg"))) %>% 
+  mutate(class=case_when(abs(delta_purity) > 0.20 & abs(delta_ploidy) < 0.7 ~ 'uncorrect purity',
+                         abs(delta_purity) < 0.20 & abs(delta_ploidy) > 0.7 ~ 'uncorrect ploidy',
+                         abs(delta_purity) <= 0.20 & abs(delta_ploidy) <= 0.7 ~ 'correct',
+                         TRUE ~ "uncorrect"))
   
 summary_stats <-df_all_combs_SPN_cna %>% 
-  mutate(tool = factor(tool, levels = c("ASCAT","Sequenza","Battenberg"))) %>% 
-  mutate(class = ifelse(abs(delta_purity) >= 0.20 | abs(delta_ploidy) > 0.7, 'not correct', 'correct')) %>% 
+  # mutate(class = ifelse(abs(delta_purity) >= 0.20 | abs(delta_ploidy) > 0.7, 'not correct', 'correct')) %>% 
   group_by(tool, class) %>% 
   summarise(n = n(), .groups = "drop_last") %>% 
   mutate(percentage = round(100 * n / sum(n),0)) %>% 
@@ -83,29 +87,62 @@ summary_stats <-df_all_combs_SPN_cna %>%
 df_all_combs_SPN_cna_all_metrics <- df_all_combs_SPN_cna %>% 
   left_join(summary_stats,relationship = "many-to-many")
 
+# rect_df <- tibble::tibble(
+#   xmin = c(0,   0.2, 0,   0.2),
+#   xmax = c(0.2, Inf, 0.2, Inf),
+#   ymin = c(0,   0,   0.7, 0.7),
+#   ymax = c(0.7, 0.7, Inf, Inf),
+#   class = c(
+#     "correct",
+#     "not correct",
+#     "not correct",
+#     "not correct"
+#   ),
+#   subregion = c("Correct",
+#                 "Correct Ploidy",
+#                 "Correct Purity",
+#                 "Incorrect Both")
+# )
+
 rect_df <- tibble::tibble(
   xmin = c(0,   0.2, 0,   0.2),
-  xmax = c(0.2, Inf, 0.2, Inf),
+  xmax = c(0.2, max(df_all_combs_SPN_cna_all_metrics$abs_delta_purity), 0.2, max(df_all_combs_SPN_cna_all_metrics$abs_delta_purity)),
   ymin = c(0,   0,   0.7, 0.7),
-  ymax = c(0.7, 0.7, Inf, Inf),
+  ymax = c(0.7, 0.7, max(df_all_combs_SPN_cna_all_metrics$abs_delta_ploidy), max(df_all_combs_SPN_cna_all_metrics$abs_delta_ploidy)),
   class = c(
     "correct",
-    "not correct",
-    "not correct",
+    "uncorrect purity",
+    "uncorrect ploidy",
     "not correct"
   ),
   subregion = c("Correct",
-                "Correct Ploidy",
-                "Correct Purity",
+                "Incorrect Purity",
+                "Incorrect Ploidy",
                 "Incorrect Both")
 )
+
+# rect_df <- rect_df %>% 
+#   mutate(xmid=case_when(subregion=="Correct"~((xmax-xmin)/2),
+#                         # subregion=="Incorrect Both" ~ (max(df_all_combs_SPN_cna$abs_delta_purity)/2),
+#                         TRUE ~ NA)) %>% 
+#   mutate(ymid=case_when(subregion=="Correct"~((ymax-ymin)/2),
+#                         # subregion=="Incorrect Both" ~ (max(df_all_combs_SPN_cna$abs_delta_ploidy)/2),
+#                         TRUE ~ NA))
+
 rect_df <- rect_df %>% 
-  mutate(xmid=case_when(subregion=="Correct"~((xmax-xmin)/2),
+    mutate(xmid=case_when(subregion=="Correct"~(xmax-xmin)/2,
+                          subregion=="Incorrect Purity"~0.5,
+                          subregion=="Incorrect Ploidy"~0.1,
+                          # subregion=="Incorrect Both" ~ (max(df_all_combs_SPN_cna$abs_delta_purity)/2),
+                          TRUE ~ NA)) %>%
+  mutate(ymid=case_when(subregion=="Correct"~(ymax-ymin)/2,
+                        subregion=="Incorrect Purity"~0.3,
+                        subregion=="Incorrect Ploidy"~1.5,
                         # subregion=="Incorrect Both" ~ (max(df_all_combs_SPN_cna$abs_delta_purity)/2),
-                        TRUE ~ NA)) %>% 
-  mutate(ymid=case_when(subregion=="Correct"~((ymax-ymin)/2),
-                        # subregion=="Incorrect Both" ~ (max(df_all_combs_SPN_cna$abs_delta_ploidy)/2),
                         TRUE ~ NA))
+                          
+
+
 df_all_combs_SPN_cna_all_metrics <- df_all_combs_SPN_cna_all_metrics %>% 
   left_join(rect_df,by = "class",relationship = "many-to-many")
 
@@ -138,14 +175,18 @@ plt_breakpoint <- df_all_combs_SPN_cna %>%
   scale_color_manual(values = c("High FGA" = "indianred2", "Low FGA"="dodgerblue3"), name = "FGA class") +
   my_ggplot_theme()+
   labs(
-    x = "Mean recall",
-    y = "Mean precision"
+    x = "Mean breakpoint recall",
+    y = "Mean breakpoint precision"
   )+
   facet_wrap(~tool) +
-  theme(legend.position = 'bottom')
+  theme(legend.position = 'bottom',
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        legend.box.background = element_blank(), 
+        legend.spacing.x = unit(0.1, "cm"))
 
 plt_breakpoint
-
+ggsave(filename = "/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/cna/panel_D.pdf",plot = plt_breakpoint,width = 10,height = 4)
 
 ##### Plot purity/ploidy 
 
@@ -165,27 +206,28 @@ scatter_purity_ploidy <- df_all_combs_SPN_cna_all_metrics %>%
   ) +
   
   geom_point(aes(col = fga_class)) +
-  geom_text(aes(
-      x = xmid,
-      y = ymid,
-      label = label_percentage
-    ),
-    inherit.aes = FALSE,
-    size = 3,
-    color="gray30"
-  )+
+  # geom_text(aes(
+  #     x = xmid,
+  #     y = ymid,
+  #     label = label_percentage
+  #   ),
+  #   inherit.aes = FALSE,
+  #   size = 3,
+  #   color="gray30"
+  # )+
   facet_wrap(~tool) +
   
   geom_vline(xintercept = 0.2, col = "gray60", linetype = "dashed") + 
   geom_hline(yintercept = 0.7, col = "gray60", linetype = "dashed") +
   
   scale_fill_manual(
-    name = "Prediction class",
+    name = "Caller estimate",
     values = c(
-      # "correct"   = '#548B5433',
-      # "not correct" = "#EEAD0E33"
+      "uncorrect ploidy"   = 'coral4',
+      "uncorrect purity" = "#EEAD0E",
       "correct" = "#548B54",
-      "not correct" = "#EEAD0E"
+      "not correct" = "transparent"
+      # "not correct" = "#EEAD0E"
     )
   ) +
   
@@ -199,43 +241,95 @@ scatter_purity_ploidy <- df_all_combs_SPN_cna_all_metrics %>%
   
   my_ggplot_theme() +
   scale_y_continuous(breaks = c(0,0.7,1.5,2))+
-  xlab("Absoulte delta purity") +
-  ylab("Absoulte delta ploidy") +
+  xlab("Absoulte error (purity)") +
+  ylab("Absoulte error (ploidy)") +
   theme(legend.position = 'bottom',
-        legend.box = "vertical",
-        legend.spacing.y = unit(0.00001, "cm"))
+        legend.box = "horizontal",
+        legend.spacing.x = unit(0.1, "cm"),
+        panel.grid.minor = element_blank(),
+        legend.spacing.y = unit(0.00001, "cm"))+
+  guides(
+    col  = guide_legend(nrow = 2),
+    fill = guide_legend(nrow = 2, override.aes = list(alpha = 1))
+  )
 scatter_purity_ploidy
+ggsave(filename = "/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/cna/panel_B.pdf",plot = scatter_purity_ploidy,width = 10,height = 4)
 
 ##### Alluvial plot
 df <- df_all_combs_SPN_cna %>% 
-  mutate(class = ifelse(abs(delta_purity) >= 0.20 | abs(delta_ploidy) > 0.7,
-                        'not correct', 'correct')) %>% 
+  # mutate(class = ifelse(abs(delta_purity) >= 0.20 | abs(delta_ploidy) > 0.7,
+  #                       'not correct', 'correct')) %>% 
+  mutate(class=case_when(abs(delta_purity) > 0.20 & abs(delta_ploidy) < 0.7 ~ 'uncorrect purity',
+                         abs(delta_purity) < 0.20 & abs(delta_ploidy) > 0.7 ~ 'uncorrect ploidy',
+                         abs(delta_purity) <= 0.20 & abs(delta_ploidy) <= 0.7 ~ 'correct',
+                         TRUE ~ "uncorrect")) %>% 
   mutate(id=paste0(sample,"_",coverage,"_",true_purity)) %>% 
   mutate(comb=paste0(coverage,"_",true_purity)) %>% 
-  select(tool,class,id,fga_class) %>% 
+  dplyr::select(tool,class,id,fga_class) %>% 
   mutate(tool = factor(tool, levels = c("ASCAT","Sequenza","Battenberg")))
 
-
-alluvial_plot <- ggplot(df, aes(x = tool, stratum = class, alluvium = id,fill=class)) +
-  geom_flow(width = 0.1,alpha=0.2,color="grey40") +
-  geom_stratum(alpha = .2, width = 0.1,color="grey40") +
+alluvial_plot <- ggplot(
+  df,
+  aes(
+    x = tool,
+    stratum = class,
+    alluvium = id,
+    fill = class
+  )
+) +
+  stat_stratum(
+    decreasing = TRUE,
+    alpha = .4,
+    width = 0.1,
+    color = "grey40"
+  ) +
+  stat_flow(
+    decreasing = TRUE,
+    alpha = .2,
+    width = 0.1,
+    color = "grey40"
+  ) +
+  
+  ## 🔑 percentage labels per stratum (per tool)
+  stat_stratum(
+    geom = "text",
+    aes(
+      label = scales::percent(after_stat(prop), accuracy = 2)
+    ),
+    size = 3,
+    color = "black",
+    decreasing = TRUE
+  ) +
+  
   scale_fill_manual(
-    name = "Prediction class",
+    name = "Caller estimate",
     values = c(
-      # "correct" = '#548B5433',
-      # "not correct" = "#EEAD0E33"
+      "uncorrect ploidy" = "coral4",
+      "uncorrect purity" = "#EEAD0E",
       "correct" = "#548B54",
-      "not correct" = "#EEAD0E"
+      "not correct" = "transparent"
     )
   ) +
   my_ggplot_theme() +
-  theme(panel.border = element_blank(), legend.position = 'bottom')+
-  xlab("")+ 
-  scale_x_discrete(expand = c(0.1, 0.1)) 
+  theme(
+    legend.position = "bottom",
+    legend.box.spacing = unit(0, "cm"),
+    panel.grid = element_blank(),
+    legend.spacing.x = unit(0.1, "cm"),
+    panel.background = element_blank()
+  ) +
+  xlab("") +
+  ylab("Frequency") +
+  scale_x_discrete(expand = c(0.1, 0.1))
+
 alluvial_plot
+
+ggsave(filename = "/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/cna/panel_C.pdf",plot = alluvial_plot,width = 10,height = 4)
 
 
 plt_breakpoint/scatter_purity_ploidy/alluvial_plot
+write.table(x = df_all_combs_SPN_cna_all_metrics,file = "/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/cna/cna_metrics.tsv",append = F,quote = F,sep = "\t",row.names = F)
+
 # ggsave(plot = scatter_purity_ploidy, filename = '/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/cna/scatter_ploidy_purity.pdf',
 #        width = 6, height = 3, units = 'cm')
 # ggsave(plot = alluvial_plot, filename = '/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/cna/alluvial_plot.pdf',

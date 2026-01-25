@@ -9,6 +9,8 @@ COVERAGES <- c(50,100,150)
 PURITY <- c(0.3, 0.6, 0.9)
 MUTS <- c('SNV', 'INDEL')
 source("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/utils_plot.R")
+source("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/somatic/utils_somatic.R")
+
 params_grid = expand.grid(COVERAGES, PURITY, MUTS, SPNS)
 names(params_grid) <- c('cov', 'pur', 'muts', 'spn')
 
@@ -50,7 +52,10 @@ df_all_SPN_somatic <- df_all_SPN_somatic %>%
                            CCF_bin=="25-50%" ~ "0.25-0.50",
                            CCF_bin=="50-75%" ~ "0.50-0.75",
                            CCF_bin=="75-95%" ~ "0.75-0.95",
-                           CCF_bin=="95-100%" ~ "0.95-1"))
+                           CCF_bin=="95-100%" ~ "0.95-1")) %>% 
+  mutate(caller=case_when(caller=="mutect2"~"Mutect2",
+                          caller=="strelka"~"Strelka2",
+                          TRUE~caller))
 median_df_tools <- df_all_SPN_somatic %>%
   # mutate(CCF_bin = factor(CCF_bin, levels=c("0-5%","5-10%","10-25%","25-50%","50-75%","75-95%","95-100%"))) %>%
   mutate(CCF_bin=factor(CCF_bin,levels=c("0-0.05","0.05-0.10","0.10-0.25","0.25-0.50","0.50-0.75","0.75-0.95","0.95-1"))) %>% 
@@ -83,285 +88,14 @@ median_df_coverage <- df_all_SPN_somatic %>%
   mutate(coverage=as.factor(coverage))
 write.table(x = median_df_coverage,file = "/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/somatic/median_sensitivy_somatic_per_coverages.tsv",append = F,quote = F,sep = "\t",row.names = F)
 
-rect_df_ccf <- tibble::tibble(
-  xmin = c("0-0.05","0.10-0.25","0.95-1"),
-  xmax = c("0.05-0.10","0.75-0.95","0.95-1"),
-  ymin = -0.15,
-  ymax = -0.05,
-  region = c(
-    "Neutral mutations",
-    "Subclonal mutations",
-    "Clonal mutations")) %>%
-  mutate(xmid = xmin)
-
-rect_df_ccf_bin <- tibble::tibble(
-  xmin = c("0-0.05","0.05-0.10","0.10-0.25","0.25-0.50","0.50-0.75","0.75-0.95","0.95-1"),
-  xmax = c("0-0.05","0.05-0.10","0.10-0.25","0.25-0.50","0.50-0.75","0.75-0.95","0.95-1"),
-  ymin = -0.15,
-  ymax = -0.05,
-  region = c("Neutral mutations","Neutral mutations",
-             "Subclonal mutations","Subclonal mutations",
-             "Subclonal mutations","Subclonal mutations",
-             "Clonal mutations"),
-  ccf_bin=c("0-0.05","0.05-0.10","0.10-0.25","0.25-0.50","0.50-0.75","0.75-0.95","0.95-1"))
-
-
-#### plot tools
-  
-caller_line_boxes <- df_all_SPN_somatic %>% 
-  mutate(
-    CCF_bin = factor(
-      CCF_bin,
-      levels = c("0-0.05","0.05-0.10","0.10-0.25",
-                 "0.25-0.50","0.50-0.75","0.75-0.95","0.95-1")
-    )
-  ) %>% 
-  
-  ggplot(aes(x = CCF_bin, y = sensitivity, col = as.factor(caller))) +
-  geom_rect(
-    data = rect_df_ccf_bin,
-    aes(
-      xmin = stage(xmin, after_scale = xmin-0.48),
-      xmax = stage(xmax, after_scale = xmax+0.48),
-      ymin = ymin, ymax = ymax
-    ),
-    inherit.aes = FALSE,
-    alpha = 1,
-    fill="white"
-  ) +
-  geom_rect(
-    data = rect_df_ccf_bin,
-    aes(
-      xmin = stage(xmin, after_scale = xmin-0.48),
-      xmax = stage(xmax, after_scale = xmax+0.48),
-      ymin = ymin, ymax = ymax,
-      fill = region
-    ),
-    inherit.aes = FALSE,
-    alpha = 0.2
-  ) +
-  geom_text(
-    data = rect_df_ccf_bin,
-    aes(
-      x = ccf_bin,
-      y = (ymin + ymax) / 2,
-      label = ccf_bin
-    ),
-    inherit.aes = FALSE,
-    size = 3
-  )+
-  stat_summary(
-    fun = "median",
-    fun.min = function(x) boxplot.stats(x)$stats[2],
-    fun.max = function(x) boxplot.stats(x)$stats[4],
-    linewidth = 1,
-    size = 0.5,
-    position = position_dodge(width = 0.5)
-  ) +
-  geom_line(
-    data = median_df_tools,
-    aes(
-      x = CCF_bin,
-      y = sensitivity,
-      group = caller,
-      colour = caller
-    ),
-    linewidth = 0.3,
-    position = position_dodge(width = 0.5)
-  ) +
-  scale_color_manual("Somatic caller", values = col_somatic_tools) +
-  scale_fill_manual(
-    name = "CCF class",
-    values = c(
-      "Neutral mutations"     = "grey40",
-      "Subclonal mutations" = "#8c00ec",
-      "Clonal mutations"         = "#ffae00",
-      guide = guide_legend(nrow = 2, byrow = TRUE)
-    )
-  ) +
-  ylab("Sensitivity") +
-  xlab("CCF bin") +
-  facet_wrap(~muts, ncol = 1,strip.position = "right") +
-  my_ggplot_theme()+
-  theme(
-    axis.text.x = element_blank(),
-    legend.position = "bottom",
-    legend.box = "vertical",
-    legend.spacing.y = unit(0.05, "cm")
-  )
-
-caller_line_boxes
-<<<<<<< HEAD
-
-### plot purity
-purity_line_boxes <- df_all_SPN_somatic %>% 
-  mutate(
-    CCF_bin = factor(
-      CCF_bin,
-      levels = c("0-0.05","0.05-0.10","0.10-0.25",
-                 "0.25-0.50","0.50-0.75","0.75-0.95","0.95-1")
-    )
-  ) %>% 
-  mutate(purity=as.factor(purity)) %>% 
-  ggplot(aes(x = CCF_bin, y = sensitivity, col = as.factor(purity))) +
-  geom_rect(
-    data = rect_df_ccf_bin,
-    aes(
-      xmin = stage(xmin, after_scale = xmin-0.48),
-      xmax = stage(xmax, after_scale = xmax+0.48),
-      ymin = ymin, ymax = ymax
-    ),
-    inherit.aes = FALSE,
-    alpha = 1,
-    fill="white"
-  ) +
-  geom_rect(
-    data = rect_df_ccf_bin,
-    aes(
-      xmin = stage(xmin, after_scale = xmin-0.48),
-      xmax = stage(xmax, after_scale = xmax+0.48),
-      ymin = ymin, ymax = ymax,
-      fill = region
-    ),
-    inherit.aes = FALSE,
-    alpha = 0.2
-  ) +
-  geom_text(
-    data = rect_df_ccf_bin,
-    aes(
-      x = ccf_bin,
-      y = (ymin + ymax) / 2,
-      label = ccf_bin
-    ),
-    inherit.aes = FALSE,
-    size = 3
-  )+
-  stat_summary(
-    fun = "median",
-    fun.min = function(x) boxplot.stats(x)$stats[2],
-    fun.max = function(x) boxplot.stats(x)$stats[4],
-    linewidth = 1,
-    size = 0.5,
-    position = position_dodge(width = 0.5)
-  ) +
-  geom_line(
-    data = median_df_purity,
-    aes(
-      x = CCF_bin,
-      y = sensitivity,
-      group = purity,
-      colour = purity
-    ),
-    linewidth = 0.3,
-    position = position_dodge(width = 0.5)
-  ) +
-  scale_color_manual("Somatic caller", values = purity_colors) +
-  scale_fill_manual(
-    name = "CCF class",
-    values = c(
-      "Neutral mutations"     = "grey40",
-      "Subclonal mutations" = "#8c00ec",
-      "Clonal mutations"         = "#ffae00"
-    )
-  ) +
-  ylab("Sensitivity") +
-  xlab("CCF bin") +
-  facet_wrap(~muts, ncol = 1,strip.position = "right") +
-  my_ggplot_theme()+
-  theme(
-    axis.text.x = element_blank(),
-    legend.position = "bottom"
-  )
-
-purity_line_boxes
-
-#### plot coverage 
-coverage_line_boxes <- df_all_SPN_somatic %>% 
-  mutate(
-    CCF_bin = factor(
-      CCF_bin,
-      levels = c("0-0.05","0.05-0.10","0.10-0.25",
-                 "0.25-0.50","0.50-0.75","0.75-0.95","0.95-1")
-    )
-  ) %>% 
-  mutate(coverage=as.factor(coverage)) %>% 
-  ggplot(aes(x = CCF_bin, y = sensitivity, col = as.factor(coverage))) +
-  geom_rect(
-    data = rect_df_ccf_bin,
-    aes(
-      xmin = stage(xmin, after_scale = xmin-0.48),
-      xmax = stage(xmax, after_scale = xmax+0.48),
-      ymin = ymin, ymax = ymax
-    ),
-    inherit.aes = FALSE,
-    alpha = 1,
-    fill="white"
-  ) +
-  geom_rect(
-    data = rect_df_ccf_bin,
-    aes(
-      xmin = stage(xmin, after_scale = xmin-0.48),
-      xmax = stage(xmax, after_scale = xmax+0.48),
-      ymin = ymin, ymax = ymax,
-      fill = region
-    ),
-    inherit.aes = FALSE,
-    alpha = 0.2
-  ) +
-  geom_text(
-    data = rect_df_ccf_bin,
-    aes(
-      x = ccf_bin,
-      y = (ymin + ymax) / 2,
-      label = ccf_bin
-    ),
-    inherit.aes = FALSE,
-    size = 3
-  )+
-  stat_summary(
-    fun = "median",
-    fun.min = function(x) boxplot.stats(x)$stats[2],
-    fun.max = function(x) boxplot.stats(x)$stats[4],
-    linewidth = 1,
-    size = 0.5,
-    position = position_dodge(width = 0.5)
-  ) +
-  geom_line(
-    data = median_df_coverage,
-    aes(
-      x = CCF_bin,
-      y = sensitivity,
-      group = coverage,
-      colour = coverage
-    ),
-    linewidth = 0.3,
-    position = position_dodge(width = 0.5)
-  ) +
-  scale_color_manual("Somatic caller", values = coverage_colors) +
-  scale_fill_manual(
-    name = "CCF class",
-    values = c(
-      "Neutral mutations"     = "grey40",
-      "Subclonal mutations" = "#8c00ec",
-      "Clonal mutations"         = "#ffae00"
-    )
-  ) +
-  ylab("Sensitivity") +
-  xlab("CCF bin") +
-  facet_wrap(~muts, ncol = 1,strip.position = "right") +
-  my_ggplot_theme()+
-  theme(
-    axis.text.x = element_blank(),
-    legend.position = "bottom"
-  )
-
-coverage_line_boxes
-
-# somatic_panel <- caller_line_boxes + purity_line_boxes + coverage_line_boxes + plot_layout(nrow = 3,heights = 1, guides = 'collect') &
-#   theme(plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")) 
+purity_line_boxes <-somatic_performance(df_all_SPN_somatic = df_all_SPN_somatic,type = "purity",median_df = median_df_purity)
+coverage_line_boxes <- somatic_performance(df_all_SPN_somatic = df_all_SPN_somatic,type = "coverage",median_df = median_df_coverage)
+caller_line_boxes <- somatic_performance(df_all_SPN_somatic = df_all_SPN_somatic,type = "caller",median_df = median_df_tools)
 
 ggsave(plot = caller_line_boxes, filename = '/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/somatic/caller_line_boxes.pdf',
        width = 8, height = 5, units = 'in')
+# ggsave(plot = plt_purity, filename = '/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/edf_figures/',
+#        width = 8, height = 5, units = 'in')
 write.table(x = df_all_SPN_somatic,file = "/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/somatic/somatic_metrics.tsv",append = F,quote = F,sep = "\t",row.names = F)
 #ggsave(plot = line, filename = '/orfeo/cephfs/scratch/area/lvaleriani/tesi/sarek/all_sarek.pdf',width = 6, height = 8, units = 'in')
 
@@ -387,7 +121,7 @@ write.table(x = df_all_SPN_somatic,file = "/orfeo/cephfs/scratch/cdslab/ggandolf
 #   facet_wrap(~muts) +
 #   theme_minimal() +
 #   theme(axis.text.x = element_text(angle = 30, vjust = 1.2, hjust=1),axis.title.x = element_blank())
-=======
+
 # 
 # ### plot purity
 # purity_line_boxes <- df_all_SPN_somatic %>% 
@@ -559,7 +293,7 @@ write.table(x = df_all_SPN_somatic,file = "/orfeo/cephfs/scratch/cdslab/ggandolf
 # ggsave(plot = caller_line_boxes, filename = '/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/somatic/caller_line_boxes.pdf',
 #        width = 8, height = 5, units = 'in')
 # #ggsave(plot = line, filename = '/orfeo/cephfs/scratch/area/lvaleriani/tesi/sarek/all_sarek.pdf',width = 6, height = 8, units = 'in')
->>>>>>> 5adf0f374adadce80ecd212cf04aa0a6e1cbb9d1
+
 # 
 # 
 # # tmp <- df_all_SPN_somatic %>% 

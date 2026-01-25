@@ -80,5 +80,5 @@ caller_box_germline <- df_mut_germline %>%
   theme(axis.text.x = element_text(size = 0)) 
 
 plt_germline <- caller_line_germline + caller_box_germline + plot_annotation(tag_levels = 'A') & theme(legend.position = 'bottom')
-ggsave(filename = 'germline.pdf', 
+ggsave(filename = '/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/germline/germline.pdf', 
        width = 8, height = 3.5, units = 'in', dpi = 200)
