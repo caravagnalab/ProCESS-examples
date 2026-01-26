@@ -8,9 +8,9 @@ source('../getters/process_getters.R')
 
 base = "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/assing_signature/"
 
-option_list <- list(make_option(c("--spn_id"), type = "character", default = 'SPN01'),
+option_list <- list(make_option(c("--spn_id"), type = "character", default = 'SPN04'),
                     make_option(c("--purity"), type = "double", default = 0.9),
-                    make_option(c("--coverage"), type = "integer", default = 100),
+                    make_option(c("--coverage"), type = "integer", default = 150),
                     make_option(c("--cna_caller"), type = "character", default = 'ascat'),
                     make_option(c("--vcf_caller"), type = "character", default = 'mutect2'),
                     make_option(c("--signature"), type = "character", default = 'BASCULE'),
@@ -33,7 +33,7 @@ if (signature_tool == 'SigProfiler'){
   library(bascule)
 }
 
-base = '/orfeo/cephfs/scratch/cdslab/erivar00/GitHub/ProCESS-examples/validation/Subclonal_deconvolution/tables_interpreted/'
+base = '/orfeo/cephfs/scratch/cdslab/shared/SCOUT//validation_subclonal/tables_interpreted/'
 spn = opt$spn_id
 cov = opt$coverage
 pur = opt$purity
@@ -168,7 +168,7 @@ for (tool in c('viber', 'pyclonevi')){
         } else{
           c = 'ID'
         }
-        signature <- unique(fit$nmf[[c]]$exposure$sigs)
+        signature <- c(signature, 'SBS25')#unique(fit$nmf[[c]]$exposure$sigs)
       }
       
       if (signature_tool == 'SigProfiler'){
@@ -273,7 +273,7 @@ for (tool in c('viber', 'pyclonevi')){
               store_fits = TRUE,
               seed_list = 10
             )
-            saveRDS(object = x, file = paste0(out_new,"/bascule_fit_", type, ".rds"))
+            saveRDS(object = x, file = paste0(out_new,"/bascule_fit_", type, "_2.rds"))
   
             exp = plot_exposures(x=x, sample_name = T)
             ggplot2::ggsave(filename = paste0(out_new,"/bascule_exposure_", type, ".pdf"),plot=exp, width = 8, height = 8, units = 'in', dpi = 300)

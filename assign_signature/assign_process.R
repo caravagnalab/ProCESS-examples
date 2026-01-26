@@ -8,7 +8,7 @@ source('../getters/process_getters.R')
 
 out = "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/assing_signature/"
 
-option_list <- list(make_option(c("--spn_id"), type = "character", default = 'SPN06')
+option_list <- list(make_option(c("--spn_id"), type = "character", default = 'SPN02')
 )
 
 opt_parser <- OptionParser(option_list = option_list)
@@ -20,14 +20,14 @@ spn = opt$spn_id
 get_exposure <- function(table){
   
   nmuts <- table %>% 
-    group_by(patient_id, sample_id, coverage, purity, cluster_id_process) %>% 
+    group_by(patient_id, coverage, purity, cluster_id_process) %>% 
     summarise(
       tot_nmuts = n_distinct(mutation_id),
       .groups = "drop"
     )
   
   exposure_raw <- table %>% 
-    group_by(patient_id, sample_id, coverage, purity, causes, cluster_id_process) %>% 
+    group_by(patient_id, coverage, purity, causes, cluster_id_process) %>% 
     summarise(
       nmuts_cause = n_distinct(mutation_id),
       .groups = "drop"
@@ -36,7 +36,7 @@ get_exposure <- function(table){
   exposure <- exposure_raw %>% 
     left_join(
       nmuts,
-      by = c("patient_id", "sample_id", "coverage", "purity", "cluster_id_process")
+      by = c("patient_id", "coverage", "purity", "cluster_id_process")
     ) %>% 
     mutate(
       exposure = nmuts_cause / tot_nmuts
@@ -56,8 +56,22 @@ for (cov in c(50,100,150)){
     
     table <- readRDS(paste0(base, 'table_process_', spn, '_', cov, 'x_', pur, 'p_mutect2_ascat.rds')) %>% 
       filter(is_driver_process != TRUE) %>% 
-      filter(!str_detect(causes, "errors"))
+      filter(!str_detect(causes, "errors")) 
     
+    # correct name of clusters
+    table <- table %>% 
+      group_by(cluster_id_process, sample_id) %>%
+      mutate(is_clonal_process=replace(FALSE, ccf_process > 0.9, TRUE)) %>% 
+      ungroup() %>%
+      mutate(cluster_id_process_full = cluster_id_process) %>%
+      mutate(cluster_id_process = replace(cluster_id_process_full, is_clonal_process==TRUE, 'Clonal'))
+    
+    n_muts <- table %>% 
+      group_by(cluster_id_process) %>% 
+      summarise(n = n()) %>% 
+      filter(n>=100)
+    
+    table <- table %>% filter(cluster_id_process %in% n_muts$cluster_id_process)
     
     table_sbs <- table %>% 
       filter(str_detect(causes, "SBS"))

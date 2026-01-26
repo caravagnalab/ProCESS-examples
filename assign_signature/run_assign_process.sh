@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --partition=THIN
+#SBATCH --partition=GENOA
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=20gb

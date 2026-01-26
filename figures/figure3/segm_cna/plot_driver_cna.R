@@ -8,15 +8,15 @@ set.seed(123)
 source("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/utils_plot.R")
 source("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/utils.R")
 setwd("/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/figure3/segm_cna")
-spns_details <- readRDS('spn_details.rds')
-names(spns_details) = lapply(spns_details, function(s) {
-  s$cna %>%
-    names %>%
-    lapply(., function(x) {str_split_1(x ,'_')[1]}) %>%
-    unlist %>%
-    unique
-})
-
+# spns_details <- readRDS('spn_details.rds')
+# names(spns_details) = lapply(spns_details, function(s) {
+#   s$cna %>%
+#     names %>%
+#     lapply(., function(x) {str_split_1(x ,'_')[1]}) %>%
+#     unlist %>%
+#     unique
+# })
+# 
 # snv_driver = lapply(spns_details %>% names, function(s) {
 #   spns_details[[s]]$forest_details$drivers %>%
 #     dplyr::filter(type == 'SID') %>%
@@ -136,7 +136,6 @@ names(spns_details) = lapply(spns_details, function(s) {
 # 
 # all_mut_info = all_mut_info %>%
 #   mutate(code = ifelse(is.na(code), 'MSH6 R361H', code))
-
 # 
 # 
 # parse_Sequenza = function(segments_file, extra_file){
@@ -168,7 +167,7 @@ names(spns_details) = lapply(spns_details, function(s) {
 # source('../../../getters/process_getters.R')
 # source('../../../getters/tumourevo_getters.R')
 # source('../../../getters/sarek_getters.R')
-# SPNS <- c("SPN01","SPN02","SPN03","SPN04", "SPN06",'SPN07')
+# SPNS <- c("SPN05")#","SPN02","SPN03","SPN04", "SPN06",'SPN07'
 # all_df <- tibble()
 # 
 # for (tool in c('ascat', 'sequenza')){
@@ -194,7 +193,7 @@ names(spns_details) = lapply(spns_details, function(s) {
 #               mutate(CN = Major + minor) %>%
 #               dplyr::select(gene, karyotype, CN) %>%
 #               filter(karyotype != 'NA:NA')
-#             
+# 
 #           } else if (tool == 'sequenza'){
 #             sequenza <- get_sarek_cna_file(spn = spn, sampleID = s, coverage = 100, purity = 0.9, caller = 'sequenza')
 #             cna <- parse_Sequenza(segments_file = sequenza$segments, extra_file = sequenza$confints_CP)
@@ -243,8 +242,10 @@ names(spns_details) = lapply(spns_details, function(s) {
 #   }
 # }
 
-#saveRDS(object = all_df, file = '/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/figure3/segm_cna/driver_df.rds')
 all_df = readRDS( '/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/figure3/segm_cna/driver_df.rds')
+all_df_spn05 = readRDS( '/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/figure3/segm_cna/driver_df_spn05.rds')
+all_df = all_df %>% bind_rows(all_df_spn05)
+
 fga <- readRDS('/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/figure3/fga_df.rds') %>% 
   distinct() %>% 
   dplyr::rename(sample = spn)
@@ -334,7 +335,7 @@ driver_gene_plot <- ggplot() +
   ) + 
   ylab('MAE total CN') + xlab('Gene')  +
   theme(
-    axis.text.x = element_blank(),
+    #axis.text.x = element_blank(),
     legend.position = "bottom",
     legend.box = "vertical",
     legend.spacing.y = unit(0.00001, "cm")
