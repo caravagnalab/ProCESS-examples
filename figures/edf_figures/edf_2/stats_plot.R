@@ -154,7 +154,8 @@ plt_muts_count <- stats %>%
   ylab("Log10 mutation count")+
   xlab("coverage")+
   labs(fill="purity")+
-  scale_fill_manual(values = purity_colors)+
+  #scale_fill_manual(values = purity_colors)+
+  scale_fill_manual(values = c('0.3' = '#A8CCDA', '0.6' = '#759DB9', '0.9' ='#426D98' ))+
   facet_wrap(~ type,scales = "free",ncol = 1,strip.position = "right")+
   my_ggplot_theme()
 
@@ -291,16 +292,16 @@ stats_space <- stats_space %>%
 # stats_space <- rbind(stats_space,stats_space_SPN05)
 
 stats_space_plot1 <- stats_space %>%
-  mutate(n_samples=case_when(spn%in%c("SPN01","SPN05")~"n = 3",
-                    spn%in%c("SPN02","SPN04")~"n = 2",
-                    spn%in%c("SPN03")~"n = 4",
-                    spn%in%c("SPN06","SPN07")~"n = 5")) %>% 
+  mutate(n_samples=case_when(spn%in%c("SPN01","SPN05")~"3",
+                    spn%in%c("SPN02","SPN04")~"2",
+                    spn%in%c("SPN03")~"4",
+                    spn%in%c("SPN06","SPN07")~"5")) %>% 
   filter(coverage==200) %>%
   ggplot(aes(x=spn,y=Size_TB_total_all_purities,fill=n_samples)) +
   # ggplot(aes(x=coverage,y=Size_GB_total,fill=spn)) +
   # geom_boxplot()+
   geom_bar(position="dodge", stat="identity")+
-  scale_fill_manual('N samples', values = c('#7CCAD5', '#A0A6BE', '#C481A7', '#454995'))  +
+  scale_fill_manual('N samples', values  = c('2' = '#c9e4ca', '3' ='#87bba2', '4' ='#55828b', '5' ='#3b6064', '1 - Normal' = 'gray'))  +
   theme_minimal()+
   ylab("Fastq Size (TB)")+
   xlab("SPN")+
@@ -308,7 +309,5 @@ stats_space_plot1 <- stats_space %>%
   my_ggplot_theme()
 
 # 
-# wrap_plots(list(plt_muts_count,stats_space_plot1),guides="collect",design = "AABB\nAABB") & theme(legend.position = "bottom")
-# wrap_plots(list(plt_muts,stats_space_plot1),guides="collect",design = "AABB\nAABB") & theme(legend.position = "bottom")
-# # wrap_plots(list(stats_plot1,real_stats_plot,stats_space_plot1),guides="collect",design = "ABCC\nABCC") & theme(legend.position = "bottom")
-# ggsave(filename = "Fig1_PanelD.pdf",device = "pdf",width = 8,height = 4,dpi = 300)
+wrap_plots(list(plt_muts_count,stats_space_plot1),guides="collect",design = "AABB\nAABB") + plot_annotation(tag_levels = 'A') & theme(legend.position = "bottom")
+ggsave(filename = "/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/edf_figures/edf_2/edf_space.pdf",device = "pdf",width = 8,height = 4,dpi = 300)
