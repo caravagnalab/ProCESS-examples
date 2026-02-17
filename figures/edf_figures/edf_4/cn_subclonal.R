@@ -12,12 +12,12 @@ SPNS <- c("SPN01","SPN02","SPN03","SPN04", "SPN05", "SPN06", 'SPN07')
 
 COVERAGES <- c("50","100", "150")
 PURITIES <- c("0.3","0.6","0.9")
-SPN_colors <-c("SPN01"='steelblue', "SPN02"='seagreen', "SPN03"='goldenrod', 
-               "SPN04"='coral', "SPN06"='palevioletred', "SPN07"='indianred3', 'SPN05' = 'violet')
+
 source("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/validation/SCOUT/colors.R")
 source("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/utils_plot.R")
 WGD_samples <- c("SPN01_1.1","SPN01_1.3","SPN06_3.1","SPN06_3.2")
 fga_df <- readRDS("/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/figure3/fga_df.rds")
+
 
 
 validation_dir <- "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/VALIDATION"
@@ -62,24 +62,31 @@ df_all_combs_SPN <- df_all_combs_SPN %>% mutate(tool = case_when(
 )) %>% 
   left_join(fga_df %>% mutate(sample = spn), by = join_by(sample))
 
-cna_corr <- df_all_combs_SPN %>%
-  #filter(coverage == 50, true_purity == '0.9') %>% 
-  ggplot(aes(x = fga_class, y = correctness_subclonal*100, col = fga_class)) +
-  #geom_violin(size = .5, 
-  #            show.legend = F) + 
-  geom_boxplot(aes(col = fga_class),size = .5, 
-               width = 0.2, outlier.size = .6) +
-  geom_jitter(size = .5, width = .1, alpha = .5) +
-  #scale_color_manual('CN caller',values = c('ASCAT' = 'mediumpurple3', 'Sequenza' = 'darkorange2', 'Battenberg' = 'steelblue3', 'ProCESS' = 'gray')) +
-  scale_color_manual(values = c(      "High FGA" = "indianred2",
-                                      "Low FGA"  = "dodgerblue3")) + 
-  theme_minimal() +
-  xlab('FGA Class') + 
-  ylim(75, 100) +
-  ylab('% correct Subclonal CN') + 
-  my_ggplot_theme()
-cna_corr
+stat.test <- df_all_combs_SPN %>%
+  filter(tool == 'Battenberg', fgs.y > 2) %>% 
+  mutate(fgs_class = ifelse(fgs.y > 30, 'High FGS', 'Low FGS')) %>% 
+  rstatix::wilcox_test(correctness_subclonal ~ fgs_class) %>%
+  rstatix::adjust_pvalue(method = "BH") %>%       
+  rstatix::add_significance("p.adj") %>%          
+  rstatix::add_xy_position(x = "fgs_class") %>% 
+  mutate(y.position = 100)
 
-ggsave(plot = cna_corr,
-       filename = '/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/figure3/segm_cna/plot_cn/v7.pdf',
-       width = 4, height = 4)
+subclonal_cna <- df_all_combs_SPN %>%
+  filter(tool == 'Battenberg', fgs.y > 2) %>% 
+  mutate(fgs_class = ifelse(fgs.y > 30, 'High FGS', 'Low FGS')) %>% 
+  ggplot(aes(x = fgs_class, y = correctness_subclonal*100, col = fgs_class)) +
+  geom_boxplot(aes(col = fgs_class),size = .5, 
+               width = 0.2, outlier.size = .6) +
+  geom_jitter(size = 1, width = .1, alpha = .5) +
+  #scale_color_manual('CN caller',values = c('ASCAT' = 'mediumpurple3', 'Sequenza' = 'darkorange2', 'Battenberg' = 'steelblue3', 'ProCESS' = 'gray')) +
+  scale_color_manual('FGS Class', values = c("High FGS" = "indianred2", "Low FGS"  = "dodgerblue3")) + 
+  stat_pvalue_manual(
+    stat.test,
+    label = "p.adj.signif",   # "***", "**", etc.
+    tip.length = 0.01
+  ) +
+  xlab('') + 
+  #ylim(75, 100) +
+  ylab('% correct subclonal CN') + 
+  my_ggplot_theme()
+subclonal_cna

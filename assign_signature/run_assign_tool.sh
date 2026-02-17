@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --partition=THIN
+#SBATCH --partition=GENOA
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=20gb
@@ -14,7 +14,7 @@ module load R/4.4.1
 
 # Define your inputs
 #spns=(SPN01 SPN02 SPN03 SPN04 SPN06 SPN07)
-spns=(SPN04)
+spns=(SPN05)
 purities=(0.9 0.6 0.3)
 coverages=(50 100 150)  
 

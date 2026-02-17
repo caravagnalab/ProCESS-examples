@@ -53,8 +53,8 @@ out <- segment_fixed_windows_all(cna_data_all, window_size = 1e6) %>%
 # saveRDS(out, file = 'data_heatmap.rds')
 
 
-#out <- readRDS('data_heatmap.rds') #%>% 
-  #separate(sample_id,into = c('spn','tmp'), '_', remove = F) %>% 
+out <- readRDS('data_heatmap.rds') %>% 
+  tidyr::separate(sample_id, into = c('spn','tmp'), '_', remove = F) #%>% 
   #filter(spn %in% c('SPN02'))
 
 levels_type <- c('clonal', 'sub-clonal')
@@ -62,7 +62,7 @@ levels_type <- c('clonal', 'sub-clonal')
 wide_df_kar <- out %>%
   mutate(CN=Major+minor) %>% 
   filter(!is.na(ratio)) %>% 
-  mutate(type = ifelse(ratio == 1, 'clonal', 'sub-clonal')) %>% 
+  #mutate(type = ifelse(ratio == 1, 'clonal', 'sub-clonal')) %>% 
   tidyr::separate(sample_id, into = c('sample', 'r'), sep = ':') %>% 
   mutate(sample_id = paste(sample, type, sep = ':')) %>% 
   mutate(sample_id = as.character(sample_id)) %>% 
@@ -88,36 +88,36 @@ subgroup = subgroup %>%
   arrange(sample_id, type)
 
 
-# col_spn <- c("SPN01"='steelblue', "SPN02"='seagreen', "SPN03"='goldenrod2', 
-#              "SPN04"='darkorange', "SPN05"="mediumpurple3","SPN06"='palevioletred', "SPN07"='indianred3')
-# #col_proportion <- colorRamp2(c(0, 1), c("white", 'dodgerblue4'))
-# col_proportion <- c('clonal' = 'navy', 'sub-clonal' = 'lightsteelblue')
-# col_sample <-  c('lightblue', 
-#                  'steelblue1', 
-#                  'steelblue4', 
-#                  'darkseagreen', 
-#                  'seagreen4', 
-#                  'lightgoldenrod1', 
-#                  'lightgoldenrod3', 
-#                  'goldenrod3', 
-#                  'goldenrod4',
-#                  'tan1', 
-#                  'darkorange3', 
-#                  'mediumpurple1',
-#                  'mediumpurple3',
-#                  'mediumpurple4',
-#                  'pink', 
-#                  'palevioletred1', 
-#                  'palevioletred', 
-#                  'violetred3', 
-#                  'palevioletred4', 
-#                  'indianred1', 
-#                  'firebrick2', 
-#                  'firebrick',
-#                  'indianred3', 
-#                  'indianred4')
-# names(col_sample) <- samples_levels
-# col_sample <- col_sample[!is.na(names(col_sample))]
+col_spn <- c("SPN01"='steelblue', "SPN02"='seagreen', "SPN03"='goldenrod2',
+             "SPN04"='darkorange', "SPN05"="mediumpurple3","SPN06"='palevioletred', "SPN07"='indianred3')
+col_proportion <- colorRamp2(c(0, 1), c("white", 'dodgerblue4'))
+#col_proportion <- c('clonal' = 'navy', 'sub-clonal' = 'lightsteelblue')
+col_sample <-  c('lightblue',
+                 'steelblue1',
+                 'steelblue4',
+                 'darkseagreen',
+                 'seagreen4',
+                 'lightgoldenrod1',
+                 'lightgoldenrod3',
+                 'goldenrod3',
+                 'goldenrod4',
+                 'tan1',
+                 'darkorange3',
+                 'mediumpurple1',
+                 'mediumpurple3',
+                 'mediumpurple4',
+                 'pink',
+                 'palevioletred1',
+                 'palevioletred',
+                 'violetred3',
+                 'palevioletred4',
+                 'indianred1',
+                 'firebrick2',
+                 'firebrick',
+                 'indianred3',
+                 'indianred4')
+names(col_sample) <- samples_levels
+col_sample <- col_sample[!is.na(names(col_sample))]
 
 #assemble final plot
 row_ha = rowAnnotation(proportion = subgroup$type,
