@@ -7,9 +7,9 @@ get_cell_id = function(mutation_object) {
   )
 }
 # source("~/GitHub/ProCESS-examples/validation/Subclonal_deconvolution/generate_table_main.R")
-# spn = 'SPN04'
+# spn = 'SPN01'
 # coverage=100
-# purity=0.9
+# purity=0.3
 
 # tool = "process"
 out_path = get_table_path(save_path, tool, spn, simulation_id)

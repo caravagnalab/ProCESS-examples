@@ -25,17 +25,14 @@ get_mrca_branches = function(phylo_forest){
   trunc = tab %>% dplyr::select(id,mutant,sample) %>% unique() %>% group_by(id) %>% 
     summarize(n = length(paste0(sample,"_",mutant))) %>% filter(n == nrow(mutants)) %>% pull(id)
   
+  # filtered_tab <- tab %>% 
+  #   filter(!id %in% trunc)
+  
+  # if (nrow(filtered_tab) > 0) {
   tab = tab %>% filter(!id %in% trunc) %>% rowwise() %>%
-    mutate(cell_origin=phylo_forest$get_first_occurrences(Mutation(chr, chr_pos, ref, alt))[[1]]) %>%
-    ungroup()
-  
-  # tab = tab %>% filter(!id %in% trunc) %>% rowwise() %>%
-  #   mutate(cell_origin = phylo_forest$get_first_occurrences(SNV(
-  #     chr, chr_pos, alt, ref
-  #   ))[[1]]) %>%
-  #   ungroup()
-
-  
+      mutate(cell_origin=phylo_forest$get_first_occurrences(Mutation(chr, chr_pos, ref, alt))[[1]]) %>%
+      ungroup()
+    
   tab = full_join(tab,phylo_forest$get_nodes() %>% group_by(mutant) %>% summarize(o = min(cell_id)),
                   by = "mutant") %>% filter(cell_origin  > o, o > 0) 
   
@@ -53,8 +50,14 @@ get_mrca_branches = function(phylo_forest){
   for(j in 1:nrow(mutants)){
     names(branches)[j] = paste0(mutants$mutant,"-",mutants$sample[j])
   }
-  
-  
   return(branches)
+    
+  # } else {
+  #   return(list())
+  # }
+  
+  
+  
+  
   
 }

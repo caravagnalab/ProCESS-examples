@@ -4,8 +4,8 @@
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=4
 #SBATCH --array=1-63
-#SBATCH --job-name=subclonal
-#SBATCH --mem=200GB
+#SBATCH --job-name=tables_subclonal
+#SBATCH --mem=100GB
 #SBATCH --partition EPYC
 #SBATCH --output=./logs/log-%A-%a
 

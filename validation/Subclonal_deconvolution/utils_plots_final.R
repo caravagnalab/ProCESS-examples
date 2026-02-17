@@ -41,10 +41,12 @@ plot_scatter_process_single = function(table_wide, s1,s2, color_palette, driver)
         aes(x = .data[[s1]], y = .data[[s2]], label =.data$gene, color = .data$cluster_id_process),
         #color = 'black',
         size = 3,
-        nudge_y = 0,
-        nudge_x = 0,
+        # nudge_y = 0,
+        # nudge_x = 0,
         show.legend = FALSE,
-        max.overlaps = Inf
+        max.overlaps = Inf,
+        nudge_y = 0.5,
+        nudge_x = 0.5
       )  +
       guides(
         color = guide_legend(
@@ -103,8 +105,8 @@ plot_scatter_tool_single = function(table_wide, s1, s2, color_palette, type){
         aes(x = .data[[s1]], y = .data[[s2]], label =.data$gene, color = .data$cluster_id_tool_interpreted),
         #color = 'black',
         size = 3,
-        nudge_y = 0,
-        nudge_x = 0,
+        nudge_y = 0.5,
+        nudge_x = 0.5,
         show.legend = FALSE,
         max.overlaps = Inf
       )  +
@@ -141,8 +143,8 @@ plot_scatter_tool_single = function(table_wide, s1, s2, color_palette, type){
         aes(x = .data[[s1]], y = .data[[s2]], label =.data$gene, color = .data$cluster_id_tool_interpreted_driver),
         #color = 'black',
         size = 3,
-        nudge_y = 0,
-        nudge_x = 0,
+        nudge_y = 0.5,
+        nudge_x = 0.5,
         show.legend = FALSE,
         max.overlaps = Inf
       )  +
@@ -168,7 +170,7 @@ get_table_path = function(save_path, tool, spn, simulation_id) {
   file.path(save_path, "tables", paste0("table_", tool, "_", spn, "_", simulation_id, ".rds"))
 }
 
-plot_scatter_process = function(table, sample_names, color_palette_process, driver=T, vertical = F){
+plot_scatter_process = function(table, sample_names, color_palette_process, driver=T, vertical = T){
   # table = join_table_process
   if(spn=='SPN07'){
     table = table %>%
@@ -227,9 +229,13 @@ plot_scatter_process = function(table, sample_names, color_palette_process, driv
 
 # plot_scatter_tool(final_table, color_palette=color_palette_tool, sample_names, type ='interpreted', vertical = vertical)
 plot_scatter_tool = function(final_table, color_palette, sample_names, 
-                             type ='original', vertical = F){
+                             type ='original', vertical = T){
   
   if(type =='original'){
+    if(spn=='SPN07'){
+      final_table = final_table %>%
+        distinct(patient_id, sample_id, mutation_id, .keep_all = TRUE)
+    }
     table_wide = final_table %>%
       select(patient_id, sample_id, mutation_id, cluster_id_tool, vaf_tool) %>%
       pivot_wider(values_from="vaf_tool", names_from="sample_id")

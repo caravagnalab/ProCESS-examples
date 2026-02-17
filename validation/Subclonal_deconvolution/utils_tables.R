@@ -47,20 +47,20 @@ get_cell_id = function(mutation_object) {
 
 
 
-get_table = function(path, tool, env) {
-  filename = get_table_path(path, tool, env$spn, env$simulation_id)
+get_table = function(path_table, file_path, tool, env) {
+  filename = get_table_path(path_table, tool, env$spn, env$simulation_id)
   
   if (file.exists(filename)) {
-    cli::cli_text("Loading existing table {file.path(path, filename)}")
+    cli::cli_text("Loading existing table {file.path(path_table, filename)}")
     if (nrow(readRDS(filename)) == 0) {
       unlink(filename)
       return(NULL)
     }
     readRDS(filename)
   } else {
-    cli::cli_text("Generating table {file.path(path, filename)}")
+    cli::cli_text("Generating table {file.path(file_path, filename)}")
     tryCatch(expr={
-      sys.source(file.path(path, paste0("generate_table_", tool, ".R")), envir=env)
+      sys.source(file.path(file_path, paste0("generate_table_", tool, ".R")), envir=env)
       readRDS(filename)
     },
     error=function(e) {
