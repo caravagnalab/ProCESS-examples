@@ -7,22 +7,22 @@ library(ProCESS)
 library(ggrepel)
 library(EnrichedHeatmap)
 
-setwd('/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/cn_heatmap/')
+setwd('/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/figure3/segm_cna/')
 source("/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/nf-validation/bin/cna/utils.R")
-source('../../getters/process_getters.R')
-source('utils.R')
+source('../../../getters/process_getters.R')
+source('../../cn_heatmap/utils.R')
 source("/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/report/plotting/utils.R")
 
 chr_level = paste0("chr", 1:22)
 upper <- 0.89
 lower <- 0.11
 
-samples_levels <- lapply(c('SPN01', 'SPN02', 'SPN03', 'SPN04', 'SPN06', 'SPN07'), function(spn){
+samples_levels <- lapply(c('SPN01', 'SPN02', 'SPN03', 'SPN04','SPN05', 'SPN06', 'SPN07'), function(spn){
   samples <- get_sample_names(spn)
 }) %>% unlist()
 
 cna_data_all <- tibble()
-for (spn in c('SPN01', 'SPN02', 'SPN04', 'SPN03', 'SPN06', 'SPN07')){ #'SPN02', 'SPN04', 'SPN03', 'SPN06', 'SPN07'
+for (spn in c('SPN05')){ #'SPN02', 'SPN04', 'SPN03', 'SPN06', 'SPN07'
   samples <- get_sample_names(spn)
   cna_data <- lapply(samples, FUN = function(s){
     readRDS(get_process_cna(spn = spn, sample = s)) %>% mutate(sample = s)
@@ -90,7 +90,7 @@ relative_to_absolute_coordinates_new = function(data)
 }
 
 size = 1e5
-spn='SPN01'
+spn='SPN05'
 
 plt <- list()
 for (spn in c('SPN01', 'SPN02', 'SPN04', 'SPN03', 'SPN06', 'SPN07')){ 
@@ -104,7 +104,7 @@ for (spn in c('SPN01', 'SPN02', 'SPN04', 'SPN03', 'SPN06', 'SPN07')){
   df_sequenza_all <- list()
   
   
-  for (c in c(50,100,150)){
+  for (c in c(50,100, 150)){
     print(c)
     
     for (p in c(0.9, 0.6, 0.3)){
@@ -241,7 +241,6 @@ for (spn in c('SPN01', 'SPN02', 'SPN04', 'SPN03', 'SPN06', 'SPN07')){
       }
   }
   
-  
   i=0
   for (tmp in names(df_ascat_list)){
     tmp_df <- df_ascat_list[[tmp]] %>% 
@@ -300,17 +299,20 @@ for (spn in c('SPN01', 'SPN02', 'SPN04', 'SPN03', 'SPN06', 'SPN07')){
       na.rm = TRUE
     )) %>%
     ungroup() %>%
-    select(chr, from, to, n_CN_event)
+    select(chr, from, to, n_CN_event) 
   
   battenberg_match <- battenberg_match %>% 
+    mutate(across(everything(), ~ ifelse(is.na(.), 0, .))) %>% 
     rowwise() %>%
     mutate(mean_match = mean(c_across(-c(chr, from, to)))) 
   
   sequenza_match <- sequenza_match %>% 
+    mutate(across(everything(), ~ ifelse(is.na(.), 0, .))) %>% 
     rowwise() %>%
     mutate(mean_match = mean(c_across(-c(chr, from, to)))) 
   
   ascat_match <- ascat_match %>% 
+    mutate(across(everything(), ~ ifelse(is.na(.), 0, .))) %>% 
     rowwise() %>%
     mutate(mean_match = mean(c_across(-c(chr, from, to)))) 
   
@@ -335,122 +337,108 @@ for (spn in c('SPN01', 'SPN02', 'SPN04', 'SPN03', 'SPN06', 'SPN07')){
   
   chrom_lengths <- chrom_lengths %>%
     mutate(shade = as.factor(row_number() %% 2))
+}
+
+
+
+spns =  c('SPN01', 'SPN05', 'SPN06', 'SPN07')
+all_plot <- list()
+for (spn in spns){
+  join1  = readRDS(paste0('/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/figure3/segm_cna/data/', spn, '_join.rds'))
+  count_CN = readRDS(paste0('/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/figure3/segm_cna/data/', spn, '_count.rds'))
   
-  
-  join = join1 %>% 
-    dplyr::rename(ProCESS = n_CN_event, ASCAT = mean_match_ascat, Sequenza = mean_match_sequenza, Battenberg = mean_match) %>% 
-    pivot_longer(cols = c(ASCAT, Sequenza,Battenberg)) %>% 
-    mutate(rel = (value/ProCESS)*100) %>% 
+  join = join1 %>%
+    dplyr::rename(ProCESS = n_CN_event, ASCAT = mean_match_ascat, Sequenza = mean_match_sequenza, Battenberg = mean_match) %>%
+    pivot_longer(cols = c(ASCAT, Sequenza,Battenberg)) %>%
+    mutate(rel = (value/ProCESS)*100) %>%
     filter(rel <= 100)
   
   
   chrom_lengths <- join1 %>%
-    mutate(chr = factor(chr, levels = chr_level)) %>% 
-    arrange(chr) %>% 
-    mutate(pos = 1:n()) %>% 
+    mutate(chr = factor(chr, levels = chr_level)) %>%
+    arrange(chr) %>%
+    mutate(pos = 1:n()) %>%
     group_by(chr) %>%
     summarise(chr_end = max(pos), .groups = "drop",
               chr_start = min(pos)) %>%
     mutate(
       chr_mid   = (chr_start + chr_end)/2
-    ) 
+    )
   
   rect_count <- count_CN %>%
-    arrange(chr) %>% 
-    mutate(pos = 1:n()) %>% 
+    arrange(chr) %>%
+    mutate(pos = 1:n()) %>%
     ggplot() +
-    # geom_rect(data = chrom_lengths,
-    #           aes(xmin = chr_start, xmax = chr_end , ymin = 0, ymax = 13, fill = shade), alpha = 0.1, inherit.aes = FALSE) +
-    # scale_fill_manual(values = c("grey50", "white"), guide = "none") +
     geom_col(aes(x = pos, y = n_CN_event), color = "grey50") +
-    geom_vline(xintercept = chrom_lengths$chr_start[-1], color = "grey70", linetype = "dashed") +
+    # geom_vline(xintercept = chrom_lengths$chr_start[-1], color = "grey70", linetype = "dashed") +
     scale_x_continuous(
       breaks = chrom_lengths$chr_mid,
       labels = chrom_lengths$chr
     ) +
-    ylim(0, max(count_CN$n_CN_event)) +
-    labs(x = "", y = "# of CN events") +
+    scale_y_continuous(
+      breaks = c(min(count_CN$n_CN_event),max(count_CN$n_CN_event)/2,max(count_CN$n_CN_event)),
+      labels = c(min(count_CN$n_CN_event),max(count_CN$n_CN_event)/2, max(count_CN$n_CN_event))
+    ) +
+    #ylim(0, max(count_CN$n_CN_event)) +
+    labs(x = "", y = "") +
     theme_minimal() +
     theme(
       axis.text.x = element_blank(),
       panel.grid.major.x = element_blank(),
       panel.grid.minor.x  = element_blank(),
-      plot.margin = margin(t = 2, r = 5, b = 2, l = 5)
-    )   +
-    ggtitle(spn)
+      #plot.margin = margin(t = 2, r = 5, b = 2, l = 5)
+    )#   +
+    #ggtitle(label = '', subtitle = spn)
   
-  shade_profile <- join %>% 
-    ggplot() + 
+  shade_profile <- join %>%
+    ggplot() +
     geom_tile(
       aes(x = pos, y = name, fill = rel),
-      height = 0.9
+      height = 0.9, show.legend = F
     ) +
-    geom_vline(xintercept = chrom_lengths$chr_start[-1], color = "grey70", linetype = "dashed") +
+    # geom_vline(xintercept = chrom_lengths$chr_start[-1], color = "grey70", linetype = "dashed") +
     scale_x_continuous(
       breaks = chrom_lengths$chr_mid,
       labels = gsub("chr", "", chrom_lengths$chr)
     ) +
     scale_fill_gradientn(
-      colors = c("peachpuff", "coral", "palegreen4"),
-      #c("#f7fbff", "#6baed6", "#08306b")
-      name = "Mean % Correct"
+      colors = c("coral3", "peachpuff", "palegreen4"),
+      limits = c(0, 100),          # force legend + mapping range
+      breaks = c(0, 25, 50, 75, 100),
+      labels = c(0, 25, 50, 75, 100),
+      name = "Mean % Correct",
+      oob = scales::squish         # keeps values outside range instead of dropping
     ) + 
-    labs(x = "Chromosome", 
-         y = "Tool") +
+    labs(x = "",
+         y = "") +
     theme_minimal() +
     theme(
       axis.text.x = element_text(angle = 0, hjust = 1),
       panel.grid.major.x = element_blank(),
       panel.grid.minor.x  = element_blank(),
-      plot.margin = margin(t = 2, r = 5, b = 2, l = 5)
-    )  
+      #plot.margin = margin(t = 2, r = 5, b = 2, l = 5)
+    )
   
-  plt[[spn]] <- rect_count + shade_profile + plot_layout(nrow = 2, design = 'A\nB\nB') 
+  p <- rect_count / plot_spacer() / shade_profile +
+    plot_layout(ncol = 1, 
+                heights = c(.3, -.95, 1),
+                guides = "collect")
+  ggsave(filename = paste0('/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/figure3/segm_cna/',spn, '.pdf'),
+         plot = p ,
+         width = 210, height = 35, units = 'mm')
+  
+  all_plot[[spn]] <- p
 }
-saveRDS(plt, file = 'plot.rds')
-# df <- out %>%
-#   filter(ratio == 1) %>%
-#   select( -ratio, -segment_id) %>%
-#   distinct() %>%
-#   mutate(CN=paste(Major, minor, sep = ':' )) %>%
-#   mutate(sample_id=as.character(sample_id)) %>%
-#   select(chr, from, to, sample_id, CN) %>%
-#   mutate(CN = ifelse(CN == '1:1', 0, 1)) %>%
-#   filter(CN != 0) %>%
-#   filter(!chr%in%c('chrX', 'chrY') )
-#
-# df_abs <- relative_to_absolute_coordinates_new(df)
-#
-# chrom_lengths_abs <- df_abs %>%
-#   mutate(chr = factor(chr, levels = chr_level)) %>%
-#   arrange(chr) %>%
-#   group_by(chr) %>%
-#   summarise(chr_end = max(to), .groups = "drop",
-#             chr_start = min(from)) %>%
-#   mutate(
-#     chr_mid   = (chr_start + chr_end)/2
-#   ) %>%
-#   filter(!is.na(chr))
-#
-# chrom_lengths_abs <- chrom_lengths_abs %>%
-#   mutate(shade = as.factor(row_number() %% 2))
-#
-# density_count <- df_abs %>%
-#   ggplot() +
-#   geom_rect(data = chrom_lengths_abs,
-#             aes(xmin = chr_start, xmax = chr_end , ymin = 0, ymax = 6e-10, fill = shade), alpha = 0.1, inherit.aes = FALSE) +
-#   scale_fill_manual(values = c("grey50", "white"), guide = "none") +
-#   geom_density(aes(x = from), bw = 1e7) +
-#   geom_vline(xintercept = chrom_lengths_abs$chr_start[-1], color = "grey70", linetype = "dashed") +
-#   scale_x_continuous(
-#     breaks = chrom_lengths_abs$chr_mid,
-#     labels = chrom_lengths_abs$chr
-#   ) +
-#   labs(x = "", y = "CN events") +
-#   theme_minimal() +
-#   theme(
-#     axis.text.x = element_blank(),
-#     panel.grid.major.x = element_blank(),
-#     panel.grid.minor.x  = element_blank(),
-#     plot.margin = margin(t = 2, r = 5, b = 2, l = 5)
-#   )
+
+# plot_all <- wrap_elements(all_plot$SPN01) +  plot_spacer() + wrap_elements(all_plot$SPN05) +  plot_spacer() + wrap_elements(all_plot$SPN06) + plot_spacer() + wrap_elements(all_plot$SPN07) +
+#   plot_layout(ncol = 1, 
+#               heights = c(.5, -0.15, .5, -0.15, .5, -0.15, .5),
+#               guides = "collect")
+# 
+# ggsave(filename = '/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/figure3/segm_cna/cn_genomewide.pdf',
+#        plot = plot_all,
+#        width = 210, height = 150, units = 'mm')
+
+# ggsave(filename = '/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/figure3/segm_cna/cn_genomewide.png',
+#        plot = plot_all, width = 210, height = 150, units = 'mm', dpi = 300)
+

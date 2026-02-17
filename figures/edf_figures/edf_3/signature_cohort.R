@@ -24,11 +24,11 @@ pur = 0.9
 cn_caller = 'ascat'
 mut_caller = 'mutect2'
 
-df_all_sbs = lapply(names(SPN_colors), FUN = function(spn){
-  data_sbs = read.table(get_tumourevo_signatures(spn = spn, coverage = cov, purity = pur, 
-                                         tool = 'SigProfiler', context = 'SBS96', 
-                                         vcf_caller = mut_caller, 
-                                         cna_caller = cn_caller)$context_matrix, header = T, sep = '\t')
+#names(SPN_colors)
+df_all_sbs = lapply(c('SPN03'), FUN = function(spn){
+  data_sbs = read.table(paste0('/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/edf_figures/edf_3/sign/', 
+                               spn, 
+                               '/output/SBS/',spn, '.SBS96.all'), header = T, sep = '\t')
   
   rownames(data_sbs) <- data_sbs$MutationType
   data_sbs <- data_sbs %>% select(!MutationType)
@@ -79,7 +79,6 @@ df_all_id = lapply(names(SPN_colors), FUN = function(spn){
     ungroup() %>% 
     mutate(spn = spn)
 }) %>% bind_rows()
-
 
 
 df_plot_sbs <- df_all_sbs %>% 

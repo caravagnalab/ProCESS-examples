@@ -10,12 +10,13 @@ source("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/validatio
 
 indir = "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/assing_signature/"
 
-option_list <- list(make_option(c("--spn_id"), type = "character", default = 'SPN03'),
-                    make_option(c("--purity"), type = "double", default = 0.9),
-                    make_option(c("--coverage"), type = "integer", default = 50),
+option_list <- list(make_option(c("--spn_id"), type = "character", default = 'SPN05'),
+                    make_option(c("--purity"), type = "double", default = 0.6),
+                    make_option(c("--coverage"), type = "integer", default = 150),
                     make_option(c("--cna_caller"), type = "character", default = 'ascat'),
                     make_option(c("--vcf_caller"), type = "character", default = 'mutect2'),
-                    make_option(c("--signature"), type = "character", default = 'BASCULE')
+                    make_option(c("--signature"), type = "character", default = 'SigProfiler'),
+                    make_option(c("--tool"), type = "character", default = 'pyclonevi')
 )
 
 plot_exposure <- function(df, sig_type, tool, col, type = '', signature = ''){
@@ -79,10 +80,12 @@ signature_tool =  opt$signature
 cna_caller = opt$cna_caller
 mut_caller = opt$vcf_caller
 
-tool = 'viber'
+tool = opt$tool
 
 plot_sign_all <- list()
 plot_sign <- list()
+
+sign_type='SBS'
 for (sign_type in c('SBS', 'ID')){
   if (sign_type == 'SBS'){
     s_type = 'SBS96'
@@ -112,7 +115,7 @@ for (sign_type in c('SBS', 'ID')){
   for (type in c('raw', 'int')){
 
     if (signature_tool == 'BASCULE'){
-      name_file = paste0('bascule_fit_',type,'_2.rds')
+      name_file = paste0('bascule_fit_',type,'.rds')
     } else{
       name_file = paste0('Assignment_Solution/Activities/Assignment_Solution_Activities.txt')
     }
@@ -156,7 +159,7 @@ for (sign_type in c('SBS', 'ID')){
   plot_sign_all[[sign_type]]  <- wrap_plots(plot_process,plot_sign$raw,plot_sign$int) + plot_layout(guides = 'collect') & theme(legend.position = 'bottom')
 }
 
-  
+plot_sign_all$SBS
 # sp = spn
 # t = tool
 # metrics <- readRDS('/orfeo/cephfs/scratch/cdslab/erivar00/GitHub/ProCESS-examples/validation/Subclonal_deconvolution/metrics_tables/table_clusters_metrics.rds') %>% 
@@ -174,14 +177,14 @@ if (spn == 'SPN07'){
   dups_muts <- mutations %>% dplyr::summarise(n = dplyr::n(), .by = c(patient_id, mutation_id, cluster_id_tool, sample_id)) %>% dplyr::filter(n > 1L) 
   muts_tool_raw <- mutations %>% 
     select(patient_id, mutation_id, cluster_id_tool, sample_id, vaf_tool) %>% 
-    filter(mutation_id != dups_muts$mutation_id) %>% 
+    filter(!(mutation_id %in% dups_muts$mutation_id)) %>% 
     pivot_wider(values_from = vaf_tool, names_from = sample_id) %>% 
     replace(is.na(.), 0) %>% 
     mutate(cluster_id_tool = as.character(cluster_id_tool))
   
   muts_tool_int <- mutations %>% 
     select(patient_id, mutation_id, cluster_id_tool_interpreted, sample_id, vaf_tool) %>% 
-    filter(mutation_id != dups_muts$mutation_id) %>% 
+    filter(!(mutation_id %in% dups_muts$mutation_id)) %>% 
     pivot_wider(values_from = vaf_tool, names_from = sample_id) %>% 
     replace(is.na(.), 0) %>% 
     mutate(cluster_id_tool_interpreted = as.character(cluster_id_tool_interpreted))
@@ -189,7 +192,7 @@ if (spn == 'SPN07'){
   
   muts_process <- mutations %>% 
     select(patient_id, mutation_id, sample_id, vaf_process, cluster_id_process) %>%
-    filter(mutation_id != dups_muts$mutation_id) %>% 
+    filter(!(mutation_id %in% dups_muts$mutation_id)) %>% 
     pivot_wider(values_from = vaf_process, names_from = sample_id) %>% 
     replace(is.na(.), 0) 
   
@@ -336,9 +339,9 @@ for (i in 1:length(pairs)){
 heigh <- rep(1, length(pairs))
 heigh <- c(heigh,2)
 p_final <- wrap_plots(cluster_plots_pair, nrow = length(pairs)+1, guides = 'collect')   + wrap_plots(plot_sign_all$SBS,plot_sign_all$ID, nrow = 2,  guides = 'collect') + plot_layout(heights = heigh)
-ggsave(plot = p_final, filename = paste0(spn,'_',tool,'_',signature_tool,'.png'), dpi = 400, width = 9.5, height = 2.5*(length(pairs)+2))
-ggsave(plot = p_final, filename = paste0(spn,'_',tool,'_',signature_tool,'.pdf'), width = 9.5, height = 2.5*(length(pairs)+2))
+ggsave(plot = p_final, filename = paste0('assign_plot/', spn, '/',spn,'_',cov, 'x_', pur, 'p_', tool,'_',signature_tool,'.png'), dpi = 400, width = 9.5, height = 2.5*(length(pairs)+2))
+#ggsave(plot = p_final, filename = paste0(spn,'_',cov, 'x_', pur, 'p_', tool,'_',signature_tool,'.pdf'), width = 9.5, height = 2.5*(length(pairs)+2))
 
 pp <- wrap_plots(cluster_plots_pair, nrow = length(pairs)+1, guides = 'collect')
-ggsave(plot = pp, filename = paste0(spn,'_',tool,'_multivariate.png'), dpi = 400, width = 10, height = 2.5*(length(pairs)+2))
+ggsave(plot = pp, filename = paste0('assign_plot/',spn, '/', spn,'_',cov, 'x_', pur, 'p_', tool,'_multivariate.png'), dpi = 400, width = 10, height = 2.5*(length(pairs)+2))
 

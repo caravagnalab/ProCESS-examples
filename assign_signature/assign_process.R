@@ -14,7 +14,8 @@ option_list <- list(make_option(c("--spn_id"), type = "character", default = 'SP
 opt_parser <- OptionParser(option_list = option_list)
 opt <- parse_args(opt_parser)
 
-base = '/orfeo/cephfs/scratch/cdslab/erivar00/GitHub/ProCESS-examples/validation/Subclonal_deconvolution/tables/'
+#base = '/orfeo/cephfs/scratch/cdslab/erivar00/GitHub/ProCESS-examples/validation/Subclonal_deconvolution/tables/'
+base = '/orfeo/cephfs/scratch/cdslab/shared/SCOUT/validation_subclonal/tables/'
 spn = opt$spn_id
 
 get_exposure <- function(table){
@@ -71,7 +72,7 @@ for (cov in c(50,100,150)){
       summarise(n = n()) %>% 
       filter(n>=100)
     
-    table <- table %>% filter(cluster_id_process %in% n_muts$cluster_id_process)
+    table <- table #%>% filter(cluster_id_process %in% n_muts$cluster_id_process)
     
     table_sbs <- table %>% 
       filter(str_detect(causes, "SBS"))

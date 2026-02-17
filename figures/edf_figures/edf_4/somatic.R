@@ -1,22 +1,22 @@
 source('/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/figure3/somatic/somatic.R')
 source('/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/figure3/germline/germline.R')
+source('/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/edf_figures/edf_4/cn_subclonal.R')
 
 
 coverage_line_boxes  = coverage_line_boxes + labs(tag = "A") 
-purity_line_boxes = purity_line_boxes + labs(tag = "B") 
+purity_line_boxes = purity_line_boxes + labs(tag = "C") 
 caller_line_germline = caller_line_germline + guides(
     col  = guide_legend(nrow = 3),
     fill = guide_legend(nrow = 3)
-  ) + theme(legend.position = 'bottom')+ labs(tag = "C") 
-empty = ggplot() + labs(tag = "D") 
+  ) + theme(legend.position = 'bottom')+ labs(tag = "B") 
+subclonal_cna = subclonal_cna+ theme(legend.position = 'bottom') + labs(tag = "D") 
 cn_heatmap = ggplot() + labs(tag = "E") 
-
 
 wrap_plots(
   free(coverage_line_boxes),
   free(purity_line_boxes), 
   free(caller_line_germline),
-  free(empty),
+  free(subclonal_cna),
   free(cn_heatmap),
   design="aac\nbbd\neee"
 )

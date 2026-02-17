@@ -3,6 +3,7 @@ library(tidyverse)
 
 setwd('/orfeo/cephfs/scratch/area/lvaleriani/races/maf')
 source('../ProCESS-examples/getters/process_getters.R')
+source("/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/report/plotting/utils.R")
 
 spns = paste0('SPN0', 1:7)
 
@@ -11,15 +12,17 @@ mafs <- lapply(spns, FUN = function(spn){
     samples_name = get_sample_names(spn)
     samples = paste0(spn, '_', samples_name)
 
-
     mafs = lapply(samples, FUN = function(s){
-      data = read.maf(maf = paste0(s, '.maf'), )
+      print(s)
+      data = read.maf(maf = paste0(s, '.maf'))
       filter = subsetMaf(data, query = 't_alt_count > 0')
       return(filter)
     })
 
     names(mafs) <- samples
-} %>% merge_mafs())  
+    return(mafs %>% merge_mafs())
+})  
+
 names(mafs) = spns
 
 
@@ -30,7 +33,7 @@ cohortName = names(mafs)
 tcga_cohorts = NULL
 primarySite = FALSE
 col = c('gray70', 'black')
-bg_col = c('#EDF8B1', '#2C7FB8')
+bg_col = c('peachpuff', 'lightblue3')
 medianCol = 'red'
 decreasing = FALSE
 logscale = TRUE
@@ -59,8 +62,9 @@ if(!is.null(tcga_cohorts)){
 if(length(maf) == 1){
   maf = list(maf)
 }
+
 maf.mutload = lapply(maf, function(m){
-  x = getSampleSummary(m)[,.(Tumor_Sample_Barcode, total)]
+  x = maftools::getSampleSummary(m)[,.(Tumor_Sample_Barcode, total)]
   print(x)
   if(rm_zero){
     warning(paste0("Removed ", nrow(x[x$total == 0]), " samples with zero mutations."))
@@ -240,16 +244,17 @@ col_point <- c("SPN01"='steelblue',
                "SPN07"='indianred3', 
                'TCGA' = 'gray70')
 
-plt <- data %>% 
+cex_opt = getOption('CNAqc_cex', default = 1)
+plt_tmb <- data %>% 
   ggplot() +
   geom_rect(
     data = bg,
     aes(xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, fill = col),
     inherit.aes = FALSE,
-    alpha = 0.5,
+    alpha = 0.1,
     show.legend = F
   ) +
-  scale_fill_manual(values = c("1"="lightblue", "2"="lightyellow")) +
+  scale_fill_manual(values = bg_col) +
   geom_hline(
     data = med_df,
     aes(yintercept = med),
@@ -263,17 +268,17 @@ plt <- data %>%
     linewidth = 0.3
   ) + 
   geom_point(data = data  %>% filter(spn == 'TCGA'), aes(x = V1_scaled, y = log10(V2), col = spn, shape = type), size =.4) +
-  geom_point(data = data  %>% filter(spn != 'TCGA'), aes(x = V1_scaled,y = log10(V2), col = spn, shape = type), size = 1.7) +
+  geom_point(data = data  %>% filter(spn != 'TCGA'), aes(x = V1_scaled,y = log10(V2), col = spn, shape = type), size = 2) +
   scale_color_manual('', values = col_point)+ 
   scale_shape_manual('', values = c('Normal' = 16, 'WGD' =15, 'Hypermutant' = 17))+ 
   facet_grid(.~cohort, scales = 'free_x', switch = 'x') +
-  theme_minimal() +
   scale_y_continuous(
-    breaks = 0:5,
-    labels = function(x) 10^x
+    breaks = 0:4.5,
+    labels = function(x) 10^x, limits = c(0,4.5)
   ) + 
   ylab('TMB') +
   xlab('') +
+  ggplot2::theme_light(base_size = 10 * cex_opt) +
   theme(
     axis.text.x = element_blank(),
     axis.ticks.x = element_blank(),
@@ -284,12 +289,13 @@ plt <- data %>%
     panel.spacing = unit(0, "mm"),                       # remove spacing between facets
     panel.border = element_blank(),
     plot.background = element_rect(color = "black", fill = NA),
+    strip.background = element_blank(),
     strip.text.x = element_text(
-      angle = 90,      # rotation
+      angle = 0,      # rotation
       vjust = 0.5,     # vertical alignment
       hjust = 0.5,      # horizontal alignment,
-      size = 10, 
-      margin = margin(t = 0, b = 0), 
+      size = 8, 
+      margin = margin(t = 0.1, b = 0.1), 
       colour = 'gray20'
     )
   ) +
@@ -297,8 +303,10 @@ plt <- data %>%
     color = guide_legend(override.aes = list(size = 2)),
     fill  = guide_legend(override.aes = list(size = 2)),
     shape = guide_legend(override.aes = list(size = 2))
-  )
+  )  
+  #my_ggplot_theme()
+plt_tmb
 
-ggsave(plot = plt, 
-       filename = '/orfeo/cephfs/scratch/area/lvaleriani/races/maf/tmb.pdf', 
-       width = 4, height = 6, units = 'in')
+# ggsave(plot = plt, 
+#        filename = '/orfeo/cephfs/scratch/area/lvaleriani/races/maf/tmb.pdf', 
+#        width = 4, height = 6, units = 'in')

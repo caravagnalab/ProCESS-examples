@@ -17,13 +17,13 @@ setwd(base_dir)
 source("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/getters/tumourevo_getters.R")
 source("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/validation/SCOUT/colors.R")
 
-option_list <- list(make_option(c("--spn_id"), type = "character", default = 'SPN06'),
+option_list <- list(make_option(c("--spn_id"), type = "character", default = 'SPN03'),
                     make_option(c("--purity"), type = "double", default = 0.9),
                     make_option(c("--coverage"), type = "integer", default = 100),
                     make_option(c("--cna_caller"), type = "character", default = 'ascat'),
                     make_option(c("--vcf_caller"), type = "character", default = 'mutect2'),
                     make_option(c("--signature_caller"), type = "character", default = 'SigProfiler'),
-                    make_option(c("--subclonal_caller"), type = "character", default = 'pyclonevi')
+                    make_option(c("--subclonal_caller"), type = "character", default = 'viber')
 )
 spns <- c("SPN06")
 coverages <- c(100)

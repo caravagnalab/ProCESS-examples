@@ -55,6 +55,7 @@ ann_data = read.delim('../oncoprint/top_ann_info.csv', sep = ',') %>%
   dplyr::rename(Samples = Clonal_status)
 
 list_ht <- list()
+spn='SPN01'
 for (spn in c('SPN01', 'SPN02','SPN03','SPN04','SPN05','SPN06','SPN07')) { 
   print(spn)
 
@@ -92,7 +93,8 @@ for (spn in c('SPN01', 'SPN02','SPN03','SPN04','SPN05','SPN06','SPN07')) {
   levels_type <- c('clonal', 'sub-clonal')
   ######## for karotype
   wide_df_kar <- out %>%
-    mutate(CN=Major+minor) %>% 
+    #mutate(CN=Major+minor) %>% 
+    mutate(CN=paste(Major,minor, sep = ':')) %>% 
     filter(!is.na(ratio)) %>% 
     mutate(type = ifelse(ratio == 1, 'clonal', 'sub-clonal')) %>% 
     tidyr::separate(sample_id, into = c('sample', 'r'), sep = ':') %>% 
