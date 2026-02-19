@@ -7,14 +7,14 @@
 #SBATCH --job-name=assign_process
 #SBATCH --output=logs/assign_process_%A_%a.out
 #SBATCH --error=logs/assign_process_%A_%a.err
-#SBATCH --array=1-1
+#SBATCH --array=1-7
 # Adjust based on spn number
 
 module load R/4.4.1
 
 # Define your inputs
-#spns=(SPN01 SPN02 SPN03 SPN04 SPN06 SPN07 SPN05)
-spns=(SPN05)
+spns=(SPN01 SPN02 SPN03 SPN04 SPN06 SPN07 SPN05)
+#spns=(SPN05)
 
 # Compute indices
 task_id=$((SLURM_ARRAY_TASK_ID - 1))
@@ -30,5 +30,5 @@ spn=${spns[$spn_idx]}
 path="/orfeo/scratch/area/lvaleriani/races/ProCESS-examples"
 
 echo $spn
-
-Rscript ${path}/assign_signature/assign_process.R --spn_id "${spn}"
+#Rscript ${path}/assign_signature/assign_process.R --spn_id "${spn}"
+Rscript ${path}/assign_signature/assign_process_univariate.R --spn_id "${spn}"

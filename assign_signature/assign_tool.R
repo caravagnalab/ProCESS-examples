@@ -8,9 +8,9 @@ source('../getters/process_getters.R')
 
 base = "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/assing_signature/"
 
-option_list <- list(make_option(c("--spn_id"), type = "character", default = 'SPN02'),
+option_list <- list(make_option(c("--spn_id"), type = "character", default = 'SPN04'),
                     make_option(c("--purity"), type = "double", default = 0.9),
-                    make_option(c("--coverage"), type = "integer", default = 100),
+                    make_option(c("--coverage"), type = "integer", default = 50),
                     make_option(c("--cna_caller"), type = "character", default = 'ascat'),
                     make_option(c("--vcf_caller"), type = "character", default = 'mutect2'),
                     make_option(c("--signature"), type = "character", default = 'SigProfiler'),
@@ -42,7 +42,7 @@ cna_caller = opt$cna_caller
 mut_caller = opt$vcf_caller
 
 out = "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/assing_signature/"
-tool = 'pyclonevi'
+tool = 'mobster_univariate'
 for (tool in c('pyclonevi', 'viber')){
   
   out_data_raw = paste0(out, spn, '/', cov, 'x_', pur, 'p_', mut_caller, '_', cna_caller, '/', tool, '_', signature_tool, '_raw/')
@@ -94,9 +94,6 @@ for (tool in c('pyclonevi', 'viber')){
       select(-tmp)
   }
     
-    if (spn == 'SPN02'){
-      base = '/orfeo/cephfs/scratch/cdslab/shared/SCOUT/validation_subclonal_SPN02/'
-    }
     table <- readRDS(paste0(base, tool, '_', spn, '_', cov, 'x_', pur, 'p_', mut_caller, '_', cna_caller, '.rds'))
     raw <- table %>% select(patient_id, mutation_id, cluster_id_tool)
     int <- table %>% select(patient_id, mutation_id, cluster_id_tool_interpreted)
