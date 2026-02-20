@@ -1,4 +1,4 @@
-rm(list=ls())
+#rm(list=ls())
 library(ggplot2)
 library(dplyr)
 library(patchwork)
@@ -310,4 +310,4 @@ stats_space_plot1 <- stats_space %>%
 
 # 
 wrap_plots(list(plt_muts_count,stats_space_plot1),guides="collect",design = "AABB\nAABB") + plot_annotation(tag_levels = 'A') & theme(legend.position = "bottom")
-ggsave(filename = "/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/edf_figures/edf_2/edf_space.pdf",device = "pdf",width = 8,height = 4,dpi = 300)
+#ggsave(filename = "/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/edf_figures/edf_2/edf_space.pdf",device = "pdf",width = 8,height = 4,dpi = 300)
