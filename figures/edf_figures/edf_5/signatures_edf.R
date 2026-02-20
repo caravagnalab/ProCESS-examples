@@ -215,10 +215,12 @@ abs_counts_exp_plot <- df_simultated_signatures %>%
         # strip.text.x.top = element_blank(),
         panel.spacing.x = unit(0.2, "lines"),
         legend.box = "horizontal",
+        panel.grid.minor = element_blank(),
+        # panel.grid = 
         axis.ticks.x = element_blank(),axisticks = element_blank())+
   guides(col  = guide_legend(nrow = 3))
 
-
+abs_counts_exp_plot
 
 
 
@@ -241,6 +243,7 @@ cosine_samples <-df_all_combs_SPN_signatures %>%
   labs(x = "Sample ID", y = "Cosine similarity") +
   theme(
     axis.text.x = element_text(angle = 45, hjust = 1),
+    panel.grid.minor = element_blank(),
     strip.text.x.top = element_blank(),panel.spacing.x = unit(0.2, "lines")
   )+
   guides(
@@ -254,3 +257,4 @@ plt_signatures_exp <- wrap_plots(list(abs_counts_exp_plot,cosine_samples),
            design = "AAAA\nBBBB\nBBBB\nBBBB",guides="collect")+
   plot_layout(heights = c(1, 1, 0.6, 0.6)) &
   theme(legend.position = "bottom")
+ggsave(filename = "/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/edf_figures/edf_5/edf5.pdf",plot = plt_signatures_exp,height = 5,width = 10)
