@@ -44,7 +44,7 @@ for(tool in tools){
     
     print(paste0(spn, "_", coverage, "x_", purity, "p_", vcf_caller, "_", cna_caller))
     
-    table = readRDS(file.path(main_path, "validation_subclonal/tables_interpreted", paste0(tool, "_", spn, "_", simulation_id, ".rds")))
+    table = readRDS(file.path(main_path, "subclonal/tables_interpreted", paste0(tool, "_", spn, "_", simulation_id, ".rds")))
     
     if(nrow(table%>%
             pivot_wider(
@@ -74,10 +74,22 @@ for(tool in tools){
       for(sample_name in sample_names){
         
         table_sample = table %>% filter(sample_id == sample_name)
+       
+        # Kolmogorov-Smirnov
+        ccf_tool = table_sample %>% 
+          select(sample_id, cluster_id_tool, ccf_tool) %>% 
+          unique() %>% arrange(sample_id) %>% pull(ccf_tool)
+        
+        ccf_process = table_sample %>% 
+          select(sample_id, cluster_id_process, ccf_process) %>% 
+          unique() %>% arrange(sample_id) %>% pull(ccf_process)
+        
+        ccf_ks = ks.test(ccf_tool, ccf_process)$statistic
+        
         
         # now I can compute the NMI and the metrics and put them in the dataframe
         # Number of clusters tool and process
-        n_clones_blind_ool = length(unique(table_sample$cluster_id_tool))
+        n_raw_clones_tool = length(unique(table_sample$cluster_id_tool))
         n_true_driver_clones_process = length(unique(table_sample$cluster_id_process))
         
         # NMI and ARI
@@ -98,11 +110,18 @@ for(tool in tools){
                         nmi_interpreted_driver=NA,
                         ari_interpreted=NA,
                         ari_raw=ari_raw,
-                        n_blind_tool=n_clones_blind_ool,
+                        n_raw_tool=n_raw_clones_tool,
                         n_true_driver_process = n_true_driver_clones_process,
                         n_interpreted_tool = NA,
                         n_interpreted_driver_tool = NA,
-                        tool=tool)
+                        tool=tool,
+                        n_interpreted_tool_no_tail=NA,
+                        n_true_driver_process_no_tail=NA,
+                        nmi_interpreted_no_tail=NA,
+                        ari_interpreted_no_tail=NA,
+                        Kolmogorov_distance = ccf_ks,
+                        wasserstein_raw=NA,
+                        wasserstein_interpreted=NA)
         
         df = rbind(df, df_samples)
       }
@@ -121,14 +140,53 @@ for(tool in tools){
         mutate(cluster_id_process_full = cluster_id_process) %>% 
         mutate(cluster_id_process=replace(cluster_id_process_full, is_clonal_process==TRUE, 'Clonal'))
       
+      # --------- Salva tabella con nuovi cluster --------- #
+      # saveRDS(table, file.path(save_path, "tables_interpreted_new_clusters", paste0(tool, "_", spn, "_", simulation_id, ".rds")))
+      # ------------ #
+      
+      # Kolmogorov - Smirnov
+      ccf_tool = table %>% 
+        select(sample_id, cluster_id_tool, ccf_tool) %>% 
+        unique() %>% arrange(sample_id) %>% pull(ccf_tool)
+      
+      
+      ccf_tool_interpreted = table %>% 
+        filter(cluster_id_tool_interpreted != 'Subclonal') %>% 
+        select(sample_id, cluster_id_tool_interpreted, ccf_tool) %>% 
+        unique() %>% arrange(sample_id) %>% pull(ccf_tool)
+      
+      ccf_process = table %>% 
+        select(sample_id, cluster_id_process, ccf_process) %>% 
+        unique() %>% arrange(sample_id) %>% pull(ccf_process)
+      
+      ccf_process_interpreted = table %>% 
+        filter(cluster_id_process != 'Subclonal') %>% 
+        select(sample_id, cluster_id_process, ccf_process) %>% 
+        unique() %>% arrange(sample_id) %>% pull(ccf_process)
+      
+      ccf_ks = ks.test(ccf_tool, ccf_process)$statistic
+      # ccf_ks_int = ks.test(ccf_tool_interpreted, ccf_process_interpreted)$statistic
+      
+      was_raw = transport::wasserstein1d(ccf_tool, ccf_process)
+      
+      if(length(ccf_tool_interpreted)>0){
+      was_interpreted = transport::wasserstein1d(ccf_tool_interpreted, ccf_process_interpreted)
+      }else{
+        was_interpreted=NA
+      }
+      # ccf_ks = table %>%
+      #   group_by(patient_id, coverage, purity, tool) %>%
+      #   dplyr::select(patient_id, sample_id, coverage, purity, tool, contains("ccf")) %>%
+      #   unique() %>%
+      #   summarise(ccf_ks=ks.test(ccf_tool, ccf_process)$statistic) %>%
+      #   ungroup() %>% pull(ccf_ks)
+      
+      
       # NMI and ARI
       
-      n_clones_blind_ool = length(unique(table$cluster_id_tool))
-      
-      n_interpreted_clones_tool = length(unique(table$cluster_id_tool_interpreted))
-      
-      n_interpreted_driver_clones_tool = length(unique(table$cluster_id_tool_interpreted_driver))
-      
+      n_raw_clones_tool = length(unique(table$cluster_id_tool))
+      n_interpreted_driver_clones_tool = length(unique(table$cluster_id_tool_interpreted))
+      n_interpreted_driver_clones_process = length(unique(table$cluster_id_tool_interpreted_driver))
       n_true_driver_clones_process = length(unique(table$cluster_id_process))
         
       nmi_interpreted = randnet::NMI(as.factor(table$cluster_id_tool_interpreted),
@@ -147,24 +205,48 @@ for(tool in tools){
                                      as.factor(table$cluster_id_process))
       
       # Now we need to only consider clusters != 'Subclonal' in tool
+      table_no_tail = table %>% filter(cluster_id_tool_interpreted != 'Subclonal')
       
+      if((table_no_tail %>% nrow()) >0){
+        nmi_interpreted_no_tail = randnet::NMI(as.factor(table_no_tail$cluster_id_tool),
+                               as.factor(table_no_tail$cluster_id_process))
+        
+        ari_interpreted_no_tail = aricode::ARI(as.factor(table_no_tail$cluster_id_tool_interpreted),
+                                       as.factor(table_no_tail$cluster_id_process))
+        
+        n_interpreted_clones_tool_no_tail = length(unique(table_no_tail$cluster_id_tool_interpreted))
+        n_true_driver_clones_process_no_tail = length(unique(table_no_tail$cluster_id_process))
+      }
+      else{
+        nmi_interpreted_no_tail=0
+        ari_interpreted_no_tail=0
+        n_interpreted_clones_tool_no_tail=0
+        n_true_driver_clones_process_no_tail=0
+      }
       df = data.frame(spn = spn, purity = purity, 
                       coverage = coverage, vcf_caller = vcf_caller, 
                       cna_caller=cna_caller,
-                      n_blind_tool=n_clones_blind_ool,
+                      n_raw_tool=n_raw_clones_tool,
                       nmi_raw=nmi_raw,
                       nmi_interpreted=nmi_interpreted,
                       nmi_interpreted_driver=nmi_interpreted_driver,
                       ari_interpreted=ari_interpreted,
                       ari_raw=ari_raw,
-                      
+                      nmi_interpreted_no_tail=nmi_interpreted_no_tail,
+                      ari_interpreted_no_tail=ari_interpreted_no_tail,
                       n_true_driver_process = n_true_driver_clones_process,
-                      n_interpreted_tool = n_interpreted_clones_tool,
-                      tool=tool)
+                      n_interpreted_tool = n_interpreted_driver_clones_tool,
+                      n_interpreted_driver_tool=n_interpreted_driver_clones_process,
+                      n_interpreted_tool_no_tail=n_interpreted_clones_tool_no_tail,
+                      n_true_driver_process_no_tail=n_true_driver_clones_process_no_tail,
+                      tool=tool,
+                      Kolmogorov_distance = ccf_ks,
+                      wasserstein_raw=was_raw,
+                      wasserstein_interpreted=was_interpreted)
     }
     metrics_table = bind_rows(metrics_table, df)
     # metrics_table = rbind(metrics_table, df)
   }
 }
 
-saveRDS(metrics_table, file.path(save_path, "metrics_tables/new_table_clusters_metrics_final.rds"))
+saveRDS(metrics_table, file.path(save_path, "metrics_tables/new_table_clusters_metrics_v2.rds"))

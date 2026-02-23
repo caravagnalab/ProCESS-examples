@@ -18,7 +18,7 @@ SPN_colors = c("01"='steelblue', "02"='seagreen', "03"='goldenrod',
 # Plots driver analysis with only TP ####
 t = metrics_drivers %>%
   select(spn, purity, coverage, cna_caller, vcf_caller,
-         tool,
+         tool, sample,
          clonal_TP_d, clonal_FP_d, clonal_FN_d,
          subclonal_TP_d, subclonal_FP_d, subclonal_FN_d) %>%
   mutate(spn = as.character(spn),

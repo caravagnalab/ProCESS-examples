@@ -17,7 +17,7 @@ SPN_colors = c("01"='steelblue', "02"='seagreen', "03"='goldenrod',
 
 t1 = metrics_drivers %>%
   select(spn, purity, coverage, cna_caller, vcf_caller,
-         tool,
+         tool,sample,
          TP_c, FP_c, FN_c,
          TP_c_blind, FP_c_blind, FN_c_blind,
          precision_c, recall_c, 

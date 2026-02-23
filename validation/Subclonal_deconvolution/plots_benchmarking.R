@@ -8,7 +8,7 @@ save_path = file.path(github_path, "validation/Subclonal_deconvolution/")
 
 # Simple final plot ####
 
-metrics_table = readRDS(file.path(save_path, "metrics_tables/new_table_clusters_metrics_v2.rds"))
+metrics_table = readRDS(file.path(save_path, "metrics_tables/new_table_clusters_metrics_final.rds"))
 metrics_table = metrics_table %>% filter(tool!='mobster')
 
 ## Theme ####
@@ -23,7 +23,7 @@ my_theme = theme_light(base_size=12) +
         legend.title=element_text(size=12),
         text=element_text(size=12))
 
-palette_raw_int = RColorBrewer::brewer.pal(n=3, name="Dark2")
+palette_blind_int = RColorBrewer::brewer.pal(n=3, name="Dark2")
 palette_coverage = RColorBrewer::brewer.pal(n=3, name="Set1")
 palette_spn = RColorBrewer::brewer.pal(n=length(spn_list), name="Dark2")
 
@@ -43,7 +43,7 @@ metrics_table_nmi_long = metrics_table %>%
     values_to = "value"
   ) %>% 
   mutate(metric_label=case_when(
-    metric=='nmi_raw'~"NMI raw",
+    metric=='nmi_raw'~"NMI blind",
     metric=='nmi_interpreted'~"NMI interpreted"
   )) 
 # 
@@ -53,7 +53,7 @@ metrics_table_nmi_long = metrics_table %>%
 
 mean_NMI = metrics_table_nmi_long %>%
   mutate(
-    metric_label = factor(metric_label, levels = c("NMI raw", "NMI interpreted")),
+    metric_label = factor(metric_label, levels = c("NMI blind", "NMI interpreted")),
     tool = factor(tool, levels = c("viber", "pyclonevi"))
   ) %>%
   group_by(tool, spn, metric_label) %>%
@@ -61,7 +61,7 @@ mean_NMI = metrics_table_nmi_long %>%
 
 metrics_table_nmi_long %>%
   mutate(
-    metric_label = factor(metric_label, levels = c("NMI raw", "NMI interpreted")),
+    metric_label = factor(metric_label, levels = c("NMI blind", "NMI interpreted")),
     purity = factor(purity),
     coverage = factor(coverage),
     tool = factor(tool, levels = c("viber", "pyclonevi"))
@@ -87,7 +87,7 @@ metrics_table_nmi_long %>%
 
 metrics_table_nmi_long %>%
   mutate(metric_label = factor(metric_label,
-                               levels = c("NMI raw", "NMI interpreted")),
+                               levels = c("NMI blind", "NMI interpreted")),
          purity = factor(purity),
          coverage = factor(coverage),
          tool=factor(tool,
@@ -119,19 +119,19 @@ metrics_table_nmi_long %>%
 ## Relative error number of clusters ####
 metrics_table_long_relative_error = metrics_table %>%
   select(spn, purity, coverage,tool,
-         n_raw_tool,
+         n_blind_tool,
          n_interpreted_tool,
          n_true_driver_process) %>%
-  mutate(relative_raw_error = abs((n_raw_tool - n_true_driver_process)/n_true_driver_process),
+  mutate(relative_blind_error = abs((n_blind_tool - n_true_driver_process)/n_true_driver_process),
          relative_interpreted_error = abs((n_interpreted_tool - n_true_driver_process)/n_true_driver_process)) %>% 
   pivot_longer(
-    cols = c(relative_raw_error,
+    cols = c(relative_blind_error,
              relative_interpreted_error),
     names_to = "error",
     values_to = "value"
   ) %>% 
   mutate(error_label=case_when(
-    error=='relative_raw_error'~"Raw",
+    error=='relative_blind_error'~"blind",
     error=='relative_interpreted_error'~"Interpreted"
   ))
 
@@ -146,7 +146,7 @@ metrics_table_long_relative_error = metrics_table %>%
 
 mean_relative_err = metrics_table_long_relative_error %>%
   mutate(
-    error_label = factor(error_label, levels = c("Raw", "Interpreted")),
+    error_label = factor(error_label, levels = c("blind", "Interpreted")),
     tool = factor(tool, levels = c("viber", "pyclonevi"))
   ) %>%
   group_by(tool, spn, error_label) %>%
@@ -155,7 +155,7 @@ mean_relative_err = metrics_table_long_relative_error %>%
 
 metrics_table_long_relative_error %>%
   mutate(
-    error_label = factor(error_label, levels = c("Raw", "Interpreted")),
+    error_label = factor(error_label, levels = c("blind", "Interpreted")),
     purity = factor(purity),
     coverage = factor(coverage),
     tool = factor(tool, levels = c("viber", "pyclonevi"))
@@ -197,7 +197,7 @@ metrics_table_nmi_long = metrics_table %>%
     values_to = "value"
   ) %>% 
   mutate(metric_label=case_when(
-    metric=='nmi_raw'~"NMI raw",
+    metric=='nmi_raw'~"NMI blind",
     metric=='nmi_interpreted'~"NMI interpreted"
   )) 
 
@@ -208,7 +208,7 @@ mean_NMI = metrics_table_nmi_long %>%
 
 nmi_plot = metrics_table_nmi_long %>%
   mutate(metric_label = factor(metric_label,
-                               levels = c("NMI raw", "NMI interpreted")),
+                               levels = c("NMI blind", "NMI interpreted")),
          purity = factor(purity),
          coverage = factor(coverage),
          tool=factor(tool,
@@ -230,7 +230,7 @@ nmi_plot = metrics_table_nmi_long %>%
   xlab("SPN")+ 
   ylab("NMI")+
   ylim(0,1)+
-  scale_color_manual(values=palette_raw_int, name='Metric')+
+  scale_color_manual(values=palette_blind_int, name='Metric')+
   scale_shape_manual(values=c(16,17,3), name='Purity')+
   scale_alpha_manual(values=c(0.2,0.5,1), name = 'Coverage')+
   my_theme
@@ -242,15 +242,15 @@ nmi_plot
 metrics_table_ari_long = metrics_table %>%
   select(spn, purity, coverage, tool,
          cna_caller, vcf_caller,
-         ari_raw,
+         ari_blind,
          ari_interpreted) %>%
   pivot_longer(
-    cols = c(ari_raw, ari_interpreted),
+    cols = c(ari_blind, ari_interpreted),
     names_to = "metric",
     values_to = "value"
   ) %>% 
   mutate(metric_label=case_when(
-    metric=='ari_raw'~"ARI raw",
+    metric=='ari_blind'~"ARI blind",
     metric=='ari_interpreted'~"ARI interpreted"
   ))
 
@@ -260,7 +260,7 @@ mean_ARI = metrics_table_ari_long %>%
 
 ari_plot=metrics_table_ari_long %>%
   mutate(metric_label = factor(metric_label,
-                               levels = c("ARI raw", "ARI interpreted")),
+                               levels = c("ARI blind", "ARI interpreted")),
          purity = factor(purity),
          coverage = factor(coverage),
          tool=factor(tool,
@@ -281,7 +281,7 @@ ari_plot=metrics_table_ari_long %>%
   ) +
   xlab("SPN")+ 
   ylab("NMI")+
-  scale_color_manual(values=palette_raw_int, name='Metric')+
+  scale_color_manual(values=palette_blind_int, name='Metric')+
   scale_shape_manual(values=c(16,17,3), name='Purity')+
   scale_alpha_manual(values=c(0.2,0.5,1), name = 'Coverage')+
   my_theme
@@ -295,19 +295,19 @@ ggsave(file.path(save_path, "plots/metrics/ari_plot.png"), ari_plot)
 ## Relative error number of clusters ####
 metrics_table_long_relative_error = metrics_table %>%
   select(spn, purity, coverage,tool,
-         n_raw_tool,
+         n_blind_tool,
          n_interpreted_tool,
          n_true_driver_process) %>%
-  mutate(relative_raw_error = abs((n_raw_tool - n_true_driver_process)/n_true_driver_process),
+  mutate(relative_blind_error = abs((n_blind_tool - n_true_driver_process)/n_true_driver_process),
          relative_interpreted_error = abs((n_interpreted_tool - n_true_driver_process)/n_true_driver_process)) %>% 
   pivot_longer(
-    cols = c(relative_raw_error,
+    cols = c(relative_blind_error,
              relative_interpreted_error),
     names_to = "error",
     values_to = "value"
   ) %>% 
   mutate(error_label=case_when(
-    error=='relative_raw_error'~"Raw",
+    error=='relative_blind_error'~"blind",
     error=='relative_interpreted_error'~"Interpreted"
   ))
 ### Scatter ####
@@ -321,13 +321,13 @@ mean_relative_err = metrics_table_long_relative_error %>%
 
 clusters_relative_error_scatter = metrics_table_long_relative_error %>%
   mutate(
-    error_label = factor(error_label, levels = c("Raw", "Interpreted")),
+    error_label = factor(error_label, levels = c("blind", "Interpreted")),
     purity = factor(purity),
     coverage=factor(coverage)
   ) %>%
   ggplot(aes(x = n_true_driver_process, y = value, color=spn, shape=purity)) +
   ggh4x::facet_nested("Tool"+~factor(tool, levels=c('viber', 'pyclonevi'))~"Error" + 
-                        ~factor(error_label, levels=c("Raw", "Interpreted"))) +
+                        ~factor(error_label, levels=c("blind", "Interpreted"))) +
   geom_point(aes(alpha=coverage), size = 3) +
   geom_hline(
     data = mean_relative_err,
@@ -355,16 +355,16 @@ ggsave(file.path(save_path, "plots/metrics/clusters_relative_error_scatter.png")
 new_table = metrics_table %>%
   select(spn, purity, coverage,tool,
          n_true_driver_process,
-         wasserstein_raw,
+         wasserstein_blind,
          wasserstein_interpreted) %>% 
   pivot_longer(
-    cols = c(wasserstein_raw,
+    cols = c(wasserstein_blind,
              wasserstein_interpreted),
     names_to = "distance",
     values_to = "value"
   ) %>% 
   mutate(distance_label=case_when(
-    distance=='wasserstein_raw'~"Raw",
+    distance=='wasserstein_blind'~"blind",
     distance=='wasserstein_interpreted'~"Interpreted"
   ))
 ### Scatter ####
@@ -378,13 +378,13 @@ new_table = metrics_table %>%
 
 new_table %>%
   mutate(
-    error_label = factor(distance_label, levels = c("Raw", "Interpreted")),
+    error_label = factor(distance_label, levels = c("blind", "Interpreted")),
     purity = factor(purity),
     coverage=factor(coverage)
   ) %>%
   ggplot(aes(x = n_true_driver_process, y = value, color=spn, shape=purity)) +
   ggh4x::facet_nested("Tool"+~factor(tool, levels=c('viber', 'pyclonevi'))~"Error" + 
-                        ~factor(distance_label, levels=c("Raw", "Interpreted"))) +
+                        ~factor(distance_label, levels=c("blind", "Interpreted"))) +
   geom_point(aes(alpha=coverage), size = 3) +
   xlab('Number of simulated clones') +
   ylab('Wasserstein distance') +
@@ -420,22 +420,22 @@ ggsave(file.path(save_path, "plots/metrics/fig5.pdf"),p,
 # NMI vs relative error ####
 base = metrics_table %>%
   select(spn, purity, coverage, tool,
-         n_raw_tool, n_interpreted_tool, n_true_driver_process,
+         n_blind_tool, n_interpreted_tool, n_true_driver_process,
          nmi_raw, nmi_interpreted) %>%
   mutate(
-    relative_raw_error = abs((n_raw_tool - n_true_driver_process) / n_true_driver_process),
+    relative_blind_error = abs((n_blind_tool - n_true_driver_process) / n_true_driver_process),
     relative_interpreted_error = abs((n_interpreted_tool - n_true_driver_process) / n_true_driver_process)
   )
 
 error_long = base %>%
   pivot_longer(
-    cols = c(relative_raw_error, relative_interpreted_error),
+    cols = c(relative_blind_error, relative_interpreted_error),
     names_to = "metric",
     values_to = "error"
   ) %>%
   mutate(
     metric = recode(metric,
-                    relative_raw_error = "Blind",
+                    relative_blind_error = "Blind",
                     relative_interpreted_error = "Interpreted"
     )
   ) %>%
@@ -509,22 +509,22 @@ ggsave(file.path(save_path, "plots/metrics/error_vs_NMI.png"),error_vs_NMI_scatt
 # Relative error vs Kolmogorov distance ####
 base = metrics_table %>%
   select(spn, purity, coverage, tool,
-         n_raw_tool, n_interpreted_tool, n_true_driver_process,
+         n_blind_tool, n_interpreted_tool, n_true_driver_process,
          Kolmogorov_distance) %>%
   mutate(
-    relative_raw_error = abs((n_raw_tool - n_true_driver_process) / n_true_driver_process),
+    relative_blind_error = abs((n_blind_tool - n_true_driver_process) / n_true_driver_process),
     relative_interpreted_error = abs((n_interpreted_tool - n_true_driver_process) / n_true_driver_process)
   )
 
 error_long = base %>%
   pivot_longer(
-    cols = c(relative_raw_error, relative_interpreted_error),
+    cols = c(relative_blind_error, relative_interpreted_error),
     names_to = "metric",
     values_to = "error"
   ) %>%
   mutate(
     metric = recode(metric,
-                    relative_raw_error = "Raw",
+                    relative_blind_error = "blind",
                     relative_interpreted_error = "Interpreted"
     )
   ) %>%
@@ -537,7 +537,7 @@ distance_long = base %>%
     values_to = "distance"
   )  %>% 
   # distance_long has no metric, so create it by duplicating each row
-  tidyr::crossing(metric = c("Raw", "Interpreted")) %>% 
+  tidyr::crossing(metric = c("blind", "Interpreted")) %>% 
   # alternatively, use mutate + bind_rows; crossing is cleaner
   select(spn, purity, coverage, tool, metric, distance)
 
@@ -548,13 +548,13 @@ metrics_table_long_relative_error_nmi = left_join(
 
 error_vs_Kolmogorv_scatter_plot = metrics_table_long_relative_error_nmi %>%
   mutate(
-    error_complete = factor(metric, levels = c("Raw", "Interpreted")),
+    error_complete = factor(metric, levels = c("blind", "Interpreted")),
     purity = factor(purity),
     coverage=factor(coverage)
   ) %>%
   ggplot(aes(x = error, y = distance, color=spn, shape=purity)) +
   ggh4x::facet_nested("Tool"+~factor(tool, levels=c('viber', 'pyclonevi'))~"Error" + 
-                        ~factor(metric, levels=c("Raw", "Interpreted"))) +
+                        ~factor(metric, levels=c("blind", "Interpreted"))) +
   geom_point(aes(alpha=coverage), size = 3) +
   xlab('Relative error') +
   # ylab('Relative error |(#tool - #ProCESS)/#ProCESS|') +
@@ -573,23 +573,23 @@ ggsave(file.path(save_path, "plots/metrics/error_vs_Kdistance.png"),error_vs_Kol
 # Relative error vs Wasserstein distance ####
 base = metrics_table %>%
   select(spn, purity, coverage, tool,
-         n_raw_tool, n_interpreted_tool, n_true_driver_process,
+         n_blind_tool, n_interpreted_tool, n_true_driver_process,
          wasserstein_interpreted,
-         wasserstein_raw) %>%
+         wasserstein_blind) %>%
   mutate(
-    relative_raw_error = abs((n_raw_tool - n_true_driver_process) / n_true_driver_process),
+    relative_blind_error = abs((n_blind_tool - n_true_driver_process) / n_true_driver_process),
     relative_interpreted_error = abs((n_interpreted_tool - n_true_driver_process) / n_true_driver_process)
   )
 
 error_long = base %>%
   pivot_longer(
-    cols = c(relative_raw_error, relative_interpreted_error),
+    cols = c(relative_blind_error, relative_interpreted_error),
     names_to = "metric",
     values_to = "error"
   ) %>%
   mutate(
     metric = recode(metric,
-                    relative_raw_error = "Raw",
+                    relative_blind_error = "blind",
                     relative_interpreted_error = "Interpreted"
     )
   ) %>%
@@ -597,13 +597,13 @@ error_long = base %>%
 
 distance_long = base %>%
   pivot_longer(
-    cols = c(wasserstein_raw, wasserstein_interpreted),
+    cols = c(wasserstein_blind, wasserstein_interpreted),
     names_to = "metric",
     values_to = "distance"
   ) %>%
   mutate(
     metric = recode(metric,
-                    wasserstein_raw = "Raw",
+                    wasserstein_blind = "blind",
                     wasserstein_interpreted = "Interpreted"
     )
   ) %>%
@@ -616,13 +616,13 @@ metrics_table_long_relative_error_wasserstein = left_join(
 
 metrics_table_long_relative_error_wasserstein %>%
   mutate(
-    error_complete = factor(metric, levels = c("Raw", "Interpreted")),
+    error_complete = factor(metric, levels = c("blind", "Interpreted")),
     purity = factor(purity),
     coverage=factor(coverage)
   ) %>%
   ggplot(aes(x = error, y = distance)) +
   ggh4x::facet_nested("Tool"+~factor(tool, levels=c('viber', 'pyclonevi'))~"Error" + 
-                        ~factor(metric, levels=c("Raw", "Interpreted"))) +
+                        ~factor(metric, levels=c("blind", "Interpreted"))) +
   geom_point(aes(color=spn),size = 2) +
   geom_smooth(color='black', method="lm")+
   ggpubr::stat_cor(aes(label=after_stat(rr.label)))+
@@ -641,22 +641,22 @@ ggsave(file.path(save_path, "plots/metrics/error_vs_Kdistance.png"),error_vs_Kol
 # Relative error vs Kolmogorov distance ####
 base = metrics_table %>%
   select(spn, purity, coverage, tool,
-         n_raw_tool, n_interpreted_tool, n_true_driver_process,
+         n_blind_tool, n_interpreted_tool, n_true_driver_process,
          Kolmogorov_distance) %>%
   mutate(
-    relative_raw_error = abs((n_raw_tool - n_true_driver_process) / n_true_driver_process),
+    relative_blind_error = abs((n_blind_tool - n_true_driver_process) / n_true_driver_process),
     relative_interpreted_error = abs((n_interpreted_tool - n_true_driver_process) / n_true_driver_process)
   )
 
 error_long = base %>%
   pivot_longer(
-    cols = c(relative_raw_error, relative_interpreted_error),
+    cols = c(relative_blind_error, relative_interpreted_error),
     names_to = "metric",
     values_to = "error"
   ) %>%
   mutate(
     metric = recode(metric,
-                    relative_raw_error = "Raw",
+                    relative_blind_error = "blind",
                     relative_interpreted_error = "Interpreted"
     )
   ) %>%
@@ -669,7 +669,7 @@ distance_long = base %>%
     values_to = "distance"
   )  %>% 
   # distance_long has no metric, so create it by duplicating each row
-  tidyr::crossing(metric = c("Raw", "Interpreted")) %>% 
+  tidyr::crossing(metric = c("blind", "Interpreted")) %>% 
   # alternatively, use mutate + bind_rows; crossing is cleaner
   select(spn, purity, coverage, tool, metric, distance)
 
@@ -680,13 +680,13 @@ metrics_table_long_relative_error_nmi = left_join(
 
 error_vs_Kolmogorv_scatter_plot = metrics_table_long_relative_error_nmi %>%
   mutate(
-    error_complete = factor(metric, levels = c("Raw", "Interpreted")),
+    error_complete = factor(metric, levels = c("blind", "Interpreted")),
     purity = factor(purity),
     coverage=factor(coverage)
   ) %>%
   ggplot(aes(x = error, y = distance, color=spn, shape=purity)) +
   ggh4x::facet_nested("Tool"+~factor(tool, levels=c('viber', 'pyclonevi'))~"Error" + 
-                        ~factor(metric, levels=c("Raw", "Interpreted"))) +
+                        ~factor(metric, levels=c("blind", "Interpreted"))) +
   geom_point(aes(alpha=coverage), size = 3) +
   xlab('Relative error') +
   # ylab('Relative error |(#tool - #ProCESS)/#ProCESS|') +
@@ -716,7 +716,7 @@ NMI_long = base %>%
   ) %>%
   mutate(
     metric = recode(metric,
-                    nmi_raw = "Raw",
+                    nmi_raw = "blind",
                     nmi_interpreted = "Interpreted"
     )
   ) %>%
@@ -729,7 +729,7 @@ distance_long = base %>%
     values_to = "distance"
   )  %>% 
   # distance_long has no metric, so create it by duplicating each row
-  tidyr::crossing(metric = c("Raw", "Interpreted")) %>% 
+  tidyr::crossing(metric = c("blind", "Interpreted")) %>% 
   # alternatively, use mutate + bind_rows; crossing is cleaner
   select(spn, purity, coverage, tool, metric, distance)
 
@@ -740,13 +740,13 @@ metrics_table_long_distance_nmi = left_join(
 
 NMI_vs_Kolmogorv_scatter_plot = metrics_table_long_distance_nmi %>%
   mutate(
-    error_complete = factor(metric, levels = c("Raw", "Interpreted")),
+    error_complete = factor(metric, levels = c("blind", "Interpreted")),
     purity = factor(purity),
     coverage=factor(coverage)
   ) %>%
   ggplot(aes(x = NMI, y = distance, color=spn, shape=purity)) +
   ggh4x::facet_nested("Tool"+~factor(tool, levels=c('viber', 'pyclonevi'))~"Error" + 
-                        ~factor(metric, levels=c("Raw", "Interpreted"))) +
+                        ~factor(metric, levels=c("blind", "Interpreted"))) +
   geom_point(aes(alpha=coverage), size = 3) +
   xlab('NMI') +
   # ylab('Relative error |(#tool - #ProCESS)/#ProCESS|') +
@@ -780,7 +780,7 @@ metrics_table_nmi_long = metrics_table %>%
     values_to = "value"
   ) %>% 
   mutate(metric_label=case_when(
-    metric=='nmi_raw'~"NMI raw",
+    metric=='nmi_raw'~"NMI blind",
     metric=='nmi_interpreted_no_tail'~"NMI interpreted"
   )) 
 
@@ -791,7 +791,7 @@ mean_NMI = metrics_table_nmi_long %>%
 
 nmi_plot = metrics_table_nmi_long %>%
   mutate(metric_label = factor(metric_label,
-                               levels = c("NMI raw", "NMI interpreted")),
+                               levels = c("NMI blind", "NMI interpreted")),
          purity = factor(purity),
          coverage = factor(coverage),
          tool=factor(tool,
@@ -812,7 +812,7 @@ nmi_plot = metrics_table_nmi_long %>%
   ) +
   xlab("SPN")+ 
   ylab("NMI")+
-  scale_color_manual(values=palette_raw_int, name='Metric')+
+  scale_color_manual(values=palette_blind_int, name='Metric')+
   scale_shape_manual(values=c(16,17,3), name='Purity')+
   scale_alpha_manual(values=c(0.2,0.5,1), name = 'Coverage')+
   my_theme
@@ -825,19 +825,19 @@ nmi_plot
 ## Relative error number of clusters ####
 metrics_table_long_relative_error = metrics_table %>%
   select(spn, purity, coverage,tool,
-         n_raw_tool,
+         n_blind_tool,
          n_interpreted_tool_no_tail,
          n_true_driver_process) %>%
-  mutate(relative_raw_error = abs((n_raw_tool - n_true_driver_process)/n_true_driver_process),
+  mutate(relative_blind_error = abs((n_blind_tool - n_true_driver_process)/n_true_driver_process),
          relative_interpreted_error = abs((n_interpreted_tool_no_tail - n_true_driver_process)/n_true_driver_process)) %>% 
   pivot_longer(
-    cols = c(relative_raw_error,
+    cols = c(relative_blind_error,
              relative_interpreted_error),
     names_to = "error",
     values_to = "value"
   ) %>% 
   mutate(error_label=case_when(
-    error=='relative_raw_error'~"Raw",
+    error=='relative_blind_error'~"blind",
     error=='relative_interpreted_error'~"Interpreted"
   ))
 
@@ -851,13 +851,13 @@ mean_relative_err = metrics_table_long_relative_error %>%
 
 clusters_relative_error_scatter = metrics_table_long_relative_error %>%
   mutate(
-    error_label = factor(error_label, levels = c("Raw", "Interpreted")),
+    error_label = factor(error_label, levels = c("blind", "Interpreted")),
     purity = factor(purity),
     coverage=factor(coverage)
   ) %>%
   ggplot(aes(x = n_true_driver_process, y = value, color=spn, shape=purity)) +
   ggh4x::facet_nested("Tool"+~factor(tool, levels=c('viber', 'pyclonevi'))~"Error" + 
-                        ~factor(error_label, levels=c("Raw", "Interpreted"))) +
+                        ~factor(error_label, levels=c("blind", "Interpreted"))) +
   geom_point(aes(alpha=coverage), size = 3) +
   geom_hline(
     data = mean_relative_err,
@@ -880,14 +880,14 @@ clusters_relative_error_scatter
 
 metrics_table_long_relative_error %>%
   mutate(
-    error_label = factor(error_label, levels = c("Raw", "Interpreted")),
+    error_label = factor(error_label, levels = c("blind", "Interpreted")),
     purity = factor(purity),
     coverage=factor(coverage)
   ) %>%
   ggplot(aes(x = n_true_driver_process, y = value)) +
   ggh4x::facet_nested("Tool"+~factor(tool, levels=c('viber', 'pyclonevi'))~"Error" +
-                        ~factor(error_label, levels=c("Raw", "Interpreted"))) +
-  # ggh4x::facet_nested(~factor(error_label, levels=c("Raw", "Interpreted")))  +
+                        ~factor(error_label, levels=c("blind", "Interpreted"))) +
+  # ggh4x::facet_nested(~factor(error_label, levels=c("blind", "Interpreted")))  +
   geom_hline(
     data = mean_relative_err,
     aes(yintercept = mean_value, linetype = "Mean Error"),
@@ -927,7 +927,7 @@ ggsave(file.path(save_path, "plots/metrics/fig5_no_tail.pdf"),p,
 
 
 # Interpreted drivers ####
-palette_raw_int = RColorBrewer::brewer.pal(n=4, name="Dark2")
+palette_blind_int = RColorBrewer::brewer.pal(n=4, name="Dark2")
 
 ## NMI ####
 metrics_table_nmi_long = metrics_table %>%
@@ -946,7 +946,7 @@ metrics_table_nmi_long = metrics_table %>%
     values_to = "value"
   ) %>% 
   mutate(metric_label=case_when(
-    metric=='nmi_raw'~"NMI raw",
+    metric=='nmi_raw'~"NMI blind",
     metric=='nmi_interpreted'~"NMI interpreted",
     metric=='nmi_interpreted_driver'~"NMI interpreted driver"
   )) 
@@ -958,7 +958,7 @@ mean_NMI = metrics_table_nmi_long %>%
 
 nmi_plot = metrics_table_nmi_long %>%
   mutate(metric_label = factor(metric_label,
-                               levels = c("NMI raw", "NMI interpreted","NMI interpreted driver")),
+                               levels = c("NMI blind", "NMI interpreted","NMI interpreted driver")),
          purity = factor(purity),
          coverage = factor(coverage),
          tool=factor(tool,
@@ -980,33 +980,65 @@ nmi_plot = metrics_table_nmi_long %>%
   xlab("SPN")+ 
   ylab("NMI")+
   ylim(0,1)+
-  scale_color_manual(values=palette_raw_int, name='Metric')+
+  scale_color_manual(values=palette_blind_int, name='Metric')+
   scale_shape_manual(values=c(16,17,3), name='Purity')+
   scale_alpha_manual(values=c(0.2,0.5,1), name = 'Coverage')+
   my_theme
 
 nmi_plot 
 
+
+nmi_plot_no_purity = metrics_table_nmi_long %>%
+  mutate(metric_label = factor(metric_label,
+                               levels = c("NMI blind", "NMI interpreted","NMI interpreted driver")),
+         purity = factor(purity),
+         coverage = factor(coverage),
+         tool=factor(tool,
+                     levels = c("viber", "pyclonevi"))) %>%
+  ggplot(aes(x = spn, y = value)) +
+  geom_boxplot(aes(color = metric_label), position = position_dodge(width = 0.8)) +
+  geom_point(
+    aes(group = metric_label),
+    position = position_dodge(width = 0.8),
+    size = 1.5
+  ) +
+  ggh4x::facet_nested(~"Tool" + ~factor(tool, levels=c('viber', 'pyclonevi'))) +
+  geom_hline(
+    data = mean_NMI,
+    aes(yintercept = mean_value, color = metric_label),
+    linewidth = 0.5,
+    linetype = 'dashed'
+  ) +
+  xlab("SPN")+ 
+  ylab("NMI")+
+  ylim(0,1)+
+  scale_color_manual(values=palette_blind_int, name='Metric')+
+  my_theme
+
+nmi_plot_no_purity 
+ggsave(paste0('/orfeo/cephfs/scratch/cdslab/erivar00/GitHub/ProCESS-examples/validation/Subclonal_deconvolution/plots/panels/D_NMI.pdf'), 
+       nmi_plot_no_purity, width = 10, height=5)
+
 ## Relative error number of clusters ####
 
 metrics_table_long_relative_error = metrics_table %>%
   select(spn, purity, coverage,tool,
-         n_raw_tool,
+         n_blind_tool,
          n_interpreted_tool,
          n_interpreted_driver_tool,
          n_true_driver_process) %>%
-  mutate(relative_raw_error = abs((n_raw_tool - n_true_driver_process)/n_true_driver_process),
+  mutate(relative_blind_error = abs((n_blind_tool - n_true_driver_process)/n_true_driver_process),
          relative_interpreted_error = abs((n_interpreted_tool - n_true_driver_process)/n_true_driver_process),
          relative_interpreted_driver_error = abs((n_interpreted_driver_tool - n_true_driver_process)/n_true_driver_process)) %>% 
   pivot_longer(
-    cols = c(relative_raw_error,
+    cols = c(relative_blind_error,
              relative_interpreted_error,
              relative_interpreted_driver_error),
     names_to = "error",
     values_to = "value"
   ) %>% 
   mutate(error_label=case_when(
-    error=='relative_raw_error'~"Raw",
+    error=='relative_blind_error'~"blind",
     error=='relative_interpreted_error'~"Interpreted",
     error=='relative_interpreted_driver_error'~"Interpreted driver"
   ))
@@ -1021,13 +1053,13 @@ mean_relative_err = metrics_table_long_relative_error %>%
 
 clusters_relative_error_scatter = metrics_table_long_relative_error %>%
   mutate(
-    error_label = factor(error_label, levels = c("Raw", "Interpreted", "Interpreted driver")),
+    error_label = factor(error_label, levels = c("blind", "Interpreted", "Interpreted driver")),
     purity = factor(purity),
     coverage=factor(coverage)
   ) %>%
   ggplot(aes(x = n_true_driver_process, y = value, color=spn, shape=purity)) +
   ggh4x::facet_nested("Tool"+~factor(tool, levels=c('viber', 'pyclonevi'))~"Error" + 
-                        ~factor(error_label, levels=c("Raw", "Interpreted", "Interpreted driver"))) +
+                        ~factor(error_label, levels=c("blind", "Interpreted", "Interpreted driver"))) +
   geom_point(aes(alpha=coverage), size = 3) +
   geom_hline(
     data = mean_relative_err,
