@@ -1,6 +1,7 @@
 library(ggplot2)
 library(tidyr)
 library(dplyr)
+library(tidyverse)
 library(stringr)
 
 github_path = '/orfeo/cephfs/scratch/cdslab/erivar00/GitHub/ProCESS-examples/'
@@ -58,7 +59,7 @@ pr = t %>%
 stat.test <- pr %>%
   mutate(purity = factor(purity),
          coverage = factor(coverage)) %>% 
-  wilcox_test(mean_f1 ~ type) %>%
+  rstatix::wilcox_test(f1 ~ type) %>%
   rstatix::adjust_pvalue(method = "BH") %>%       
   rstatix::add_significance("p.adj") %>%          
   rstatix::add_xy_position(x = "type") %>% 
