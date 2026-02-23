@@ -36,6 +36,16 @@ t1 = metrics_drivers %>%
   ) %>%
   mutate(type = ifelse(type=='c', 'Interpreted', 'Blind'))
 
+table_cluster <- t1 %>% 
+  filter(metric == 'f1') %>% 
+  group_by(type, tool) %>% 
+  summarise(mean = mean(value, na.rm = T),
+            median = median(value, na.rm = T),
+            sd = sd(value, na.rm = T))
+# write.table(x = table_cluster, quote = F, sep = '\t', row.names = F,
+#             file = '/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/figure4/cluster_table.tsv')
+
+
 ### Precision blind vs interpreted with tool ####
 p_cluster = t1 %>%
   mutate(type = ifelse(type == 'Interpreted', 'Driver\nInformed', 'Driver\nBlind')) %>% 

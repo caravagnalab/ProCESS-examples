@@ -44,17 +44,7 @@ pr = t %>%
     precision = TP / (TP + FP),
     recall    = TP / (TP + FN),
     f1 = 2*((precision*recall)/(precision+recall))
-  ) %>% 
-  group_by(spn, purity, coverage, type) %>% 
-  mutate(mean_precision = mean(precision, na.rm = TRUE),
-         mean_recall = mean(recall, na.rm = TRUE),
-         mean_f1 = mean(f1, na.rm = TRUE)) %>%
-  ungroup()%>%
-  distinct(
-    spn, purity, tool, type, cna_caller, vcf_caller, # remove differences per coverage because I only want 1 point in the scatter
-    mean_precision, mean_recall,mean_f1,
-    .keep_all = TRUE
-  )
+  ) 
 
 stat.test <- pr %>%
   mutate(purity = factor(purity),
@@ -66,7 +56,15 @@ stat.test <- pr %>%
   mutate(y.position = 1.02)
 
 #### Only Driver facet Clonal-Subclonal on TP clusters ####
-p_driver = pr %>%
+table_driver <- pr %>% 
+  group_by(type) %>% 
+  summarise(mean = mean(f1, na.rm = T),
+            median = median(f1, na.rm = T),
+            sd = sd(f1, na.rm = T))
+# write.table(x = table_driver, quote = F, sep = '\t', row.names = F, 
+#             file = '/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/figure4/driver_table.tsv')
+
+p_driver <- pr %>%
   mutate(purity = factor(purity),
          coverage = factor(coverage)) %>% 
   ggplot(aes(x = type, y = f1)) +
