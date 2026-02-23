@@ -221,6 +221,16 @@ for (sign_type in c('SBS', 'ID')){
                                                                                     cluster_process = unique(tmp_process$Samples))
         }) %>% bind_rows() %>% mutate(type = sign_type, sample = s)
         
+        # analyze subclonal vs tail 
+        tmp_process = process_df %>% filter(Samples == 'Subclonal')
+        tmp_tool = df %>% filter(Samples == 'Tail')
+        compare = compare_exposure(process_df = tmp_process, tool_df = tmp_tool) %>% 
+          mutate(cluster = 'Tail-Subclonal',
+                 cluster_process = 'Subclonal', 
+                 type = sign_type, 
+                 sample = s)
+        
+        df_comparison[[s]][[sign_type]] <- df_comparison[[s]][[sign_type]] %>% bind_rows(compare)
         
         color_palette_driver =   RColorBrewer::brewer.pal(n = max(3,length(unique(exp_process$driver_process))), name = "Dark2") %>%
           setNames(str_sort(unique(exp_process$driver_process), numeric=T))

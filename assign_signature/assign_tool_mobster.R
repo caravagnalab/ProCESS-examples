@@ -8,8 +8,8 @@ source('../getters/process_getters.R')
 
 base = "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/assing_signature/"
 
-option_list <- list(make_option(c("--spn_id"), type = "character", default = 'SPN01'),
-                    make_option(c("--purity"), type = "double", default = 0.9),
+option_list <- list(make_option(c("--spn_id"), type = "character", default = 'SPN07'),
+                    make_option(c("--purity"), type = "double", default = 0.6),
                     make_option(c("--coverage"), type = "integer", default = 100),
                     make_option(c("--cna_caller"), type = "character", default = 'ascat'),
                     make_option(c("--vcf_caller"), type = "character", default = 'mutect2'),
@@ -47,6 +47,7 @@ tool = 'mobster_univariate'
 
 samples = get_sample_names(spn)
 for (s in samples){
+  print(s)
   
   out_data_raw = paste0(out, spn, '/', cov, 'x_', pur, 'p_', mut_caller, '_', cna_caller, '/', s, '/', tool, '_', signature_tool, '_raw/')
   out_data_int = paste0(out, spn, '/', cov, 'x_', pur, 'p_', mut_caller, '_', cna_caller, '/', s, '/', tool, '_', signature_tool, '_int/')
@@ -59,206 +60,217 @@ for (s in samples){
     unlink(paste0(out_data_int, '/*'), recursive = T)
   }
   
-  data <- readRDS(get_tumourevo_subclonal(spn = spn, 
-                                      coverage = cov, 
-                                      purity = pur, 
-                                      vcf_caller = mut_caller,
-                                      cna_caller = cna_caller,
-                                      sample = s, tool = 'mobster')[['mobsterh_st_best_fit_rds']])
-  
-  mut_ids <- data$data %>% 
-    select(chr, from, ref, alt, cluster) %>% 
-    distinct() %>% 
-    separate(col = chr, sep = 'chr', into = c('tmp', 'chr')) %>% 
-    mutate(spn = spn) %>% 
-    mutate(mutation_id = paste(spn, chr, from, alt, sep = ':')) %>% 
-    select(-tmp)  
-  
-  table <- readRDS(paste0(base, tool, '_', spn, '_', cov, 'x_', pur, 'p_', mut_caller, '_', cna_caller, '.rds')) %>% 
-    filter(sample_id == paste0(spn, '_', s))
-  raw <- table %>% select(patient_id, mutation_id, cluster_id_tool)
-  int <- table %>% select(patient_id, mutation_id, cluster_id_tool_interpreted)
-  
-  if (signature_tool == 'SigProfiler'){ 
-    table_raw <- raw %>% 
-      left_join(mut_ids) %>% 
-      dplyr::select(chr,  from, ref, alt, cluster_id_tool) %>% 
-      dplyr::rename(cluster = cluster_id_tool) %>% 
-      dplyr::mutate(Project = s, Genome = 'GRCh38', mut_type = 'SNP', Type = 'SOMATIC', ID = cluster, Sample = cluster) %>%
-      dplyr::rename(chrom = chr, pos_start = from) %>%
-      rowwise() %>%
-      dplyr::mutate(pos_end = pos_start + abs(str_count(ref) - str_count(alt))) %>%
-      dplyr::select(Project, Sample, ID, Genome, mut_type, chrom, pos_start, pos_end, ref,alt, Type) %>%
-      filter(ref != alt) %>% 
-      distinct()
+  file = get_tumourevo_subclonal(spn = spn, 
+                                 coverage = cov, 
+                                 purity = pur, 
+                                 vcf_caller = mut_caller,
+                                 cna_caller = cna_caller,
+                                 sample = s, 
+                                 tool = 'mobster')[['mobsterh_st_best_fit_rds']]
+  if (!is.null(file)){
+    data <- readRDS(get_tumourevo_subclonal(spn = spn, 
+                                        coverage = cov, 
+                                        purity = pur, 
+                                        vcf_caller = mut_caller,
+                                        cna_caller = cna_caller,
+                                        sample = s, 
+                                        tool = 'mobster')[['mobsterh_st_best_fit_rds']])
     
-    table_int <- int %>% 
-      left_join(mut_ids) %>% 
-      dplyr::select(chr,  from, ref, alt, cluster_id_tool_interpreted) %>% 
-      dplyr::rename(cluster = cluster_id_tool_interpreted) %>% 
-      dplyr::mutate(Project = s, Genome = 'GRCh38', mut_type = 'SNP', Type = 'SOMATIC', ID = cluster, Sample = cluster) %>%
-      dplyr::rename(chrom = chr, pos_start = from) %>%
-      rowwise() %>%
-      dplyr::mutate(pos_end = pos_start + abs(str_count(ref) - str_count(alt))) %>%
-      dplyr::select(Project, Sample, ID, Genome, mut_type, chrom, pos_start, pos_end, ref,alt, Type) %>%
-      filter(ref != alt) %>% 
-      distinct()
+    mut_ids <- data$data %>% 
+      select(chr, from, ref, alt, cluster) %>% 
+      distinct() %>% 
+      separate(col = chr, sep = 'chr', into = c('tmp', 'chr')) %>% 
+      mutate(spn = spn) %>% 
+      mutate(mutation_id = paste(spn, chr, from, alt, sep = ':')) %>% 
+      select(-tmp)  
     
-    if (!dir.exists(paste0(out, 'output'))){
-      write.table(table_raw, file = paste0(out_data_raw, s,'.txt'), quote = F, sep = '\t', row.names = F)
-      write.table(table_int, file = paste0(out_data_int, s,'.txt'), quote = F, sep = '\t', row.names = F)
-      
-      
-      SigProfilerMatrixGeneratorR(project = s, genome = "GRCh38", matrix_path = out_data_raw, plot=T)
-      SigProfilerMatrixGeneratorR(project = s, genome = "GRCh38", matrix_path = out_data_int, plot=T)
-      
-    }
-  }
-  context = 'SBS96'
-  for (context in c('SBS96', 'ID83')){
-    print(context)
-    out_raw = paste0(out_data_raw, '/', context)
-    out_int = paste0(out_data_int, '/', context)
-    dir.create(out_raw, showWarnings = F, recursive = T)
-    dir.create(out_int, showWarnings = F, recursive = T)
+    table <- readRDS(paste0(base, tool, '_', spn, '_', cov, 'x_', pur, 'p_', mut_caller, '_', cna_caller, '.rds')) %>% 
+      filter(sample_id == paste0(spn, '_', s))
+    raw <- table %>% select(patient_id, mutation_id, cluster_id_tool)
+    int <- table %>% select(patient_id, mutation_id, cluster_id_tool_interpreted)
     
-    if (context == 'SBS96'){
-      data_id_raw = paste0(out_data_raw, '/output/SBS/', s, '.SBS96.all')
-      data_id_int = paste0(out_data_int, '/output/SBS/', s, '.SBS96.all')
-      c_type = "96"
-    }  else if (context == 'ID83'){
-      data_id_raw = paste0(out_data_raw, '/output/ID/', s, '.ID83.all')
-      data_id_int = paste0(out_data_int, '/output/ID/', s, '.ID83.all')
-      c_type = "83"
-    }
-    
-    data_signature <- get_tumourevo_signatures(spn = spn, 
-                                               coverage = cov, 
-                                               purity = pur, 
-                                               tool = signature_tool,
-                                               vcf_caller = mut_caller,
-                                               cna_caller = cna_caller,
-                                               context = context)
-    
-    if (signature_tool == 'SigProfiler'){
-      fit <- read.table(data_signature$COSMIC_signatures, header = T)
-      signature <- colnames(fit)[2:ncol(fit)]  
-    } else if (signature_tool == 'BASCULE'){
-      fit <- readRDS(data_signature$refined_fit[[1]])
-      if (context == 'SBS96'){
-        c = 'SBS'
-      } else{
-        c = 'ID'
-      }
-      signature <- unique(fit$nmf[[c]]$exposure$sigs)
-    }
-    
-    if (signature_tool == 'SigProfiler'){
-      if (context == 'SBS96'){
-        cosmic <- read.table('/orfeo/cephfs/scratch/cdslab/shared/SCOUT/GRCh38/SBS_signatures.txt', header = T)
-      } else if (context == 'ID83'){
-        cosmic <- read.table('/orfeo/cephfs/scratch/cdslab/shared/SCOUT/GRCh38/indel_signatures.txt', header = T)
-      }
-      subset_cosmic <- cosmic[c('Type', signature)]
-      write.table(subset_cosmic, file = paste0(out_data_int, '/subset_cosmic.txt'), quote = F, sep = '\t', row.names = F)
-      write.table(subset_cosmic, file = paste0(out_data_raw, '/subset_cosmic.txt'), quote = F, sep = '\t', row.names = F)
+    if (signature_tool == 'SigProfiler'){ 
+      table_raw <- raw %>% 
+        left_join(mut_ids) %>% 
+        dplyr::select(chr,  from, ref, alt, cluster_id_tool) %>% 
+        dplyr::rename(cluster = cluster_id_tool) %>% 
+        dplyr::mutate(Project = s, Genome = 'GRCh38', mut_type = 'SNP', Type = 'SOMATIC', ID = cluster, Sample = cluster) %>%
+        dplyr::rename(chrom = chr, pos_start = from) %>%
+        rowwise() %>%
+        dplyr::mutate(pos_end = pos_start + abs(str_count(ref) - str_count(alt))) %>%
+        dplyr::select(Project, Sample, ID, Genome, mut_type, chrom, pos_start, pos_end, ref,alt, Type) %>%
+        filter(ref != alt) %>% 
+        distinct()
       
-      # get fit
-      cosmic_fit(samples = data_id_raw, 
-                 output = out_raw, 
-                 input_type='matrix', 
-                 context_type=c_type,
-                 collapse_to_SBS96=F, 
-                 cosmic_version=3.3, 
-                 genome_build="GRCh38", 
-                 signature_database=paste0(out_data_raw, '/subset_cosmic.txt'),
-                 export_probabilities=TRUE,
-                 make_plots=TRUE)
+      table_int <- int %>% 
+        left_join(mut_ids) %>% 
+        dplyr::select(chr,  from, ref, alt, cluster_id_tool_interpreted) %>% 
+        dplyr::rename(cluster = cluster_id_tool_interpreted) %>% 
+        dplyr::mutate(Project = s, Genome = 'GRCh38', mut_type = 'SNP', Type = 'SOMATIC', ID = cluster, Sample = cluster) %>%
+        dplyr::rename(chrom = chr, pos_start = from) %>%
+        rowwise() %>%
+        dplyr::mutate(pos_end = pos_start + abs(str_count(ref) - str_count(alt))) %>%
+        dplyr::select(Project, Sample, ID, Genome, mut_type, chrom, pos_start, pos_end, ref,alt, Type) %>%
+        filter(ref != alt) %>% 
+        distinct()
       
-      cosmic_fit(samples = data_id_int, 
-                 output = out_int, 
-                 input_type='matrix', 
-                 context_type=c_type,
-                 collapse_to_SBS96=F, 
-                 cosmic_version=3.3, 
-                 genome_build="GRCh38", 
-                 signature_database=paste0(out_data_int, '/subset_cosmic.txt'),
-                 export_probabilities=TRUE,
-                 make_plots=TRUE)
-      
-    } else if (signature_tool == 'BASCULE'){
-      out_data_raw_new = paste0(out, spn, '/', cov, 'x_', pur, 'p_', mut_caller, '_', cna_caller, '/', s, '/', tool, '_', 'SigProfiler', '_raw/')
-      out_data_int_new = paste0(out, spn, '/', cov, 'x_', pur, 'p_', mut_caller, '_', cna_caller, '/', s, '/', tool, '_', 'SigProfiler', '_int/')
-      
-      if (context == 'SBS96'){
-        data_id_raw = paste0(out_data_raw_new, '/output/SBS/', s, '.SBS96.all')
-        data_id_int = paste0(out_data_int_new, '/output/SBS/', s, '.SBS96.all')
+      if (!dir.exists(paste0(out, 'output'))){
+        write.table(table_raw, file = paste0(out_data_raw, s,'.txt'), quote = F, sep = '\t', row.names = F)
+        write.table(table_int, file = paste0(out_data_int, s,'.txt'), quote = F, sep = '\t', row.names = F)
         
+        
+        SigProfilerMatrixGeneratorR(project = s, genome = "GRCh38", matrix_path = out_data_raw, plot=T)
+        SigProfilerMatrixGeneratorR(project = s, genome = "GRCh38", matrix_path = out_data_int, plot=T)
+        
+      }
+    }
+    
+    context = 'ID83'
+    for (context in c('SBS96', 'ID83')){
+      print(context)
+      out_raw = paste0(out_data_raw, '/', context)
+      out_int = paste0(out_data_int, '/', context)
+      dir.create(out_raw, showWarnings = F, recursive = T)
+      dir.create(out_int, showWarnings = F, recursive = T)
+      
+      if (context == 'SBS96'){
+        data_id_raw = paste0(out_data_raw, '/output/SBS/', s, '.SBS96.all')
+        data_id_int = paste0(out_data_int, '/output/SBS/', s, '.SBS96.all')
         c_type = "96"
       }  else if (context == 'ID83'){
-        data_id_raw = paste0(out_data_raw_new, '/output/ID/', s, '.ID83.all')
-        data_id_int = paste0(out_data_int_new, '/output/ID/', s, '.ID83.all')
-        
+        data_id_raw = paste0(out_data_raw, '/output/ID/', s, '.ID83.all')
+        data_id_int = paste0(out_data_int, '/output/ID/', s, '.ID83.all')
         c_type = "83"
       }
       
-      if (file.exists(data_id_raw) & file.exists(data_id_int)){
+      data_signature <- get_tumourevo_signatures(spn = spn, 
+                                                 coverage = cov, 
+                                                 purity = pur, 
+                                                 tool = signature_tool,
+                                                 vcf_caller = mut_caller,
+                                                 cna_caller = cna_caller,
+                                                 context = context)
+      
+      if (signature_tool == 'SigProfiler'){
+        fit <- read.table(data_signature$COSMIC_signatures, header = T)
+        signature <- colnames(fit)[2:ncol(fit)]  
+      } else if (signature_tool == 'BASCULE'){
+        fit <- readRDS(data_signature$refined_fit[[1]])
+        if (context == 'SBS96'){
+          c = 'SBS'
+        } else{
+          c = 'ID'
+        }
+        signature <- unique(fit$nmf[[c]]$exposure$sigs)
+      }
+      
+      if (signature_tool == 'SigProfiler'){
+        if (context == 'SBS96'){
+          cosmic <- read.table('/orfeo/cephfs/scratch/cdslab/shared/SCOUT/GRCh38/SBS_signatures.txt', header = T)
+        } else if (context == 'ID83'){
+          cosmic <- read.table('/orfeo/cephfs/scratch/cdslab/shared/SCOUT/GRCh38/indel_signatures.txt', header = T)
+        }
+        subset_cosmic <- cosmic[c('Type', signature)]
+        write.table(subset_cosmic, file = paste0(out_data_int, '/subset_cosmic.txt'), quote = F, sep = '\t', row.names = F)
+        write.table(subset_cosmic, file = paste0(out_data_raw, '/subset_cosmic.txt'), quote = F, sep = '\t', row.names = F)
         
-        for (type in c('raw', 'int')){
-          if ( type == 'raw'){
-            data_id = data_id_raw
-            out_new = out_raw
-          } else {
-            data_id = data_id_int
-            out_new = out_int
+        # get fit
+        cosmic_fit(samples = data_id_raw, 
+                   output = out_raw, 
+                   input_type='matrix', 
+                   context_type=c_type,
+                   collapse_to_SBS96=F, 
+                   cosmic_version=3.3, 
+                   genome_build="GRCh38", 
+                   signature_database=paste0(out_data_raw, '/subset_cosmic.txt'),
+                   export_probabilities=TRUE,
+                   make_plots=TRUE)
+        
+        cosmic_fit(samples = data_id_int, 
+                   output = out_int, 
+                   input_type='matrix', 
+                   context_type=c_type,
+                   collapse_to_SBS96=F, 
+                   cosmic_version=3.3, 
+                   genome_build="GRCh38", 
+                   signature_database=paste0(out_data_int, '/subset_cosmic.txt'),
+                   export_probabilities=TRUE,
+                   make_plots=TRUE)
+        
+      } else if (signature_tool == 'BASCULE'){
+        out_data_raw_new = paste0(out, spn, '/', cov, 'x_', pur, 'p_', mut_caller, '_', cna_caller, '/', s, '/', tool, '_', 'SigProfiler', '_raw/')
+        out_data_int_new = paste0(out, spn, '/', cov, 'x_', pur, 'p_', mut_caller, '_', cna_caller, '/', s, '/', tool, '_', 'SigProfiler', '_int/')
+        
+        if (context == 'SBS96'){
+          data_id_raw = paste0(out_data_raw_new, '/output/SBS/', s, '.SBS96.all')
+          data_id_int = paste0(out_data_int_new, '/output/SBS/', s, '.SBS96.all')
+          
+          c_type = "96"
+        }  else if (context == 'ID83'){
+          data_id_raw = paste0(out_data_raw_new, '/output/ID/', s, '.ID83.all')
+          data_id_int = paste0(out_data_int_new, '/output/ID/', s, '.ID83.all')
+          
+          c_type = "83"
+        }
+        
+        if (file.exists(data_id_raw) & file.exists(data_id_int)){
+          
+          for (type in c('raw', 'int')){
+            if ( type == 'raw'){
+              data_id = data_id_raw
+              out_new = out_raw
+            } else {
+              data_id = data_id_int
+              out_new = out_int
+            }
+            
+            sig_matrix <- read.table(data_id, header = T)
+            rownames(sig_matrix) <- sig_matrix$MutationType
+            sig_matrix <- sig_matrix %>% select(!MutationType)
+            sig_counts <- t(sig_matrix) %>% as.data.frame()
+            rownames(sig_counts) <- sub("^[^_]+_(.*)", "\\1", rownames(sig_counts))
+            
+            if (context == 'SBS96'){
+              cat = list(bascule::COSMIC_sbs[signature,] %>% as.data.frame())
+              cat[[1]] = cat[[1]][rownames(cat[[1]]) != 'NA',]
+              names(cat) = c("SBS")
+              sig_counts = sig_counts[rowSums(sig_counts) > 0,]
+              input = list("SBS"=sig_counts)
+            } else {
+              cat = list(bascule::COSMIC_indels[signature,] %>% as.data.frame())
+              cat[[1]] = cat[[1]][rownames(cat[[1]]) != 'NA',]
+              names(cat) = c("ID")
+              sig_counts = sig_counts[rowSums(sig_counts) > 0,]
+              input = list("ID"=sig_counts)
+            }
+            
+            
+            x = bascule::fit(
+              counts = input,
+              k_list = 0,
+              reference_cat = cat,
+              keep_sigs = c("SBS1","SBS5"),
+              hyperparameters = NULL,
+              lr = 0.005,
+              optim_gamma = 0.1,
+              n_steps = 3000,
+              py = NULL,
+              enumer = "parallel",
+              nonparametric = TRUE,
+              autoguide = FALSE,
+              filter_dn = FALSE,
+              min_exposure = 0.1,
+              CUDA = FALSE,
+              compile = FALSE,
+              store_parameters = FALSE,
+              store_fits = TRUE,
+              seed_list = 10
+            )
+            saveRDS(object = x, file = paste0(out_new,"/bascule_fit_", type, ".rds"))
+            
+            exp = plot_exposures(x=x, sample_name = T)
+            ggplot2::ggsave(filename = paste0(out_new,"/bascule_exposure_", type, ".pdf"),plot=exp, width = 8, height = 8, units = 'in', dpi = 300)
           }
-          
-          sig_matrix <- read.table(data_id, header = T)
-          rownames(sig_matrix) <- sig_matrix$MutationType
-          sig_matrix <- sig_matrix %>% select(!MutationType)
-          sig_counts <- t(sig_matrix) %>% as.data.frame()
-          rownames(sig_counts) <- sub("^[^_]+_(.*)", "\\1", rownames(sig_counts))
-          
-          if (context == 'SBS96'){
-            cat = list(bascule::COSMIC_sbs[signature,] %>% as.data.frame())
-            cat[[1]] = cat[[1]][rownames(cat[[1]]) != 'NA',]
-            names(cat) = c("SBS")
-            sig_counts = sig_counts[rowSums(sig_counts) > 0,]
-            input = list("SBS"=sig_counts)
-          } else {
-            cat = list(bascule::COSMIC_indels[signature,] %>% as.data.frame())
-            cat[[1]] = cat[[1]][rownames(cat[[1]]) != 'NA',]
-            names(cat) = c("ID")
-            sig_counts = sig_counts[rowSums(sig_counts) > 0,]
-            input = list("ID"=sig_counts)
-          }
-          
-          
-          x = bascule::fit(
-            counts = input,
-            k_list = 0,
-            reference_cat = cat,
-            keep_sigs = c("SBS1","SBS5"),
-            hyperparameters = NULL,
-            lr = 0.005,
-            optim_gamma = 0.1,
-            n_steps = 3000,
-            py = NULL,
-            enumer = "parallel",
-            nonparametric = TRUE,
-            autoguide = FALSE,
-            filter_dn = FALSE,
-            min_exposure = 0.1,
-            CUDA = FALSE,
-            compile = FALSE,
-            store_parameters = FALSE,
-            store_fits = TRUE,
-            seed_list = 10
-          )
-          saveRDS(object = x, file = paste0(out_new,"/bascule_fit_", type, ".rds"))
-          
-          exp = plot_exposures(x=x, sample_name = T)
-          ggplot2::ggsave(filename = paste0(out_new,"/bascule_exposure_", type, ".pdf"),plot=exp, width = 8, height = 8, units = 'in', dpi = 300)
         }
       }
     }

@@ -262,24 +262,29 @@ subclonal_arch <- subclonal_arch %>%
   # mutate(sample_class=case_when(median_jaccard_similary_clusters>=0.9 & mean_cosine_similary_clusters>=median(.data$mean_cosine_similary_clusters) ~ "low complexity",
   #                               median_jaccard_similary_clusters>=0.9 & mean_cosine_similary_clusters<median(.data$mean_cosine_similary_clusters) ~ "high complexity",
   #                               median_jaccard_similary_clusters<0.9 ~ "high complexity")) %>% 
-  rename(sample=sample_id) %>% 
+  dplyr::rename(sample=sample_id) %>% 
   ungroup()
 
-saveRDS(object = subclonal_arch,file="/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure5/signatures_cohort/sample_classification_clonal_heterogeneity.rds")
+#saveRDS(object = subclonal_arch,file="/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure5/signatures_cohort/sample_classification_clonal_heterogeneity.rds")
 df_all_combs_SPN_signatures <- df_all_combs_SPN_signatures %>% 
   left_join(subclonal_arch %>% select(sample,sample_class,context,median_jaccard_similary_clusters) %>% distinct(),by=c("sample","context")) 
 
 
-my_comparisons <- list( c("high complexity", "low complexity"))
+my_comparisons <- list(c("High\nComplexity", "Low\nComplexity"))
 plt_signatures <- df_all_combs_SPN_signatures %>%
+  mutate(sample_class = ifelse(sample_class == "high complexity", "High\nComplexity", "Low\nComplexity")) %>% 
   ggplot(aes(x=sample_class,y=cosine))+
-  geom_boxplot(aes(color=caller),outliers = F,width = 0.5,alpha=0.3)+
+  geom_boxplot(aes(color=caller, fill = caller),outliers = T,width = 0.5,alpha=0.3)+
 
-  scale_color_manual(values = c('SigProfiler'='sienna1',
+  scale_color_manual('Caller', values = c('SigProfiler'='sienna1',
+                                'BASCULE'='dodgerblue4'))+
+  scale_fill_manual('Caller',values = c('SigProfiler'='sienna1',
                                 'BASCULE'='dodgerblue4'))+
   facet_wrap(~context)+
   stat_compare_means(comparisons = my_comparisons,label = "p.signif",vjust = 0.5)+
-  my_ggplot_theme()
+  my_ggplot_theme() +
+  xlab('Sample Class') + 
+  ylab('Exposure Accuracy (Cosine Similarity)')
 
 # df_all_combs_SPN_signatures %>%
 #   ggplot(aes(x = sample_class, y = cosine)) +

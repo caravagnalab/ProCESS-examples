@@ -7,14 +7,14 @@
 #SBATCH --job-name=analysis
 #SBATCH --output=logs/analyze_%A_%a.out
 #SBATCH --error=logs/analyze_%A_%a.err
-#SBATCH --array=1-63
+#SBATCH --array=1-9
 # Adjust based on total combinations: spns × purities × coverages
 
 module load R/4.4.1
 
 # Define your inputs
-spns=(SPN01 SPN02 SPN03 SPN04 SPN06 SPN07 SPN05)
-#spns=(SPN05)
+#spns=(SPN01 SPN02 SPN03 SPN04 SPN06 SPN07 SPN05)
+spns=(SPN07)
 purities=(0.9 0.6 0.3)
 coverages=(50 100 150)  
 

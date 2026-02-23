@@ -10,9 +10,9 @@ source("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/validatio
 
 indir = "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/assing_signature/"
 
-option_list <- list(make_option(c("--spn_id"), type = "character", default = 'SPN05'),
+option_list <- list(make_option(c("--spn_id"), type = "character", default = 'SPN07'),
                     make_option(c("--purity"), type = "double", default = 0.6),
-                    make_option(c("--coverage"), type = "integer", default = 50),
+                    make_option(c("--coverage"), type = "integer", default = 100),
                     make_option(c("--cna_caller"), type = "character", default = 'ascat'),
                     make_option(c("--vcf_caller"), type = "character", default = 'mutect2'),
                     make_option(c("--signature"), type = "character", default = 'SigProfiler')
@@ -95,6 +95,7 @@ for (sign_type in c('SBS', 'ID')){
   }
   
   for (s in samples){
+    print(s)
     plot_sign <- list()
     
     process = readRDS(paste0(indir, spn, '/process_univariate/', cov, 'x_', pur, 'p/', s, '_exposure_', sign_type, '.rds'))
@@ -125,88 +126,80 @@ for (sign_type in c('SBS', 'ID')){
       
       
       if (signature_tool == 'BASCULE'){
-        data = readRDS(paste0(indir, spn, '/', cov, 'x_', pur, 'p_', mut_caller, '_', cna_caller, '/', s, '/', tool, '_', signature_tool, '_', type, '/', s_type, '/',name_file))
-        
-        df = data[['nmf']][[sign_type]][['exposure']] %>% 
-          dplyr::rename(Signature=sigs,
-                        Exposure=value,
-                        Samples=samples)
+        if (file.exists(paste0(indir, spn, '/', cov, 'x_', pur, 'p_', mut_caller, '_', cna_caller, '/', s, '/', tool, '_', signature_tool, '_', type, '/', s_type, '/',name_file))){
+          data = readRDS(paste0(indir, spn, '/', cov, 'x_', pur, 'p_', mut_caller, '_', cna_caller, '/', s, '/', tool, '_', signature_tool, '_', type, '/', s_type, '/',name_file))
+          
+          df = data[['nmf']][[sign_type]][['exposure']] %>% 
+            dplyr::rename(Signature=sigs,
+                          Exposure=value,
+                          Samples=samples)
+        } else {
+            df = NULL
+          }
       } else {
-        data = read.table(file = paste0(indir, spn, '/', cov, 'x_', pur, 'p_', mut_caller, '_', cna_caller, '/', s, '/', tool, '_', signature_tool, '_', type, '/', s_type, '/',name_file),header = T) 
-        df = data %>% pivot_longer(
-          cols = starts_with(sign_type),
-          names_to = "Signature",
-          values_to = "Exposure")
+        if (file.exists( paste0(indir, spn, '/', cov, 'x_', pur, 'p_', mut_caller, '_', cna_caller, '/', s, '/', tool, '_', signature_tool, '_', type, '/', s_type, '/',name_file))){
+          data = read.table(file = paste0(indir, spn, '/', cov, 'x_', pur, 'p_', mut_caller, '_', cna_caller, '/', s, '/', tool, '_', signature_tool, '_', type, '/', s_type, '/',name_file),header = T) 
+          df = data %>% pivot_longer(
+            cols = starts_with(sign_type),
+            names_to = "Signature",
+            values_to = "Exposure")
+        } else { 
+          df = NULL
+          }
       }
       
-      if (length(unique(df$Samples)) <= 12){
-        color_palette_tool = RColorBrewer::brewer.pal(n = max(3,length(unique(df$Samples))), name = "Paired") %>%
-          setNames(str_sort(unique(df$Samples), numeric=T))
-        color_palette_tool['Subclonal'] = 'gray70'
-        color_palette_tool['Tail'] = 'gray70'
-        color_palette_tool['Other'] = 'salmon3'
-      }else{
-        miss = length(unique(df$Samples)) - 12
-        color_palette_tool = c(RColorBrewer::brewer.pal(n = 12, name = "Paired"), RColorBrewer::brewer.pal(n = miss, name = "Dark2"))%>%
-          setNames(str_sort(unique(df$Samples), numeric=T))
-        color_palette_tool['Subclonal'] = 'gray70'
-        color_palette_tool['Tail'] = 'gray70'
-        color_palette_tool['Other'] = 'salmon3'
+      if (!is.null(df)){
+        if (length(unique(df$Samples)) <= 12){
+          color_palette_tool = RColorBrewer::brewer.pal(n = max(3,length(unique(df$Samples))), name = "Paired") %>%
+            setNames(str_sort(unique(df$Samples), numeric=T))
+          color_palette_tool['Subclonal'] = 'gray70'
+          color_palette_tool['Tail'] = 'gray70'
+          color_palette_tool['Other'] = 'salmon3'
+        }else{
+          miss = length(unique(df$Samples)) - 12
+          color_palette_tool = c(RColorBrewer::brewer.pal(n = 12, name = "Paired"), RColorBrewer::brewer.pal(n = miss, name = "Dark2"))%>%
+            setNames(str_sort(unique(df$Samples), numeric=T))
+          color_palette_tool['Subclonal'] = 'gray70'
+          color_palette_tool['Tail'] = 'gray70'
+          color_palette_tool['Other'] = 'salmon3'
+        }
+      
+      
+        tool_plot <- plot_exposure(df, sig_type = sign_type, tool = tool, type = type, signature = signature_tool, col = colors)
+        tool_stat <- plot_stat(df %>% mutate(Samples = as.character(Samples)), sig_type = sign_type, tool = tool, type = type, signature = signature_tool, col = color_palette_tool)
+      
+        plot_sign[[type]] <- tool_plot + tool_stat + plot_layout(design = 'aaab')
       }
-      
-      
-      tool_plot <- plot_exposure(df, sig_type = sign_type, tool = tool, type = type, signature = signature_tool, col = colors)
-      tool_stat <- plot_stat(df %>% mutate(Samples = as.character(Samples)), sig_type = sign_type, tool = tool, type = type, signature = signature_tool, col = color_palette_tool)
-      
-      plot_sign[[type]] <- tool_plot + tool_stat + plot_layout(design = 'aaab')
     }
-    plot_sign_all[[s]][[sign_type]]  <- wrap_plots(plot_process,plot_sign$raw,plot_sign$int) + plot_layout(guides = 'collect') & theme(legend.position = 'bottom')
+    if (!is.null(plot_sign$raw)){
+      plot_sign_all[[s]][[sign_type]]  <- wrap_plots(plot_process,plot_sign$raw,plot_sign$int) + plot_layout(guides = 'collect') & theme(legend.position = 'bottom')
+    }
   } 
 }
+
 
 mutations <-  readRDS(paste0('/orfeo/cephfs/scratch/cdslab/shared/SCOUT//validation_subclonal/tables_interpreted/', tool, '_', spn, '_', cov, 'x_', pur, 'p_', mut_caller, '_', cna_caller, '.rds')) %>% 
   separate(cluster_id_process, sep = '_', into = c('cluster_id_process', 'tmp')) %>% 
   select(-tmp)
-samples <- unique(mutations$sample_id)
+samples <- paste(spn, names(plot_sign_all), sep= '_')#unique(mutations$sample_id)
 mutations <- mutations %>% mutate(driver_label = sub("_.*", "", driver_label_tool))
 
-# if (spn == 'SPN07'){
-#   driver_tool <- mutations %>% select(patient_id, mutation_id, is_driver_tool, driver_label)
-#   dups_muts <- mutations %>% dplyr::summarise(n = dplyr::n(), .by = c(patient_id, mutation_id, cluster_id_tool, sample_id)) %>% dplyr::filter(n > 1L) 
-#   muts_tool_raw <- mutations %>% 
-#     select(patient_id, mutation_id, cluster_id_tool, sample_id, vaf_tool) %>% 
-#     filter(!(mutation_id %in% dups_muts$mutation_id)) %>% 
-#     pivot_wider(values_from = vaf_tool, names_from = sample_id) %>% 
-#     replace(is.na(.), 0) %>% 
-#     mutate(cluster_id_tool = as.character(cluster_id_tool))
-#   
-#   muts_tool_int <- mutations %>% 
-#     select(patient_id, mutation_id, cluster_id_tool_interpreted, sample_id, vaf_tool) %>% 
-#     filter(!(mutation_id %in% dups_muts$mutation_id)) %>% 
-#     pivot_wider(values_from = vaf_tool, names_from = sample_id) %>% 
-#     replace(is.na(.), 0) %>% 
-#     mutate(cluster_id_tool_interpreted = as.character(cluster_id_tool_interpreted))
-#   muts_tool_int <- muts_tool_int %>% left_join(driver_tool) %>% distinct()
-#   
-#   muts_process <- mutations %>% 
-#     select(patient_id, mutation_id, sample_id, vaf_process, cluster_id_process) %>%
-#     filter(!(mutation_id %in% dups_muts$mutation_id)) %>% 
-#     pivot_wider(values_from = vaf_process, names_from = sample_id) %>% 
-#     replace(is.na(.), 0) 
-#   
-#   driver_process <- mutations %>% select(patient_id, mutation_id, is_driver_process, driver_label)
-#   muts_process <- muts_process %>% left_join(driver_process) %>% distinct()
-#   
-# } else {
 driver_tool <- mutations %>% select(patient_id, mutation_id, is_driver_tool, driver_label, is_driver_process)
 
+id_muts <- mutations %>% 
+  dplyr::summarise(n = dplyr::n(), .by = c(patient_id, mutation_id, cluster_id_tool,
+                                           sample_id)) |>
+  dplyr::filter(n > 1L) 
+
 muts_tool_raw <- mutations %>% 
+  filter(!mutation_id %in% id_muts$mutation_id) %>% 
   select(patient_id, mutation_id, cluster_id_tool, sample_id, vaf_tool) %>% 
   pivot_wider(values_from = vaf_tool, names_from = sample_id) %>% 
   replace(is.na(.), 0) %>% 
   mutate(cluster_id_tool = as.character(cluster_id_tool))
 
 muts_tool_int <- mutations %>% 
+  filter(!mutation_id %in% id_muts$mutation_id) %>% 
   select(patient_id, mutation_id, cluster_id_tool_interpreted, sample_id, vaf_tool) %>% 
   pivot_wider(values_from = vaf_tool, names_from = sample_id) %>% 
   replace(is.na(.), 0) %>% 
@@ -214,6 +207,7 @@ muts_tool_int <- mutations %>%
 muts_tool_int <- muts_tool_int %>% left_join(driver_tool) %>% distinct()
 
 muts_tool_int_driver <- mutations %>% 
+  filter(!mutation_id %in% id_muts$mutation_id) %>% 
   select(patient_id, mutation_id, cluster_id_tool_interpreted_driver, sample_id, vaf_tool) %>% 
   pivot_wider(values_from = vaf_tool, names_from = sample_id) %>% 
   replace(is.na(.), 0) %>% 
@@ -221,11 +215,12 @@ muts_tool_int_driver <- mutations %>%
 muts_tool_int_driver <- muts_tool_int_driver %>% left_join(driver_tool) %>% distinct()
 
 muts_process <- mutations %>% 
+  filter(!mutation_id %in% id_muts$mutation_id) %>% 
   select(patient_id, mutation_id, sample_id, vaf_process, cluster_id_process) %>%
   pivot_wider(values_from = vaf_process, names_from = sample_id) %>% 
   replace(is.na(.), 0) 
 
-driver_process <- mutations %>% select(patient_id, mutation_id, is_driver_process, driver_label)
+driver_process <- mutations %>%   filter(!mutation_id %in% id_muts$mutation_id) %>% select(patient_id, mutation_id, is_driver_process, driver_label)
 muts_process <- muts_process %>% left_join(driver_process) %>% distinct()
 
 
