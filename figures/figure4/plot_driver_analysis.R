@@ -55,15 +55,21 @@ pr = t %>%
     .keep_all = TRUE
   )
 
-
-
+stat.test <- pr %>%
+  mutate(purity = factor(purity),
+         coverage = factor(coverage)) %>% 
+  wilcox_test(mean_f1 ~ type) %>%
+  rstatix::adjust_pvalue(method = "BH") %>%       
+  rstatix::add_significance("p.adj") %>%          
+  rstatix::add_xy_position(x = "type") %>% 
+  mutate(y.position = 1.02)
 
 #### Only Driver facet Clonal-Subclonal on TP clusters ####
 p_driver = pr %>%
   mutate(purity = factor(purity),
          coverage = factor(coverage)) %>% 
   ggplot(aes(x = type, y = f1)) +
-  geom_boxplot(outliers = F, col = 'gray80', fill = 'gainsboro', alpha = .4) +
+  geom_boxplot(outliers = F, col = 'gray40', fill = 'gainsboro', alpha = .4) +
   stat_summary(
     aes(x = type, color = spn),
     fun.data = mean_cl_boot,
@@ -72,9 +78,16 @@ p_driver = pr %>%
   ) +
   xlab("Cluster Type")+
   ylab("Driver assignment F1 Score")+
-  scale_color_manual(values=SPN_colors, name='SPN')+
-  my_ggplot_theme()
-
+  scale_color_manual(values=rep('gray40', length(SPN_colors)), name='SPN')+
+  my_ggplot_theme() +
+  stat_pvalue_manual(
+    stat.test,
+    label = "p.adj.signif",
+    tip.length = 0.01,
+    inherit.aes = FALSE,
+    color = "gray40"
+  )
+p_driver
 
 # ggsave(filename = paste0("/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/figure4/driver.pdf"), 
 #        plot = p_driver, device="pdf", width=4, height=3, units="in")

@@ -54,12 +54,12 @@ p_cluster = t1 %>%
          type=factor(type,
                      levels = c('Driver\nBlind','Driver\nInformed'))) %>%
   ggplot(aes(x = type, y = value)) +
-  geom_boxplot(outliers = F, col = 'gray80', fill = 'gainsboro', alpha = .4) +
+  geom_boxplot(outliers = F, col = 'gray40', fill = 'gainsboro', alpha = .4) +
   stat_summary(
     aes(x = type, color = spn),
     fun.data = mean_cl_boot,
     position = position_dodge(width = 0.3),
-    size = .2, show.legend = F
+    size = .2, show.legend = T
   ) +
   stat_summary(
     aes(x = type, color = spn, group=spn),
@@ -69,7 +69,7 @@ p_cluster = t1 %>%
     linewidth=.3, show.legend = F
   ) +
   ggh4x::facet_nested(~ factor(tool, levels=c("MOBSTER", "VIBER", 'PyClone-VI'))) +
-  xlab("Cluster Filtering")+
+  xlab("Cluster")+
   ylab("Mutation Clustering F1 Score")+
   scale_color_manual(values=SPN_colors, name='SPN')+
   my_ggplot_theme()
