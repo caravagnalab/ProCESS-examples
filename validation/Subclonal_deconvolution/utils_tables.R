@@ -50,7 +50,7 @@ get_cell_id = function(mutation_object) {
 get_table = function(path_table, file_path, tool, env) {
   filename = get_table_path(path_table, tool, env$spn, env$simulation_id)
   
-  if (file.exists(filename)) {
+  if (env$check_if_exists & file.exists(filename)) {
     cli::cli_text("Loading existing table {file.path(path_table, filename)}")
     if (nrow(readRDS(filename)) == 0) {
       unlink(filename)

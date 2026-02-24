@@ -1,9 +1,10 @@
 tool = "mobster"
+library(mobster)
 
 # source("~/GitHub/ProCESS-examples/validation/Subclonal_deconvolution/generate_table_main.R")
-source("/orfeo/cephfs/scratch/cdslab/erivar00/GitHub/ProCESS-examples/validation/Subclonal_deconvolution/generate_table_main.R")
+source(file.path(github_path, "validation/Subclonal_deconvolution/generate_table_main.R"))
+# source("/orfeo/cephfs/scratch/cdslab/erivar00/GitHub/ProCESS-examples/validation/Subclonal_deconvolution/generate_table_main.R")
 
-# tool = "mobster"
 out_path = get_table_path(save_path, tool, spn, simulation_id)
 
 cli::cli_text("Generating {tool} table for {spn} and simulation {simulation_id}")
@@ -21,10 +22,28 @@ final_table = lapply(samples, function(sample_name) {
                   paste0(sample_name),
                   paste0("SCOUT_", spn, "_", sample_name, "_mobsterh_st_best_fit.rds")))
   
-  obj = readRDS(file.path(path_m,
-                          paste0(sample_name),
-                          paste0("SCOUT_", spn, "_", sample_name, "_mobsterh_st_best_fit.rds")))
+  # obj = readRDS(file.path(path_m,
+  #                         paste0(sample_name),
+  #                         paste0("SCOUT_", spn, "_", sample_name, "_mobsterh_st_best_fit.rds")))
   
+  obj_all = readRDS(file.path(path_m,
+                              paste0(sample_name),
+                              paste0("SCOUT_", spn, "_", sample_name, "_mobsterh_st_fit.rds")))
+  obj = obj_all$best
+  
+  
+  # Compute mutation rate #####
+  mutation_rate = NA
+  if (obj$fit.tail == TRUE) {
+    evo_params = evolutionary_parameters(obj_all)
+    segments = obj$data$segment_id %>% unique()
+    total_diff = sum(sapply(strsplit(segments, ":"), function(x) {
+      as.numeric(x[3]) - as.numeric(x[2])
+    }))
+    mutation_rate = evo_params$mu / total_diff
+  }
+  
+  # Final table ####
   final_table_s = obj$data %>% 
     mutate(chr=sub("^chr", "", chr)) %>% 
     mutate(mutation_id=paste0(spn, ":", chr, ":", from,  ":", alt),
@@ -47,7 +66,8 @@ final_table = lapply(samples, function(sample_name) {
     mutate(ccf_tool=mean(ccf_tool, na.rm=TRUE)) %>%
     ungroup() %>% 
     
-    mutate(ccf_tool=ccf_tool*2 / purity)
+    mutate(ccf_tool=ccf_tool*2 / purity,
+           SNV_rate_mobster=mutation_rate)
   
   final_table_s %>% 
     mutate(is_clonal_tool=ifelse(cluster_id_tool==get_clonal_cluster_tool(final_table_s), TRUE, FALSE),
