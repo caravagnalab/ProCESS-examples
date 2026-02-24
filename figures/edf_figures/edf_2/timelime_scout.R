@@ -130,6 +130,28 @@ time_all <- time_Build_cohort_spn %>%
   ))
 
 
+time_all <- time_all %>% 
+  mutate(new_substep = case_when(
+    substep == "sample_forest" ~ 'ProCESS simulation',
+    substep == "phylo_forest" ~ 'ProCESS simulation',
+    substep == "sequencing" ~ 'ProCESS sequencing',
+    substep == "samtools_merge" ~ 'ProCESS sequencing',
+    substep == "samtools_split" ~ 'ProCESS sequencing',
+    substep == "samtools_split" ~ 'ProCESS sequencing',
+    substep == "fastq" ~ 'Generate FASTQ',
+    substep == "merging rds 50" ~ 'Merge RDS',
+    substep == "merging rds 100" ~'Merge RDS',
+    substep == "merging rds 150" ~ 'Merge RDS',
+    substep == "merging rds 200" ~ 'Merge RDS',
+    substep == "preprocessing" ~ 'Sarek Preprocessing',
+    substep == "cna calling" ~ 'Sarek CN calling',
+    substep == "snv/indel calling" ~ 'Sarek SNV/INDEL calling',
+    substep =="variant/driver annotation" ~ 'Tumourevo QC/Annotation',
+    substep == "quality control" ~ 'Tumourevo QC/Annotation',
+    substep == "signature deconvolution" ~ 'Tumourevo Signature Deconvolution',
+    substep == "subclonal deconvolution" ~ 'Tumourevo Subclonal Deconvolution'
+  ))
+
 color_palette_substep <-c(
     "sample_forest" = "deepskyblue3",
     "phylo_forest"= "deepskyblue3",
@@ -148,6 +170,20 @@ color_palette_substep <-c(
     "quality control"="coral2",
     "signature deconvolution"="coral3",
     "subclonal deconvolution"="coral4"
+)
+
+unique(time_all$new_substep)
+color_palette_newsubstep <-c(
+  "ProCESS simulation" = "rosybrown2",
+  "ProCESS sequencing"  = "palevioletred4",
+  "Generate FASTQ"  = "lightgoldenrod",
+  "Merge RDS" = "goldenrod2",
+  "Sarek Preprocessing" = "paleturquoise3",
+  "Sarek CN calling" = "cadetblue",
+  "Sarek SNV/INDEL calling"   = "skyblue4",
+  "Tumourevo QC/Annotation" ="lightsalmon1",
+  "Tumourevo Signature Deconvolution"="salmon2",
+  "Tumourevo Subclonal Deconvolution"="indianred"
 )
 
 color_palette_pipeline_step <-c(
@@ -186,29 +222,36 @@ start_tumourevo <- time_all %>% filter(pipeline_step == "Tumourevo") %>% pull(st
 end_tumourevo <- time_all %>% filter(pipeline_step == "Tumourevo") %>% pull(end) %>% max()%>% as_hms()
 breaks_tumourevo<-c(breaks_tumourevo,end_tumourevo)
 
+bk = c(
+  round_hms(breaks_sarek, 1),
+  round_hms(breaks_tumourevo, 1)
+)
+lb = bk
 
-
+        
 ### New plot
 plt_gannt <- time_all %>% 
   filter(coverage!=200) %>%
-  ggplot(aes(x = start, xend = end, y = coverage, yend = coverage, color = as.factor(substep))) +
+  ggplot(aes(x = start, xend = end, y = as.factor(coverage), yend = as.factor(coverage), color = as.factor(new_substep))) +
     geom_segment(size = 8) +
-    scale_color_manual(values =color_palette_substep )+
-  # scale_y_discrete(breaks=c(50,100,150))+
+    scale_color_manual('Steps', values =color_palette_newsubstep )+
   scale_x_time(
-    breaks = c(round_hms(x = breaks_sarek,digits = 0),round_hms(x = breaks_tumourevo,digits = 0))
-  )+
+    breaks = bk,
+    labels = lb
+  ) + 
     labs(title = paste0("SCOUT Timeline: ",spn),
-         y = "Pipeline Step",
+         y = "Coverage",
          x = "Time") +
     theme_bw(base_size = 10) +
     theme(
       panel.grid.major.y = element_blank(),
       panel.grid.minor.y = element_blank()
     )+
-    theme(legend.position = "none",axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1,size = 10),
-          axis.minor.ticks=element_blank(),axis.ticks = element_blank())
-
+    theme(legend.position = "bottom",
+          axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1,size = 10),
+          axis.minor.ticks=element_blank(),
+          axis.ticks = element_blank())
+plt_gannt
 # plt <- ggplot(time_all, aes(x = start, xend = end, y = step, yend = step, color = as.factor(substep))) +
 #   geom_segment(size = 4) +
 #   scale_color_manual(values =color_palette_substep )+
@@ -254,4 +297,4 @@ plt_gannt <- time_all %>%
 #       "Tumourevo"  = scale_x_time(breaks = breaks_tumourevo %>% round(),limits=(c(start_tumourevo,end_tumourevo)))
 #     )
 #   )
-ggsave(filename = "/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/validation/benchmark/plot_all_scout_timeline_spn01.pdf",width = 10,height =5,dpi = 300)
+#ggsave(filename = "/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/validation/benchmark/plot_all_scout_timeline_spn01.pdf",width = 10,height =5,dpi = 300)

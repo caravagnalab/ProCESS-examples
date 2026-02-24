@@ -163,6 +163,23 @@ df$cluster_process <- factor(
   levels = c( "Clonal", "Subclonal")
 )
 
+# table <- df %>% 
+#   group_by(cluster_process, patient_class) %>% 
+#   summarize(mean_cs = mean(CosineSimilarity),
+#             median_cs = median(CosineSimilarity),
+#             sd_cs = sd(CosineSimilarity))
+# write.table(x = table, file = '/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/figure5/panelC_cluster_signature.tsv', quote = F, sep = '\t', row.names = F)
+# 
+# stat.subclonal$patient_class <- 'Subclonal'
+# stat.clonal$patient_class <- 'Clonal'
+# pvalues <- stat.within %>% bind_rows(stat.subclonal, stat.clonal)
+# pvalues <- pvalues %>% 
+#   select(patient_class, group1, group2, n1, n2, p, p.adj, p.adj.signif) %>% 
+#   dplyr::rename(class = patient_class) 
+# 
+# write.table(x = pvalues, file = '/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/figure5/panelC_cluster_signature_pvalues.tsv', quote = F, sep = '\t', row.names = F)
+
+
 plt_multi <- df %>%
   ggplot(aes(
     y = CosineSimilarity,

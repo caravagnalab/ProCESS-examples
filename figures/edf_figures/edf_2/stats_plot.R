@@ -149,13 +149,15 @@ stats <- stats %>%
 
 plt_muts_count <- stats %>% 
   mutate(coverage=paste0(coverage,"x")) %>% 
-  ggplot(aes(x=factor(coverage, levels = c("50x", "100x", "150x", "200x")), y=log10(mutation_count), fill=as.factor(purity))) + 
-  geom_boxplot(outliers = FALSE)+
-  ylab("Log10 mutation count")+
-  xlab("coverage")+
-  labs(fill="purity")+
+  ggplot(aes(x=factor(coverage, levels = c("50x", "100x", "150x", "200x")), 
+             y=log10(mutation_count))) + 
+  geom_boxplot(aes(fill=as.factor(purity), col =as.factor(purity)), outliers = FALSE, width = 0.5,alpha=0.5)+
+  ylab("Log10(Mutation Count)")+
+  xlab("Coverage")+
+  labs(fill="Purity", col = 'Purity')+
   #scale_fill_manual(values = purity_colors)+
   scale_fill_manual(values = c('0.3' = '#A8CCDA', '0.6' = '#759DB9', '0.9' ='#426D98' ))+
+  scale_color_manual(values = c('0.3' = '#A8CCDA', '0.6' = '#759DB9', '0.9' ='#426D98' ))+
   facet_wrap(~ type,scales = "free",ncol = 1,strip.position = "right")+
   my_ggplot_theme()
 
