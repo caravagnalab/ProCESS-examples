@@ -40,7 +40,7 @@ final_table = lapply(samples, function(sample_name) {
     total_diff = sum(sapply(strsplit(segments, ":"), function(x) {
       as.numeric(x[3]) - as.numeric(x[2])
     }))
-    mutation_rate = evo_params$mu / total_diff
+    mutation_rate = unique(evo_params$mu / total_diff)
   }
   
   # Final table ####
