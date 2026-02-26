@@ -60,7 +60,7 @@ for(tool in tools){
         mutate(ccf_process=mean(ccf_process, na.rm=TRUE)) %>%
         ungroup()
       
-      table = table %>% group_by(cluster_id_process, sample_id) %>% 
+      table = table %>% group_by(cluster_id_process, sample_id) %>%
         mutate(is_clonal_process=replace(FALSE, ccf_process > 0.95, TRUE)) %>% ungroup() %>% 
         mutate(cluster_id_process_full = cluster_id_process) %>% 
         mutate(cluster_id_process=replace(cluster_id_process_full, is_clonal_process==TRUE, 'Clonal'))

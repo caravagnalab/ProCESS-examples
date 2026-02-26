@@ -7,24 +7,20 @@ library(randnet)
 library(scales)
 library(ggrepel)
 
-# DA AGGIUNGERE MOBSTER:
-  # - se un cluster finisce nella tail, mettilo come "subclonal"/"Other" ???
-  # - fare interpreted + interpreted_drivers clusters mobster
-  # interpreted: if a subclone has no driver --> "Other"
-spn = 'SPN03'
-purity=0.9
+spn = 'SPN01'
+purity=0.3
 vcf_caller = "mutect2"
 cna_caller = "ascat"
-coverage = 100
+coverage = 50
 
 coverage_list = c(50,100,150)
 purity_list = c(0.3, 0.6, 0.9)
 vcf_caller_list = c("mutect2")#, "strelka", "freebayes")
 cna_caller_list = c("ascat")#, "sequenza", "battenberg")
-spn_list = c('SPN01', 'SPN02', 'SPN03', 'SPN04', 'SPN06', 'SPN07')
-spn_list = c('SPN05')
+spn_list = c('SPN01', 'SPN02', 'SPN03', 'SPN04','SPN05', 'SPN06', 'SPN07')
+# spn_list = c('SPN05')
 
-tool = 'viber'
+tool = 'mobster'
 if(tool == 'mobster'){
   univariate = T
 }else{
@@ -71,6 +67,7 @@ for(i in 1:nrow(combs)){
   }else{
     table_process = readRDS(get_table_path(paste0(main_path, "validation_subclonal/"), 'process_univariate_w_private', spn, simulation_id)) # process table in folder tables/
     }
+  # table_process$sample_id %>% unique()
   
   # Join process table with drivers
     # now in process_table we have a column "code" with the drivers gene names

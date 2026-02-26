@@ -4,11 +4,11 @@ library(dplyr)
 library(ProCESS)
 library(stringr)
 
-spn = 'SPN01'
+spn = 'SPN02'
 purity=0.6
 vcf_caller = "mutect2"
 cna_caller = "ascat"
-coverage = 50
+coverage = 150
 
 coverage_list = c(50,100,150)
 purity_list = c(0.3, 0.6, 0.9)
@@ -24,7 +24,7 @@ combs = expand.grid(coverage=coverage_list,
                     spn=spn_list)
 
 
-tool = 'mobster'
+tool = 'viber'
 tools = c('viber', 'pyclonevi', 'mobster')
 
 github_path = '/orfeo/cephfs/scratch/cdslab/erivar00/GitHub/ProCESS-examples/'
@@ -65,6 +65,10 @@ for(tool in tools){
       }
       
       # final_table = readRDS(file.path(main_path, "validation_subclonal/tables_interpreted", paste0(tool, "_", spn, "_", simulation_id, ".rds"))) # process table in folder tables/
+      n_cluster_blind = length(unique(final_table$cluster_id_tool))
+      n_cluster_interpreted = length(setdiff(unique(final_table$cluster_id_tool_interpreted), 'Subclonal'))
+      n_cluster_interpreted_driver = length(setdiff(unique(final_table$cluster_id_tool_interpreted_driver), 'Subclonal'))
+      n_cluster_process = length(setdiff(unique(final_table$cluster_id_process), 'Subclonal'))
       
       if(nrow(final_table%>%
               pivot_wider(
@@ -73,6 +77,7 @@ for(tool in tools){
               )) < 5000){
         next
       }
+      
       
       # Table of tool drivers
       drivers_tool = final_table %>% 
@@ -100,6 +105,17 @@ for(tool in tools){
       which_TP_c = intersect(c_interpreted_drivers, unique(final_table$cluster_id_tool_interpreted))
       TP_c = length(which_TP_c)
       
+      TP_table = final_table %>% filter(cluster_id_tool %in% which_TP_c)
+      
+      nmi_interpreted = randnet::NMI(as.factor(TP_table$cluster_id_tool_interpreted),
+                                     as.factor(TP_table$cluster_id_process))
+      
+      if ((length(unique(TP_table$cluster_id_tool_interpreted)) == 1 | 
+           length(unique(TP_table$cluster_id_process)) == 1) & 
+          (is.na(nmi_interpreted) | (nmi_interpreted == 0))) {
+        
+        nmi_interpreted = 1
+      }
       #### FP ####
       # clusters which are in cluster_id_tool_interpreted but not in cluster_id_tool_interpreted_drivers
       which_FP_c = setdiff(unique(final_table$cluster_id_tool_interpreted), c_interpreted_drivers)
@@ -118,6 +134,19 @@ for(tool in tools){
       which_TP_c_blind = intersect(c_interpreted_drivers, unique(final_table$cluster_id_tool))
       TP_c_blind = length(which_TP_c_blind)
       
+      TP_table = final_table %>% filter(cluster_id_tool %in% which_TP_c_blind)
+      
+      nmi_blind = randnet::NMI(as.factor(TP_table$cluster_id_tool),
+                               as.factor(TP_table$cluster_id_process))
+      
+      if ((length(unique(TP_table$cluster_id_tool)) == 1 | 
+           length(unique(TP_table$cluster_id_process)) == 1) & 
+          (is.na(nmi_blind) | (nmi_blind == 0))) {
+        
+        nmi_blind = 1
+      }
+      
+     
       #### FP ####
       # clusters which are in cluster_id_tool_interpreted but not in cluster_id_tool_interpreted_drivers
       which_FP_c_blind = setdiff(unique(final_table$cluster_id_tool), c_interpreted_drivers)
@@ -338,6 +367,14 @@ for(tool in tools){
         filter(!is_driver_tool) %>%
         pull(cluster_id_tool)
       
+      if(is.na(nmi_interpreted)){
+        nmi_interpreted = 1
+      }
+      
+      if(is.na(nmi_blind)){
+        nmi_blind = 1
+      }
+      
       df <- data.frame(
         spn = spn, purity = purity, coverage = coverage,
         vcf_caller = vcf_caller, cna_caller = cna_caller,
@@ -385,6 +422,14 @@ for(tool in tools){
         all_subclonal_FN_d = all_subclonal_FN_d$count,
         all_subclonal_FN_d_list = I(list(unname(all_subclonal_which_FN_d))),
         
+        nmi_blind = nmi_blind,
+        nmi_interpreted = nmi_interpreted,
+        
+        n_cluster_blind = n_cluster_blind,
+        n_cluster_interpreted = n_cluster_interpreted,
+        n_cluster_interpreted_driver = n_cluster_interpreted_driver,
+        n_cluster_process = n_cluster_process,
+        
         stringsAsFactors = FALSE
       )
       
@@ -413,12 +458,21 @@ for(tool in tools){
               )) < 5000){
         next
       }
+      
       df = data.frame()
       samples = final_table$sample_id %>% unique()
       # sample = samples[[1]]
       
       for(sample in samples){
+        
         table_sample = final_table %>% filter(sample_id==sample)
+        
+        n_cluster_blind = length(unique(table_sample$cluster_id_tool))
+        n_cluster_interpreted = length(setdiff(unique(table_sample$cluster_id_tool_interpreted), c("Other", "Tail")))
+        n_cluster_interpreted_driver = length(setdiff(unique(table_sample$cluster_id_tool_interpreted_driver), c("Other", "Tail")))
+        n_cluster_process = length(setdiff(unique(table_sample$cluster_id_process), 'Subclonal'))
+        
+        
       # table_sample = final_table
         # Table of tool drivers
         drivers_tool = table_sample %>% 
@@ -445,6 +499,20 @@ for(tool in tools){
         which_TP_c = intersect(c_interpreted_drivers, unique(table_sample$cluster_id_tool_interpreted))
         TP_c = length(which_TP_c)
         
+        TP_table = table_sample %>% filter(cluster_id_tool %in% which_TP_c)
+        
+        nmi_interpreted = randnet::NMI(as.factor(TP_table$cluster_id_tool_interpreted),
+                                       as.factor(TP_table$cluster_id_process))
+        
+        
+        if ((length(unique(TP_table$cluster_id_tool_interpreted)) == 1 | 
+             length(unique(TP_table$cluster_id_process)) == 1) & 
+            (is.na(nmi_interpreted) | (nmi_interpreted == 0))) {
+          
+          nmi_interpreted = 1
+        }
+        
+        
         #### FP ####
         # clusters which are in cluster_id_tool_interpreted but not in cluster_id_tool_interpreted_drivers
         which_FP_c = setdiff(unique(table_sample$cluster_id_tool_interpreted), c_interpreted_drivers)
@@ -469,6 +537,17 @@ for(tool in tools){
         which_TP_c_blind = intersect(c_interpreted_drivers, unique(table_sample$cluster_id_tool))
         TP_c_blind = length(which_TP_c_blind)
         
+        TP_table = table_sample %>% filter(cluster_id_tool %in% TP_c_blind)
+        
+        nmi_blind = randnet::NMI(as.factor(TP_table$cluster_id_tool),
+                                 as.factor(TP_table$cluster_id_process))
+        
+        if ((length(unique(TP_table$cluster_id_tool)) == 1 | 
+             length(unique(TP_table$cluster_id_process)) == 1) & 
+            (is.na(nmi_blind) | (nmi_blind == 0))) {
+          
+          nmi_blind = 1
+        }
         #### FP ####
         # clusters which are in cluster_id_tool_interpreted but not in cluster_id_tool_interpreted_drivers
         no_tail = setdiff(unique(table_sample$cluster_id_tool), 'Tail')
@@ -687,7 +766,15 @@ for(tool in tools){
         all_subclonal_which_FN_d = subclonal_drivers_process %>%
           filter(!is_driver_tool) %>%
           pull(cluster_id_tool)
-      
+        
+        if(is.na(nmi_interpreted)){
+          nmi_interpreted = 1
+        }
+        
+        if(is.na(nmi_blind)){
+          nmi_blind = 1
+        }
+        
         
         df_tmp <- data.frame(
           spn = spn, purity = purity, coverage = coverage,
@@ -737,6 +824,13 @@ for(tool in tools){
           all_subclonal_FN_d = all_subclonal_FN_d$count,
           all_subclonal_FN_d_list = I(list(unname(all_subclonal_which_FN_d))),
           
+          nmi_blind = nmi_blind,
+          nmi_interpreted = nmi_interpreted,
+          
+          n_cluster_blind = n_cluster_blind,
+          n_cluster_interpreted = n_cluster_interpreted,
+          n_cluster_interpreted_driver = n_cluster_interpreted_driver,
+          n_cluster_process = n_cluster_process,
           
           stringsAsFactors = FALSE
         )
@@ -757,6 +851,7 @@ for(tool in tools){
     metrics_drivers = bind_rows(metrics_drivers, df)
   }
 }
+
 saveRDS(metrics_drivers, file.path(save_path, "metrics_tables/metrics_drivers_clonal_vs_subclonal.rds"))
 
 metrics_drivers= readRDS(file.path(save_path, "metrics_tables/metrics_drivers_clonal_vs_subclonal.rds"))
