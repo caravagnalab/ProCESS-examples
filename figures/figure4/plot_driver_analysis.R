@@ -68,7 +68,7 @@ p_driver <- pr %>%
   mutate(purity = factor(purity),
          coverage = factor(coverage)) %>% 
   ggplot(aes(x = type, y = f1)) +
-  geom_boxplot(outliers = F, col = 'gray40', fill = 'gainsboro', alpha = .4) +
+  geom_boxplot(aes(fill = type, col = type), outliers = F, alpha = .4, show.legend = F) +
   stat_summary(
     aes(x = type, color = spn),
     fun.data = mean_cl_boot,
@@ -85,7 +85,15 @@ p_driver <- pr %>%
     tip.length = 0.01,
     inherit.aes = FALSE,
     color = "gray40"
-  )
+  ) +
+  scale_fill_manual(
+    "Cluster Type",
+    values = c('Clonal' = "palegreen4", 'Subclonal' =  "#9F4576")
+  )  +
+  scale_color_manual(
+    "Cluster Type",
+    values = c('Clonal' = "palegreen4", 'Subclonal' =  "#9F4576")
+  )  
 p_driver
 
 # ggsave(filename = paste0("/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/figure4/driver.pdf"), 

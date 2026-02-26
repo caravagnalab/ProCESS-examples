@@ -10,12 +10,12 @@ source("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/validatio
 
 indir = "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/assing_signature/"
 
-option_list <- list(make_option(c("--spn_id"), type = "character", default = 'SPN02'),
+option_list <- list(make_option(c("--spn_id"), type = "character", default = 'SPN07'),
                     make_option(c("--purity"), type = "double", default = 0.9),
                     make_option(c("--coverage"), type = "integer", default = 100),
                     make_option(c("--cna_caller"), type = "character", default = 'ascat'),
                     make_option(c("--vcf_caller"), type = "character", default = 'mutect2'),
-                    make_option(c("--signature"), type = "character", default = 'BASCULE'),
+                    make_option(c("--signature"), type = "character", default = 'SigProfiler'),
                     make_option(c("--tool"), type = "character", default = 'pyclonevi')
 )
 
@@ -166,6 +166,13 @@ for (sign_type in c('SBS', 'ID')){
       dplyr::rename(Signature=sigs,
                     Exposure=value,
                     Samples=samples)
+    
+    counts = data[['input']][[sign_type]][['counts']] %>% 
+      group_by(samples) %>% 
+      summarise(n = sum(value)) %>% 
+      dplyr::rename(Samples = samples)
+    
+    
   } else {
     data = read.table(file = paste0(indir, spn, '/', cov, 'x_', pur, 'p_', mut_caller, '_', cna_caller, '/', tool, '_', signature_tool, '_', type, '/', s_type, '/',name_file),header = T) 
     df = data %>%
@@ -181,6 +188,8 @@ for (sign_type in c('SBS', 'ID')){
         names_to = "Signature",
         values_to = "Exposure"
       )
+    
+    counts = data %>%  mutate(n = rowSums(across(-Samples))) %>% select(Samples, n)
   }
   
   
@@ -221,9 +230,10 @@ for (sign_type in c('SBS', 'ID')){
     
     df_comparison[[sign_type]]  <- lapply(unique(process_cluster$driver_process), FUN = function(c){
       tmp_process = exp_process %>% filter(driver_process == c)
-      tmp_tool = exp_tool %>% filter(driver_tool == c)
+      tmp_tool = exp_tool %>% filter(driver_tool == c) %>% left_join(counts) %>% filter(!is.na(driver_process))
       compare_exposure(process_df = tmp_process, tool_df = tmp_tool) %>% mutate(cluster = c,
-                                                                                cluster_process = unique(tmp_process$Samples))
+                                                                                cluster_process = unique(tmp_process$Samples),
+                                                                                nmuts = unique(tmp_tool$n))
     }) %>% bind_rows() %>% mutate(type = sign_type)
     
     
@@ -250,10 +260,29 @@ for (sign_type in c('SBS', 'ID')){
   }
 }
 
+sp = spn
+t = tool
+result_int <- readRDS('/orfeo/cephfs/scratch/cdslab/erivar00/GitHub/ProCESS-examples/validation/Subclonal_deconvolution/metrics_tables/metrics_drivers_clonal_vs_subclonal.rds') %>% 
+  filter(purity == pur, 
+         coverage == cov, 
+         spn == sp, 
+         tool == t)
+tp_cluster = result_int$TP_c_list %>% unlist()
 
 mutations <-  readRDS(paste0('/orfeo/cephfs/scratch/cdslab/shared/SCOUT//validation_subclonal/tables_interpreted/', tool, '_', spn, '_', cov, 'x_', pur, 'p_', mut_caller, '_', cna_caller, '.rds'))
 samples <- unique(mutations$sample_id)
 pairs <- combn(samples, 2, simplify = FALSE)
+annot_table <- mutations %>% 
+  filter(cluster_id_tool %in% tp_cluster, 
+         is_driver_tool == T | is_driver_process == T) %>% 
+  select(cluster_id_tool, driver_label_tool, driver_label_process, cluster_id_process,is_driver_tool, is_driver_process) %>% 
+  unique() %>% 
+  tidyr::separate(driver_label_tool, into = c('driver_tool', 'tmp_tool'), sep = '_') %>% 
+  tidyr::separate(driver_label_process, into = c('driver_process', 'tmp_process'), sep = ' ')
+
+
+tool_cluster = annot_table %>% filter(driver_tool %in% annot_table$driver_process) %>% filter(is_driver_tool == T) %>% select(cluster_id_tool, driver_tool, driver_process)
+process_cluster = annot_table %>% filter(driver_process %in% tool_cluster$driver_process) %>% filter(is_driver_process == T) %>% select(cluster_id_process, driver_process)
 
 dups <- mutations %>% 
   mutate(cluster_id_process = ifelse(cluster_id_process %in% process_cluster$cluster_id_process, cluster_id_process, 'NA')) %>% 
@@ -286,8 +315,27 @@ mutations_tool <- mutations %>%
   pivot_wider(values_from = vaf_tool, names_from = sample_id) %>% 
   replace(is.na(.), 0) 
 
-cluster_plots_pair <- list()
 
+join = tool_cluster %>% left_join(process_cluster) %>% filter(!is.na(cluster_id_process))
+
+tp_tool_muts <- mutations_tool %>% filter(cluster_id_tool %in% unique(tool_cluster$cluster_id_tool))
+tp_process_muts <- mutations_process  %>% filter(cluster_id_process %in% unique(process_cluster$cluster_id_process))
+jaccard <- function(a, b) {
+  length(intersect(a, b)) / length(union(a, b))
+}
+
+jaccard_df <- tibble()
+for (d in unique(join$driver_tool)){
+  p = join %>% filter(driver_tool == d) %>% pull(cluster_id_process)
+  t = join %>% filter(driver_tool == d)%>% pull(cluster_id_tool)
+  
+  id_p = tp_process_muts %>% filter(cluster_id_process == p) %>% pull(mutation_id)
+  id_t = tp_tool_muts %>% filter(cluster_id_tool == t) %>% pull(mutation_id)
+  jaccard_df <- bind_rows(jaccard_df, tibble(cluster = d, jaccard = jaccard(id_p, id_t)))
+}
+
+
+cluster_plots_pair <- list()
 for (i in 1:length(pairs)){
   s1 <- pairs[[i]][1]
   s2 <- pairs[[i]][2]
@@ -355,13 +403,14 @@ heigh <- c(heigh,2)
 p_final <- wrap_plots(cluster_plots_pair, nrow = length(pairs)+1, guides = 'collect') + 
   wrap_plots(plot_sign_all$SBS,plot_sign_all$ID, nrow = 2,  guides = 'collect') + 
   plot_layout(heights = heigh)
-ggsave(plot = p_final, filename = paste0('assign_res/', spn, '/',spn,'_',cov, 'x_', pur, 'p_',tool,'_',signature_tool,'.png'), dpi = 400, width = 7.5, height = 2.5*(length(pairs)+2))
+#ggsave(plot = p_final, filename = paste0('assign_res/', spn, '/',spn,'_',cov, 'x_', pur, 'p_',tool,'_',signature_tool,'.png'), dpi = 400, width = 7.5, height = 2.5*(length(pairs)+2))
 #ggsave(plot = p_final, filename = paste0(spn,'_',tool,'_',signature_tool,'_res.pdf'), width = 9.5, height = 2.5*(length(pairs)+2))
 
 
 results <- df_comparison %>% 
   bind_rows()  %>% 
-  mutate(cov = cov, pur = pur, tool = tool, sig_tool = signature_tool, cna_caller = cna_caller, mut_caller = mut_caller, spn = spn)
+  mutate(cov = cov, pur = pur, tool = tool, sig_tool = signature_tool, cna_caller = cna_caller, mut_caller = mut_caller, spn = spn) %>% 
+  left_join(jaccard_df)
 saveRDS(object = results,file = paste0('assign_res/',spn, '/',spn,'_',cov, 'x_', pur, 'p_',tool,'_',signature_tool,'.rds'))
 
 

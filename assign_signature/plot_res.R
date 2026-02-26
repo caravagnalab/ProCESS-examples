@@ -53,56 +53,7 @@ df_uni = df_uni %>%
 
 df_uni = df_uni  %>% 
   left_join(classes %>% dplyr::rename(pur = purity, cov = coverage))
-# 
-# df_uni %>% 
-#   filter(cluster != 'Tail-Subclonal') %>% 
-#   ggplot() +
-#   geom_boxplot(aes(x = sample_class, y = CosineSimilarity, fill = cluster_process, col = cluster_process), alpha = .4) + 
-#   #scale_fill_manual('Cluster Type', values = c('plum4', 'cadetblue4')) + 
-#   #scale_color_manual('Cluster Type', values = c('plum4', 'cadetblue4')) + 
-#   my_ggplot_theme() +
-#   xlab('Purity') +
-#   ggtitle('Univariate MOBSTER')
 
-
-# pd <- position_dodge(width = 0.3)
-# 
-# plt_uni <- df_uni %>%
-#   group_by(pur, cluster_process, sample_class) %>%
-#   summarise(
-#     q25 = quantile(CosineSimilarity, 0.25, na.rm = TRUE),
-#     q50 = quantile(CosineSimilarity, 0.50, na.rm = TRUE),
-#     q75 = quantile(CosineSimilarity, 0.75, na.rm = TRUE),
-#     .groups = "drop"
-#   ) %>%
-#   ggplot(aes(
-#     x = as.factor(pur),
-#     y = q50,
-#     group = interaction(cluster_process, sample_class),
-#     color = cluster_process,
-#     linetype = sample_class,
-#     shape = sample_class
-#   )) +
-#   geom_line(position = pd, linewidth = .3) +
-#   geom_point(position = pd, size = 3) +
-#   geom_errorbar(
-#     aes(ymin = q25, ymax = q75),
-#     position = pd,
-#     width = 0.15,
-#     alpha = 0.6
-#   ) +
-#   scale_color_manual(
-#     "Cluster Type",
-#     values = c('Clonal' = "plum4", 'Subclonal' =  "cadetblue4")
-#   ) +
-#   scale_shape_manual('Sample Class', values = c(16,17)) + 
-#   scale_linetype_manual('Sample Class', values = c(1,2)) + 
-#   my_ggplot_theme() +
-#   xlab("Purity") +
-#   ylab("Median Cosine Similarity") +
-#   ggtitle("Univariate")
-# 
-# plt_uni
 
 df_uni_filt <- df_uni %>% filter(cluster != 'Tail-Subclonal')
 df = df %>% 
@@ -110,7 +61,9 @@ df = df %>%
   filter(!is.na(CosineSimilarity)) %>% 
   mutate(cluster_process = ifelse(cluster_process == 'Clonal', 'Clonal', 'Subclonal')) %>% 
   filter(!is.na(cluster_process)) %>% 
-  mutate(patient_class = ifelse(spn %in% c('SPN03', 'SPN04', 'SPN06', 'SPN07'), 'High\nComplexity', 'Low\nComplexity')) 
+  mutate(patient_class = ifelse(spn %in% c('SPN03','SPN04', 'SPN06', 'SPN07'), 'High\nComplexity', 'Low\nComplexity')) %>% 
+  filter(!(pur == 0.6 & spn == "SPN07"))
+
 
 # 1. Run tests per cluster
 stat.test <- df %>%
@@ -122,6 +75,12 @@ stat.test <- df %>%
 
 # 2. Plot
 pd <- position_dodge(0.8)
+
+stat.cluster <- df %>%
+  wilcox_test(CosineSimilarity ~ cluster_process) %>%
+  adjust_pvalue(method = "BH") %>%
+  add_significance("p.adj") %>%
+  add_xy_position(x = "cluster_process", dodge = 0.8)%>% mutate(y.position  = 1.02)
 
 
 stat.within <- df %>%
@@ -163,6 +122,8 @@ df$cluster_process <- factor(
   levels = c( "Clonal", "Subclonal")
 )
 
+
+
 # table <- df %>% 
 #   group_by(cluster_process, patient_class) %>% 
 #   summarize(mean_cs = mean(CosineSimilarity),
@@ -179,7 +140,6 @@ df$cluster_process <- factor(
 # 
 # write.table(x = pvalues, file = '/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/figure5/panelC_cluster_signature_pvalues.tsv', quote = F, sep = '\t', row.names = F)
 
-
 plt_multi <- df %>%
   ggplot(aes(
     y = CosineSimilarity,
@@ -193,34 +153,34 @@ plt_multi <- df %>%
     outlier.size = 1,
     show.legend = TRUE
   ) +
-## within-class (Clonal vs Subclonal)
-stat_pvalue_manual(
-  stat.within,
-  label = "p.adj.signif",
-  tip.length = 0.01,
-  #hide.ns = TRUE
-) +
-
-## between-class (Subclonal only)
-stat_pvalue_manual(
-  stat.subclonal,
-  label = "p.adj.signif",
-  tip.length = 0.01,
-  inherit.aes = FALSE,
-  color = "#9F4576"
-) +
-
-## between-class (Clonal only)
-stat_pvalue_manual(
-  stat.clonal,
-  label = "p.adj.signif",
-  tip.length = 0.01,
-  inherit.aes = FALSE,
-  color = "palegreen4"
-) +  scale_y_continuous(
-  breaks = c(0.3, 0.6, 0.9, 1),
-  labels = c("0.3", "0.6", "0.9", "1")
-) +
+  ## within-class (Clonal vs Subclonal)
+  stat_pvalue_manual(
+    stat.within,
+    label = "p.adj.signif",
+    tip.length = 0.01,
+    #hide.ns = TRUE
+  ) +
+  
+  ## between-class (Subclonal only)
+  stat_pvalue_manual(
+    stat.subclonal,
+    label = "p.adj.signif",
+    tip.length = 0.01,
+    inherit.aes = FALSE,
+    color = "#9F4576"
+  ) +
+  
+  ## between-class (Clonal only)
+  stat_pvalue_manual(
+    stat.clonal,
+    label = "p.adj.signif",
+    tip.length = 0.01,
+    inherit.aes = FALSE,
+    color = "palegreen4"
+  ) +  scale_y_continuous(
+    breaks = c(0.3, 0.6, 0.9, 1),
+    labels = c("0.3", "0.6", "0.9", "1")
+  ) +
 
   scale_color_manual(
     "Cluster Type",
@@ -234,6 +194,43 @@ stat_pvalue_manual(
   xlab("Patient Class") +
   ylab('Exposure Accuracy (Cosine Similarity)')
 
+df <- df %>% 
+  mutate(
+    class = case_when(
+      jaccard < .3  ~ 'Low Jaccard',
+      nmuts < 250 ~ 'Low Mutations',
+      nmuts < 20 & jaccard < .3 ~ 'Low Jaccard-Low Mutations'
+    )) 
 
-#plt_multi
+
+plt_cluster <- ggplot() +
+  geom_boxplot(data = df, aes(
+    y = CosineSimilarity,
+    x = cluster_process),
+    position = pd,
+    alpha = 0.2,
+    outlier.size = 1,
+    show.legend = F,
+    col = 'gray50',
+    fill = 'gray70'
+  ) +
+  stat_pvalue_manual(
+    stat.cluster,
+    label = "p.adj.signif",
+    tip.length = 0.01,
+  ) +
+  geom_jitter(data = df %>% filter(CosineSimilarity<.6), 
+             aes(x = cluster_process, y = CosineSimilarity, col = class), alpha = .6, width = .1) + 
+  scale_color_manual('Data Class', 
+    values = c("Low Mutations" = 'mediumpurple4', "Low Jaccard" = 'goldenrod'),
+    guide = guide_legend(
+      override.aes = list(size = 3, alpha=1)
+    )) +
+  my_ggplot_theme() +
+  xlab("Cluster Type") +
+  ylab('Exposure Accuracy (Cosine Similarity)')
+
+
+
+plt_multi + plt_cluster
 #ggsave(filename = 'plot.pdf', width = 4, height = 4, units = 'in')

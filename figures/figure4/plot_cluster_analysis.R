@@ -149,8 +149,10 @@ p_cluster_purity = t1 %>%
          type=factor(type,
                      levels = c('Driver Blind','Driver Informed'))) %>%
   ggplot(aes(x = purity, y = value, fill = type)) +
-  geom_boxplot(outliers = F,alpha = .4) +
+  geom_boxplot(outliers = F,alpha = .9) +
   ggh4x::facet_nested(~ factor(tool, levels=c("MOBSTER", "VIBER", 'PyClone-VI'))) +
+  scale_fill_manual('Cluster', values = c('coral2', 'cadetblue')) +  
+  scale_color_manual('Cluster', values = c('coral2', 'cadetblue')) + 
   xlab("Purity")+
   ylab("Mutation Clustering F1 Score")+
   # scale_color_manual(values=SPN_colors, name='SPN')+
@@ -194,16 +196,17 @@ t3 = t2 %>%
             std = sd(relative_error)) %>% 
   ungroup()
 
-p = ggplot(t3, aes(x=as.factor(purity), y=mean, fill = type, alpha = .4)) + 
-  geom_bar(stat="identity", color="black", 
-           position=position_dodge()) +
+p = ggplot(t3, aes(x=as.factor(purity), y=mean, fill = type)) + 
+  geom_bar(stat="identity", color="gray40", 
+           position=position_dodge(), alpha = .9) +
   # geom_errorbar(aes(ymin=pmax(mean - std, 0), ymax=mean+std), width=.2,
   #               position=position_dodge(.9)) +
   ggh4x::facet_nested(~ factor(tool, levels=c("MOBSTER", "VIBER", 'PyClone-VI'))) +
-  ylab('Relative error')+
+  scale_fill_manual('Cluster', values = c('coral2', 'cadetblue')) + 
+  ylab('Relative Error N of Cluster')+
   xlab('Purity') +
   guides(alpha = "none")+
   my_ggplot_theme()
 
 p
-
+p_cluster_purity

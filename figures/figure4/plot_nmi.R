@@ -58,23 +58,17 @@ nmi_plot = metrics_table_nmi_long %>%
          tool=factor(tool,
                      levels = c("MOBSTER", "VIBER", 'PyClone-VI'))) %>%
   ggplot(aes(x = spn, y = value)) +
-  geom_boxplot(aes(color = metric_label), position = position_dodge(width = 0.8)) +
-  geom_point(
-    aes(group = metric_label),
-    position = position_dodge(width = 0.8),
-    size = 1.5
-  ) +
-  ggh4x::facet_nested(~factor(tool, levels=c("MOBSTER", "VIBER", 'PyClone-VI'))) +
-  # geom_hline(
-  #   data = mean_NMI,
-  #   aes(yintercept = mean_value, color = metric_label),
-  #   linewidth = 0.5,
-  #   linetype = 'dashed'
+  geom_boxplot(aes(fill = metric_label), position = position_dodge(width = 0.8), outliers = T, outlier.size = .3, alpha=.9) +
+  # geom_point(
+  #   aes(group = metric_label),
+  #   position = position_dodge(width = 0.8),
+  #   size = 1.5
   # ) +
+  ggh4x::facet_nested(~factor(tool, levels=c("MOBSTER", "VIBER", 'PyClone-VI'))) +
   xlab("SPN")+ 
   ylab("NMI")+
-  ylim(0,1)+
-  scale_color_manual(values=palette_blind_int, name='Metric')+
+  scale_fill_manual('Metric', values = c('coral2', 'cadetblue')) +  
+  scale_color_manual('Metric', values = c('coral2', 'cadetblue')) + 
   my_ggplot_theme()
 
 nmi_plot
