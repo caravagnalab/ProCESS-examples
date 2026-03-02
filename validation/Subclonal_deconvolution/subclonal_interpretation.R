@@ -14,14 +14,16 @@ purity_list = c(0.3, 0.6, 0.9)
 vcf_caller_list = c("mutect2")#, "strelka", "freebayes")
 cna_caller_list = c("ascat")#, "sequenza", "battenberg")
 spn_list = c('SPN01', 'SPN02', 'SPN03', 'SPN04','SPN05', 'SPN06', 'SPN07')
+tool_list = c( 'viber', 'pyclonevi')
 
-tool = 'viber'
+# tool = 'viber'
 
 combs = expand.grid(coverage=coverage_list,
                     purity=purity_list,
                     vcf_caller=vcf_caller_list,
                     cna_caller=cna_caller_list,
-                    spn=spn_list)
+                    spn=spn_list,
+                    tool=tool_list)
 
 github_path = '/orfeo/cephfs/scratch/cdslab/erivar00/GitHub/ProCESS-examples/'
 main_path = "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/"
@@ -39,9 +41,10 @@ for(i in 1:nrow(combs)){
   vcf_caller = combs[i, "vcf_caller"]
   cna_caller = combs[i, "cna_caller"]
   spn = combs[i, "spn"]
+  tool = combs[i, "tool"]
   
   simulation_id = paste0(coverage, "x_", purity, "p_", vcf_caller, "_", cna_caller)
-  print(paste0(spn,'_' ,simulation_id))
+  print(paste0(tool, '_' ,spn,'_' ,simulation_id))
     
   # Extract tool table
   tool_table = tryCatch(
@@ -81,7 +84,7 @@ for(i in 1:nrow(combs)){
   final_table = tool_table %>% left_join(mobster_table)
   
   final_table = final_table %>% 
-    mutate(mobster_cluster = ifelse(((vaf_tool > 0) & (is.na(mobster_cluster))), 'Tail', mobster_cluster)) %>% 
+    mutate(mobster_cluster = ifelse(((vaf_tool > 0) & (vaf_tool <= 0.05) & (is.na(mobster_cluster))), 'Tail', mobster_cluster)) %>% 
     mutate(mobster_cluster = ifelse(((vaf_tool == 0) & (is.na(mobster_cluster))), 'Private', mobster_cluster))
   
   # I want to create a final table with:
@@ -118,12 +121,19 @@ for(i in 1:nrow(combs)){
   
   final_df = final_table %>%
     distinct(cluster_id_tool, purity, coverage, patient_id) %>%
-    arrange(cluster_id_tool, purity, coverage, patient_id)
+    arrange(purity, coverage, patient_id, cluster_id_tool) 
+  
+  # if(tool=='viber'){
+  #   final_df = final_df%>% 
+  #     mutate(cluster_id_tool = as.character(cluster_id_tool))
+  # }
   
   final_df = final_df %>% 
     mutate(contains_driver_tool=ifelse(cluster_id_tool %in% drivers_tool, TRUE, FALSE),
-           contains_driver_process=ifelse(cluster_id_tool %in% drivers_process, TRUE, FALSE)) %>% 
-    inner_join(contains_tail)
+           contains_driver_process=ifelse(cluster_id_tool %in% drivers_process, TRUE, FALSE),
+           tool = tool) %>% 
+    inner_join(contains_tail) %>% 
+    mutate(cluster_id_tool = as.character(cluster_id_tool))
   
   df_to_save = bind_rows(df_to_save, final_df)
   
