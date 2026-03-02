@@ -1,3 +1,21 @@
+my_mutationrate <-
+  function(fit,
+           lq = 0.05,
+           uq = 0.95,
+           ploidy = 2,
+           ncells = 2) {
+    VAFvec <- dplyr::filter(fit$best$data, cluster == 'Tail', type == 'SNV') %>%
+      dplyr::filter(VAF < quantile(VAF, uq) &
+                      VAF > quantile(VAF, lq)) %>%
+      dplyr::pull(VAF)
+    mu <-
+      length(VAFvec) / (1 / (ploidy * min(VAFvec)) - 1 / (ploidy * max(VAFvec)))
+    print(min(VAFvec))
+    print(max(VAFvec))
+    print(length(VAFvec))
+    return(mu / ncells)
+  }
+
 tool = "mobster"
 library(mobster)
 
@@ -35,12 +53,18 @@ final_table = lapply(samples, function(sample_name) {
   # Compute mutation rate #####
   mutation_rate = NA
   if (obj$fit.tail == TRUE) {
-    evo_params = evolutionary_parameters(obj_all)
+    # evo_params = evolutionary_parameters(obj_all)
+    # segments = obj$data$segment_id %>% unique()
+    # total_diff = sum(sapply(strsplit(segments, ":"), function(x) {
+    #   as.numeric(x[3]) - as.numeric(x[2])
+    # }))
+    # mutation_rate = unique(evo_params$mu / total_diff)
+    mu = my_mutationrate(obj_all)
     segments = obj$data$segment_id %>% unique()
     total_diff = sum(sapply(strsplit(segments, ":"), function(x) {
       as.numeric(x[3]) - as.numeric(x[2])
     }))
-    mutation_rate = unique(evo_params$mu / total_diff)
+    mutation_rate = unique(mu / total_diff)
   }
   
   # Final table ####
