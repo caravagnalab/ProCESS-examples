@@ -8,7 +8,7 @@ library(scales)
 library(ggrepel)
 
 spn = 'SPN01'
-purity=0.3
+purity=0.9
 vcf_caller = "mutect2"
 cna_caller = "ascat"
 coverage = 50
@@ -20,7 +20,7 @@ cna_caller_list = c("ascat")#, "sequenza", "battenberg")
 spn_list = c('SPN01', 'SPN02', 'SPN03', 'SPN04','SPN05', 'SPN06', 'SPN07')
 # spn_list = c('SPN05')
 
-tool = 'mobster'
+tool = 'pyclonevi'
 if(tool == 'mobster'){
   univariate = T
 }else{
@@ -49,7 +49,9 @@ for(i in 1:nrow(combs)){
   spn = combs[i, "spn"]
 
   simulation_id = paste0(coverage, "x_", purity, "p_", vcf_caller, "_", cna_caller)
-
+  
+  print(paste0(spn, '_', simulation_id))
+  
   # True process drivers
   true_drivers_table = readRDS(file.path(main_path,"drivers", spn, "process_drivers.rds")) %>% as_tibble()
   
@@ -180,10 +182,10 @@ for(i in 1:nrow(combs)){
         as.character(cluster_id_tool)
       ))
     
-    final_table_interpreted = final_table_interpreted %>%
-      group_by(cluster_id_tool) %>%
-      mutate(is_clonal_tool = all(ccf_tool > 0.9)) %>%
-      ungroup()
+    # final_table_interpreted = final_table_interpreted %>%
+    #   group_by(cluster_id_tool) %>%
+    #   mutate(is_clonal_tool = all(ccf_tool > 0.9)) %>%
+    #   ungroup()
     
   }else{
     join_table_tool = table_tool %>% left_join(table_process) # keep all mut in tool

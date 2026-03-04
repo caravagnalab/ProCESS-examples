@@ -16,7 +16,7 @@ cna_caller_list = c("ascat")#, "sequenza", "battenberg")
 spn_list = c('SPN01', 'SPN02', 'SPN03', 'SPN04','SPN05', 'SPN06', 'SPN07')
 tool_list = c( 'viber', 'pyclonevi')
 
-# tool = 'viber'
+tool = 'viber'
 
 combs = expand.grid(coverage=coverage_list,
                     purity=purity_list,
@@ -76,7 +76,7 @@ for(i in 1:nrow(combs)){
   }
   
   mobster_table = mobster_table %>% 
-    rename(mobster_cluster = cluster_id_tool) %>% 
+    dplyr::rename(mobster_cluster = cluster_id_tool) %>% 
     select(mutation_id, mobster_cluster)
   
   # Create a join with also mobster clusters
@@ -109,6 +109,39 @@ for(i in 1:nrow(combs)){
     pull(cluster_id_tool)
   
   
+  # contains_tail = final_table %>%
+  #   group_by(cluster_id_tool) %>%
+  #   summarise(
+  #     total_mutations = n(),
+  #     tail_mutations = sum(mobster_cluster == "Tail", na.rm = TRUE),
+  #     percent_tail = round(100 * tail_mutations / total_mutations, 3)
+  #   ) %>%
+  #   ungroup()
+  
+  contains_tail_patient = final_table %>%
+    group_by(cluster_id_tool, sample_id) %>%
+    summarise(
+      total_mutations = n(),
+      tail_mutations = sum(mobster_cluster == "Tail", na.rm = TRUE),
+      percent_tail = round(100 * tail_mutations / total_mutations, 3)
+    ) %>%
+    ungroup() %>% 
+    group_by(cluster_id_tool) %>%
+    summarise(percent_tail_sample = list(percent_tail)) %>%
+    ungroup()
+  
+  single_sample_tail = final_table %>%
+    group_by(cluster_id_tool, sample_id) %>%
+    summarise(
+      total_mutations = n(),
+      tail_mutations = sum(mobster_cluster == "Tail", na.rm = TRUE),
+      percent_tail = round(100 * tail_mutations / total_mutations, 3)
+    ) %>%
+    ungroup() %>%
+    group_by(cluster_id_tool) %>%
+    summarise(one_sample_tail = sum(percent_tail > 80) >= 1)%>%
+    ungroup()
+  
   contains_tail = final_table %>%
     group_by(cluster_id_tool) %>%
     summarise(
@@ -118,10 +151,12 @@ for(i in 1:nrow(combs)){
     ) %>%
     ungroup()
   
+  contains_tail = contains_tail %>% inner_join(contains_tail_patient)
+  contains_tail = contains_tail %>% inner_join(single_sample_tail)
   
   final_df = final_table %>%
-    distinct(cluster_id_tool, purity, coverage, patient_id) %>%
-    arrange(purity, coverage, patient_id, cluster_id_tool) 
+    distinct(cluster_id_tool, purity, coverage, patient_id, is_clonal_tool) %>%
+    arrange(purity, coverage, patient_id, cluster_id_tool, is_clonal_tool) 
   
   # if(tool=='viber'){
   #   final_df = final_df%>% 
