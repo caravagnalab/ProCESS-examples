@@ -39,7 +39,7 @@ m_engine$add_mutant(mutant_name = "Clone 2",
 m_engine$add_mutant(mutant_name = "Clone 3", 
                     passenger_rates = c(SNV = mu_SNV_clone3, indel = mu_ID_clone3, CNA = mu_CNA_clone3), # modelled as an hypermutant, so with higher passenger_rates
                     # drivers = list(SNV("2", 47799065, "A")))
-                    drivers = list(SNV("12", 132673703, "C"))) # POLE somatic mutation POLE p.V411L 
+                    drivers = list(SNV("12", 132673703, "A"))) # POLE somatic mutation POLE p.V411L 
                                              # G>C
 # indels and sbs have different coefficients summing (up to 1 for IDs and up to 1 for SBSs)
 m_engine$add_exposure(
