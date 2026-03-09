@@ -3,7 +3,7 @@ library(tidyverse)
 library(ProCESS)
 
 
-spn = 'SPN03'
+spn = 'SPN01'
 purity=0.9
 vcf_caller = "mutect2"
 cna_caller = "ascat"
@@ -130,6 +130,12 @@ for(i in 1:nrow(combs)){
     summarise(percent_tail_sample = list(percent_tail)) %>%
     ungroup()
   
+  never_tail = final_table %>% 
+    group_by(mutation_id) %>% 
+    mutate(never_tail = all(mobster_cluster != "Tail")) %>% 
+    group_by(cluster_id_tool) %>% 
+    summarise(n_never_tail = sum(never_tail)/n())
+  
   single_sample_tail = final_table %>%
     group_by(cluster_id_tool, sample_id) %>%
     summarise(
@@ -163,15 +169,17 @@ for(i in 1:nrow(combs)){
   #     mutate(cluster_id_tool = as.character(cluster_id_tool))
   # }
   
+
   final_df = final_df %>% 
     mutate(contains_driver_tool=ifelse(cluster_id_tool %in% drivers_tool, TRUE, FALSE),
            contains_driver_process=ifelse(cluster_id_tool %in% drivers_process, TRUE, FALSE),
            tool = tool) %>% 
     inner_join(contains_tail) %>% 
+    inner_join(never_tail) %>% 
     mutate(cluster_id_tool = as.character(cluster_id_tool))
   
   df_to_save = bind_rows(df_to_save, final_df)
   
 }
 
-saveRDS(df_to_save, '/orfeo/cephfs/scratch/cdslab/shared/SCOUT/interpretation/subclonal_deconvolution.rds')
+saveRDS(df_to_save, '/orfeo/cephfs/scratch/cdslab/shared/SCOUT/interpretation/subclonal_deconvolution_new.rds')

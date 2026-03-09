@@ -4,7 +4,8 @@ library(ProCESS)
 
 tool = "process_univariate_w_private"
 
-github_path = "~/GitHub/ProCESS-examples/"
+#github_path = "~/GitHub/ProCESS-examples/"
+github_path = "/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/"
 main_path = "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/"
 save_path = file.path(main_path, "validation_subclonal/")
 save_path_shared = file.path(main_path, "validation_subclonal/")
@@ -101,7 +102,7 @@ for (spn in spn_list) {
     label_names = relevant_branches %>% select(mutant, label) %>% unique() %>% filter(mutant != label)
     mutation_rates %>% inner_join(label_names) %>% as_tibble() %>%
       select(-epistate, -mutant) %>%
-      rename(cluster_id_process=label) %>% 
+      dplyr::rename(cluster_id_process=label) %>% 
       mutate(patient_id=spn, sample_id=sample) %>% 
       select(patient_id, sample_id, cluster_id_process, everything())
     # mutate(patient_id=spn, sample_id=sample, coverage=coverage, purity=purity) %>% 
@@ -130,7 +131,7 @@ for (spn in spn_list) {
     
     # Save updated table #####
     cli::cli_text("Save `new_table` in {old_table_path}")
-    saveRDS(new_table, old_table_path)
+    #saveRDS(new_table, old_table_path)
   }
 }
 

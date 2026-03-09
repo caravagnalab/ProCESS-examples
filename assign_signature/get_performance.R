@@ -12,11 +12,11 @@ indir = "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/assing_signature/"
 
 option_list <- list(make_option(c("--spn_id"), type = "character", default = 'SPN07'),
                     make_option(c("--purity"), type = "double", default = 0.9),
-                    make_option(c("--coverage"), type = "integer", default = 100),
+                    make_option(c("--coverage"), type = "integer", default = 50),
                     make_option(c("--cna_caller"), type = "character", default = 'ascat'),
                     make_option(c("--vcf_caller"), type = "character", default = 'mutect2'),
-                    make_option(c("--signature"), type = "character", default = 'SigProfiler'),
-                    make_option(c("--tool"), type = "character", default = 'pyclonevi')
+                    make_option(c("--signature"), type = "character", default = 'BASCULE'),
+                    make_option(c("--tool"), type = "character", default = 'viber')
 )
 
 
