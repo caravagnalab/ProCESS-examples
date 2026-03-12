@@ -1,0 +1,139 @@
+library(ggplot2)
+library(tidyverse)
+library(ProCESS)
+
+source('/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/validation/SCOUT/colors.R')
+source("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/utils_plot.R")
+source("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/utils.R")
+
+
+df_score <- tibble(spn = paste0('SPN0', 1:7),
+                   signature = c(F,F,F,F,F,T,T))
+
+
+colors_cluster = c('indianred', 
+                   'steelblue', 
+                   'forestgreen', 
+                   'goldenrod', 
+                   'darkorange3', 
+                   'palevioletred', 
+                   'mediumpurple', 
+                   'cornsilk4', 
+                   'olivedrab3', 
+                   'steelblue4', 
+                   'indianred4',
+                   'aquamarine3',
+                   'saddlebrown',
+                   'deeppink2',
+                   'cornflowerblue',
+                   'black')
+names(colors_cluster) = paste0('C',0:15)
+
+vcf_caller = "mutect2"
+cna_caller = "ascat"
+
+coverage_list = c(50, 100, 150)
+purity_list = c(0.9, 0.6, 0.3)
+vcf_caller_list = c("mutect2")
+cna_caller_list = c("ascat")
+spn_list = c('SPN01', 'SPN02', 'SPN03', 'SPN04','SPN05', 'SPN06', 'SPN07')
+tool_list = c( 'viber', 'pyclonevi')
+sig_tool_list = c('BASCULE', 'SigProfiler')
+
+base <- '/orfeo/cephfs/scratch/cdslab/shared/SCOUT/interpretation'
+subclonal <- readRDS(paste0(base, '/subclonal_deconvolution_new.rds')) %>% 
+  dplyr::rename(spn = patient_id, 
+                dec_tool = tool, 
+                cluster = cluster_id_tool)
+signature <- readRDS(paste0(base, '/signature_deconvolution_summary.rds'))
+signature$cluster <- sub("^X", "", signature$cluster)
+
+all <- full_join(subclonal, signature)
+
+combs = expand.grid(coverage=coverage_list,
+                    purity=purity_list,
+                    tool=tool_list,
+                    sig_tool = sig_tool_list)
+
+i=3
+
+for (i in 1:nrow(combs)){
+  cov = combs[i, "coverage"]
+  pur = combs[i, "purity"]
+  s_tool = combs[i, "sig_tool"]
+  tool = combs[i, "tool"]
+  
+  f_all <- all %>% 
+    filter(coverage == cov,
+           purity == pur, 
+           dec_tool == tool,
+           sig_tool == s_tool | is.na(sig_tool), 
+           spn %in% spn_list)
+  
+  f_all <- f_all %>% 
+   group_by(across(c(-sig, -cs_exp, -match, -n_rel, -bg_match, -bg_cs_exp, -bg_n_rel))) %>% 
+   summarize(cs_exp = min(cs_exp),
+          n_rel = max(n_rel),
+          bg_cs_exp = min(bg_cs_exp)) %>% 
+   ungroup()
+  
+  f_all <- f_all %>% left_join(df_score)
+    
+  interpret_table <- f_all %>% 
+    mutate(driver = ifelse(contains_driver_tool == F, 0, 1),
+           n_never_tail = (100-percent_tail)/100,
+           bg_cs = 1 - bg_cs_exp,
+           cs_sign = 1 - cs_exp,
+           cs_sign = ifelse(is.na(cs_exp) & is_clonal_tool == T, 1, cs_sign),
+           bg_sign = ifelse(is.na(bg_cs) & is_clonal_tool == T, 1, bg_cs),
+           n_rel = ifelse(is.na(cs_exp) & is_clonal_tool == T, 1, n_rel)) %>% 
+    mutate(score_all = ifelse(signature == T, 
+                              (driver + n_never_tail + ((cs_sign+n_rel+bg_sign)/3))/3, 
+                              (driver + n_never_tail)/2),
+           score_driver = driver, 
+           score_sign = ifelse(signature == T, 
+                               (cs_sign+n_rel+bg_sign)/3, 
+                               NA),
+           score_tail = n_never_tail)
+
+  
+  if (tool == 'pyclonevi'){
+    interpret_table <- interpret_table %>% 
+      mutate(cluster = paste0('C', cluster))
+  }
+  
+  plt <- interpret_table %>%
+    pivot_longer(cols = c(score_driver, score_all, score_tail, score_sign)) %>%
+    mutate(name = factor(name, levels = c('score_driver', 'score_tail', 'score_sign', 'score_all'))) %>%
+    ggplot() +
+    annotate("rect", xmin = -Inf, xmax = Inf, ymin = 0.7, ymax = 1, 
+             fill = "palegreen4", alpha = 0.2) + 
+    annotate("rect", xmin = -Inf, xmax = Inf, ymin = 0.2, ymax = 0.7, 
+             fill = "goldenrod", alpha = 0.2) + 
+    annotate("rect", xmin = -Inf, xmax = Inf, ymin = 0.2, ymax = 0, 
+             fill = "gainsboro", alpha = 0.2) +
+    geom_point(aes(x = name, y = value, col = cluster, shape = contains_driver_process), size = 4) +
+    geom_line(data = ~ filter(.x, !is.na(value)), aes(x = name, y = value, col = cluster, group = cluster), linewidth = .6)  +
+    theme_minimal() +
+    scale_shape_manual('Contains True Driver', values = c(4, 20)) +
+    facet_wrap(.~spn) +
+    ylab('Score') +
+    xlab('')+
+    scale_color_manual('Cluster',
+                       values = colors_cluster) +
+    scale_x_discrete(labels = c('score_driver' = 'Only\nDriver',
+                                'score_tail'   = 'Driver\nTail',
+                                'score_sign'   = 'Driver\nSignature',
+                                'score_all'    = 'All')) +
+    ggtitle(paste0(cov, 'x_',pur, 'p_', tool, '_', s_tool)) + my_ggplot_theme()
+
+  
+  name_file = paste0('/orfeo/cephfs/scratch/cdslab/shared/SCOUT/interpretation/plot_int/', cov, 'x_', pur, 'p_', s_tool,'_',tool, '.png')
+  ggsave(plot = plt,
+         filename = name_file,
+         dpi = 400,
+         width = 10, height = 10)
+
+  path = paste0('/orfeo/cephfs/scratch/cdslab/shared/SCOUT/interpretation/res_int/', cov, 'x_', pur, 'p_', s_tool,'_',tool)
+  saveRDS(object = interpret_table, file = paste0(path, '_df.rds'))
+}

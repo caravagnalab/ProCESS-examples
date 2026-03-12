@@ -11,19 +11,12 @@ source("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/validatio
 out = "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/interpretation/"
 base = '/orfeo/cephfs/scratch/cdslab/shared/SCOUT/validation_subclonal/tables/'
 
-plot_exposure <- function(df, sig_type, tool, col, type = '', signature = ''){
-  plot <- df %>% 
-    ggplot(aes(fill=causes, y=exposure, x=as.factor(cluster_id_process))) + 
-    geom_bar(position="fill", stat="identity")+
-    coord_flip()+
-    scale_fill_manual(values=c(sbs_colors, id_colors))+
-    theme_bw()+
-    theme(legend.position = "bottom")+
-    xlab("Cluster")+
-    ylab("Exposures")+
-    ggtitle(label = paste(sig_type, type, signature))
-  return(plot)
-}
+color_palette_process = RColorBrewer::brewer.pal(n = 8, name = "Dark2") 
+names(color_palette_process) <- c('Clonal', paste0('Clone ', 1:7))
+color_palette_process['Subclonal'] = 'gray70'
+
+df_score <- tibble(SPN = paste0('SPN0', 1:7),
+                   signature = c(F,F,F,F,F,T,T))
 
 
 get_exposure <- function(table){
@@ -60,10 +53,13 @@ cosine_similarity <- function(vec1, vec2) {
 
 compare_signatures <- function(df1, df2) {
   
+  df1_f <- df1 %>% filter(exposure>.1)
+  df2_f <- df2 %>% filter(exposure>.1)
+  
   # Check if signatures are identical
-  sigs_match <- setequal(df1$causes, df2$causes)
-  ndiff <- length(setdiff(df1$causes, df2$causes))
-  ntot <- max(length(df1$causes), length(df2$causes))
+  sigs_match <- setequal(df1_f$causes, df2_f$causes)
+  ndiff <- length(setdiff(df1_f$causes, df2_f$causes))
+  ntot <- length(c(df1_f$causes, df2_f$causes) %>% unique())
   
   comparison <- full_join(
     df1 %>% select(causes, exposure, nmuts_cause),
@@ -111,33 +107,65 @@ cov=50
 pur=.9
 
 
-color_palette_process = RColorBrewer::brewer.pal(n = 8, name = "Dark2") 
-names(color_palette_process) <- c('Clonal', paste0('Clone ', 1:7))
-color_palette_process['Subclonal'] = 'gray70'
-
 df_all <- tibble()
 for (spn in paste0('SPN0',1:7)){
+  
+  true_drivers_table = readRDS(file.path("/orfeo/cephfs/scratch/cdslab/shared/SCOUT/drivers", spn, "process_drivers.rds")) %>% as_tibble()
+  
+  true_drivers_table = true_drivers_table  %>% rowwise() %>% 
+    mutate(code=replace(code, is.na(code), paste0(type, '_', CNA_type, '_', chr, '_', start, '_', end)),
+           mutation_id=paste0(spn, ":", chr, ":", start,  ":", alt)) %>% 
+    ungroup() %>%
+    select(mutation_id, code)
+  
   print(spn)
-  for (cov in c(50)){
-    for (pur in c(0.9)){
+  for (cov in c(50, 100, 150)){
+    for (pur in c(0.9, 0.6, 0.3)){
       
       table_multi <- readRDS(paste0(base, 'table_process_', spn, '_', cov, 'x_', pur, 'p_mutect2_ascat.rds')) %>% 
         filter(!str_detect(causes, "errors")) 
       
+      table_multi <- table_multi %>% 
+        left_join(true_drivers_table, by = 'mutation_id') %>% 
+        select(-driver_label_process) %>% 
+        mutate(driver_label_process=code)
+      
+      
+      if(spn=='SPN03'){
+        table_multi = table_multi %>% mutate(mutation_id = if_else(
+          mutation_id=="SPN03:9:136496197:",
+          'SPN03:9:136496196:C',
+          mutation_id
+        ))
+      }
+      
+      
+      n_samples = length(table_multi$sample_id %>% unique())
+      
+      c = table_multi %>%
+        distinct(cluster_id_process, sample_id) %>%   # keep unique pairs
+        dplyr::count(cluster_id_process) %>%
+        filter(n==n_samples) %>% 
+        select(cluster_id_process)
+      
+      table_multi = table_multi %>% 
+        group_by(cluster_id_process) %>% 
+        mutate(
+          is_clonal_process = if_else(
+            dplyr::first(cluster_id_process) %in% c$cluster_id_process, # first returns the first value in the current group
+            all(ccf_process > 0.95),
+            FALSE
+          )
+        ) %>% 
+        # mutate(is_clonal_process=replace(FALSE, all(ccf_process > 0.95), TRUE)) %>% ungroup() %>% 
+        dplyr::mutate(cluster_id_process_full = cluster_id_process) %>% 
+        dplyr::mutate(cluster_id_process=replace(cluster_id_process_full, is_clonal_process==TRUE, 'Clonal')) %>% 
+        dplyr::mutate(cluster_id_process=ifelse(cluster_id_process=='Truncal', 'Clonal', cluster_id_process))
       
       
       table_uni <- readRDS(paste0(base, 'table_process_univariate_w_private_', spn, '_', cov, 'x_', pur, 'p_mutect2_ascat.rds')) %>% 
         filter(!str_detect(causes, "errors")) 
       
-
-      # correct name of clusters
-      table_multi <- table_multi %>% 
-        group_by(cluster_id_process, sample_id) %>%
-        mutate(is_clonal_process=replace(FALSE, ccf_process > 0.9, TRUE)) %>% 
-        ungroup() %>%
-        mutate(cluster_id_process_full = cluster_id_process) %>%
-        #mutate(cluster_id_process = replace(cluster_id_process_full, is_clonal_process==TRUE, 'Clonal')) %>% 
-        mutate(cluster_id_process = ifelse(cluster_id_process == 'Truncal', 'Clonal', cluster_id_process)) 
       
       table_multi_plot <- table_multi %>% select(sample_id, 
                                                  mutation_id, 
@@ -148,6 +176,7 @@ for (spn in paste0('SPN0',1:7)){
       
       if (spn == 'SPN07'){
         dups <- table_multi_plot %>% 
+          ungroup() %>% 
           dplyr::summarise(n = dplyr::n(), .by = c(mutation_id, is_driver_process, cluster_id_process,
                                                    driver_label_process, sample_id)) %>% 
           dplyr::filter(n > 1L) 
@@ -160,50 +189,6 @@ for (spn in paste0('SPN0',1:7)){
           values_from = vaf_process,
           values_fill = 0
         )
-      
-      plots_pair <- list()
-      pairs <- combn(unique(table_multi_plot$sample_id), 2, simplify = FALSE)
-      for (i in 1:length(pairs)){
-        s1 <- pairs[[i]][1]
-        s2 <- pairs[[i]][2]
-        
-        p_process = table_wide %>%
-          ggplot(aes(x =.data[[s1]], y = .data[[s2]], color=cluster_id_process))+
-          geom_point( alpha=0.2, size = .5)+
-          xlim(0,1)+
-          ylim(0,1)+
-          xlab(pairs[[i]][1]) +
-          ylab(pairs[[i]][2])+
-          theme_bw() +
-          scale_color_manual('ProCESS clusters', values = color_palette_process) +
-          guides(color = guide_legend(override.aes = list(size = 3, alpha = 1) ) ) 
-        
-        p_process = p_process + ggrepel::geom_label_repel(
-          data = table_wide %>% filter(is_driver_process == TRUE),
-          aes(
-            x = .data[[s1]],
-            y = .data[[s2]],
-            label = driver_label_process,
-            colour = cluster_id_process, 
-          ),
-          show.legend = F,
-          inherit.aes = FALSE,
-          size = 3,
-          min.segment.length = 0,
-          box.padding = 1)
-        
-        plots_pair[[i]] <- p_process 
-      }
-      
-      if (spn %in% c('SPN02', 'SPN04')){
-        nc =1
-      } else{
-        nc = 2
-      }
-      
-      plt_mutlivariate <- wrap_plots(plots_pair, 
-                 ncol = nc, 
-                 guides = 'collect')  
       
       
       table_uni <- table_uni %>% 
@@ -218,7 +203,7 @@ for (spn in paste0('SPN0',1:7)){
       # get driver
       driver <- table_multi %>% 
         filter(is_driver_process==T) %>% 
-        select(cluster_id_process) %>% 
+        select(cluster_id_process, driver_label_process) %>% 
         distinct() %>% 
         mutate(contains_driver = T) 
   
@@ -243,8 +228,7 @@ for (spn in paste0('SPN0',1:7)){
       # get exposure
       n_muts <- table_multi %>% 
         group_by(cluster_id_process) %>% 
-        summarise(n = n()) %>% 
-        filter(n>=100)
+        summarise(n = n())
       
       table <- table_multi #%>% filter(cluster_id_process %in% n_muts$cluster_id_process)
       
@@ -257,16 +241,44 @@ for (spn in paste0('SPN0',1:7)){
       exposure_sbs <- get_exposure(table_sbs)
       exposure_id <- get_exposure(table_id)
       
-      plt_sbs <- plot_exposure(df = exposure_sbs, sig_type = '')
-      plt_id <- plot_exposure(df = exposure_id, sig_type = '')
-      
       clonal_sig_sbs = exposure_sbs %>% filter(cluster_id_process == 'Clonal')
       clonal_sig_id = exposure_id %>% filter(cluster_id_process == 'Clonal')
+      
+      
+      background_sbs = exposure_sbs %>% 
+        filter(cluster_id_process != 'Clonal') %>% 
+        group_by(causes) %>% 
+        summarise(nmuts_cause = sum(nmuts_cause)) %>% 
+        mutate(tot_nmuts = sum(nmuts_cause)) %>% 
+        mutate(exposure = nmuts_cause/tot_nmuts)
+      
+      background_id = exposure_id %>% 
+        filter(cluster_id_process != 'Clonal') %>% 
+        group_by(causes) %>% 
+        summarise(nmuts_cause = sum(nmuts_cause)) %>% 
+        mutate(tot_nmuts = sum(nmuts_cause)) %>% 
+        mutate(exposure = nmuts_cause/tot_nmuts)
+        
       
       table_sbs <- lapply(unique(exposure_sbs$cluster_id_process), FUN = function(c){
         if (c != 'Clonal'){
           tmp <- exposure_sbs %>% filter(cluster_id_process == c)
           result_table <- compare_signatures(df1 = tmp, df2 = clonal_sig_sbs) 
+          result <- result_table$df %>% mutate(match = result_table$match,
+                                               cs_exp = result_table$cs_exp,
+                                               cs_nsig = result_table$cs_n,
+                                               n_diff = result_table$n_diff,
+                                               n_tot = result_table$n_tot) %>% 
+            mutate(cluster = as.character(c))
+          return(result)
+        }
+      }) %>% bind_rows()
+      
+      
+      table_sbs_background <- lapply(unique(exposure_sbs$cluster_id_process), FUN = function(c){
+        if (c != 'Clonal'){
+          tmp <- exposure_sbs %>% filter(cluster_id_process == c)
+          result_table <- compare_signatures(df1 = tmp, df2 = background_sbs) 
           result <- result_table$df %>% mutate(match = result_table$match,
                                                cs_exp = result_table$cs_exp,
                                                cs_nsig = result_table$cs_n,
@@ -292,6 +304,20 @@ for (spn in paste0('SPN0',1:7)){
         }
       }) %>% bind_rows()
       
+      table_id_background <- lapply(unique(exposure_sbs$cluster_id_process), FUN = function(c){
+        if (c != 'Clonal'){
+          tmp <- exposure_id %>% filter(cluster_id_process == c)
+          result_table <- compare_signatures(df1 = tmp, df2 = background_id) 
+          result <- result_table$df %>% mutate(match = result_table$match,
+                                               cs_exp = result_table$cs_exp,
+                                               cs_nsig = result_table$cs_n,
+                                               n_diff = result_table$n_diff,
+                                               n_tot = result_table$n_tot) %>% 
+            mutate(cluster = as.character(c))
+          return(result)
+        }
+      }) %>% bind_rows()
+      
       df_signature <- table_sbs %>% 
         select(cluster, match, cs_exp, cs_nsig, n_diff, n_tot) %>% 
         mutate(type = 'SBS') %>% 
@@ -300,100 +326,88 @@ for (spn in paste0('SPN0',1:7)){
                     select(cluster, match, cs_exp, cs_nsig, n_diff, n_tot) %>% 
                     distinct() %>% 
                     mutate(type = 'ID')) %>% 
-        mutate(n_diff_rel = n_diff/n_tot)#%>% 
+        mutate(n_diff_rel = n_diff/n_tot) #%>% 
         #mutate(coverage = cov, purity = pur, dec_tool = tool, sig_tool = signature_tool, spn = spn) 
       
-      table <- full_join(df_tail, df_driver) %>% 
-        dplyr::rename(cluster = cluster_id_process) %>% 
-        full_join(df_signature)
-      
-      interpret_table <- table %>% 
-        group_by(across(c(-type,-cs_nsig, -cs_exp, -match, -n_diff_rel, -n_diff, -n_tot))) %>% 
+      df_signature_background <-  table_sbs_background %>% 
+        select(cluster, match, cs_exp, cs_nsig, n_diff, n_tot) %>% 
+        mutate(type = 'SBS') %>% 
+        distinct() %>% 
+        bind_rows(table_id_background %>% 
+                    select(cluster, match, cs_exp, cs_nsig, n_diff, n_tot) %>% 
+                    distinct() %>% 
+                    mutate(type = 'ID')) %>% 
+        mutate(n_diff_rel = n_diff/n_tot) %>% 
+        group_by(across(c(-type, -cs_nsig, -cs_exp, -match, -n_diff_rel, -n_diff, -n_tot))) %>% 
         summarize(match = sum(match),
                   cs_exp = mean(cs_exp),
                   n_diff_rel = mean(n_diff_rel)) %>% 
-        mutate(match = ifelse(match >1, T, F)) %>% 
-        ungroup() %>% 
-        mutate(class_driver = ifelse(contains_driver == F, 0, 1),
-               class_match_sig = ifelse(match == F, 1, 0),
-               class_cs_sign = 1-cs_exp,
-               class_match_sig = ifelse(is.na(match) & cluster != 'Clonal', 0, class_match_sig), 
-               class_match_sig = ifelse(is.na(match) & cluster == 'Clonal', 1, class_match_sig), 
-               class_cs_sign = ifelse(is.na(cs_exp) & cluster != 'Clonal', 0, class_cs_sign),
-               class_cs_sign = ifelse(is.na(cs_exp) & cluster == 'Clonal', 1, class_cs_sign),
-               n_diff_rel = ifelse(is.na(cs_exp) & cluster == 'Clonal', 0, n_diff_rel)) %>% 
-        mutate(w_cs = case_when(
-          n_diff_rel == 0 & cs_exp < .7 ~ .5, # no difference and low cs
-          n_diff_rel > 0 & cs_exp < .7 ~ .7, # difference and low cs
-          n_diff_rel >= 0 & cs_exp >= .7 ~ 0, # no difference and high cs
-          cluster == 'Clonal' ~ 1, 
-        )) %>% 
-        mutate(score_all = (class_driver + n_never_tail + class_cs_sign*w_cs)/3,
-               score_driver = class_driver, 
-               score_sign = (class_driver +  class_cs_sign*w_cs)/2,
-               score_tail = (class_driver +  n_never_tail)/2) %>% 
-        mutate(coverage = cov, purity = pur, spn = spn)
+        dplyr::rename(bg_match = match, bg_cs = cs_exp, bg_diff = n_diff_rel)
       
-      plt <- interpret_table %>% 
-        pivot_longer(cols = c(score_driver, score_all, score_tail, score_sign)) %>% 
-        mutate(name = factor(name, levels = c('score_driver', 'score_tail', 'score_sign', 'score_all'))) %>% 
-        ggplot() +
-        annotate("rect", xmin = -Inf, xmax = Inf, ymin = 0.95, ymax = 1, 
-                 fill = "palegreen3", alpha = 0.2) + 
-        annotate("rect", xmin = -Inf, xmax = Inf, ymin = 0.8, ymax = 0.95, 
-                 fill = "goldenrod", alpha = 0.2) + 
-        annotate("rect", xmin = -Inf, xmax = Inf, ymin = 0.6, ymax = 0.8, 
-                 fill = "chocolate3", alpha = 0.2) + 
-        annotate("rect", xmin = -Inf, xmax = Inf, ymin = 0.1, ymax = 0.6, 
-                 fill = "indianred4", alpha = 0.2) + 
-        annotate("rect", xmin = -Inf, xmax = Inf, ymin = 0.1, ymax = 0, 
-                 fill = "gainsboro", alpha = 0.2) +
-        geom_point(aes(x = name, y = value, col = cluster), size = 3, show.legend = F) +
-        geom_line(aes(x = name, y = value, col = cluster, group = cluster), linewidth = .5, show.legend = F) + 
-        scale_color_manual('ProCESS Cluster', values = color_palette_process)  +
-        theme_minimal() +
-        ylab('Score') +
-        xlab('')+ 
-        scale_x_discrete(labels = c('score_driver' = 'Only\nDriver',
-                                    'score_tail'   = 'Driver\nTail',
-                                    'score_sign'   = 'Driver\nSignature',
-                                    'score_all'    = 'All')) 
-      heigh <- 0.5*max(1,round(length(pairs)/2,0))
-      final_plot <- wrap_plots(plt_mutlivariate, 
-                               plt_sbs + plt_id, 
-                               plt, 
-                               heights = c(heigh, 0.3, 0.3), 
-                               ncol = 1)
-      ggsave(plot = final_plot, 
-             filename = paste0(out, 'plot_process/', spn, '.png'), 
-             dpi = 400, 
-             width = 9, 
-             height = 3*(round(length(pairs)/2,0)+2)+4)
+      table <- full_join(df_tail, df_driver) %>% 
+        dplyr::rename(cluster = cluster_id_process) %>% 
+        full_join(df_signature) %>% 
+        full_join(df_signature_background) 
       
+      score <- df_score %>% filter(SPN == spn)
+      
+      if (score$signature == T){
+        interpret_table <- table %>% 
+          select(-match) %>% 
+          group_by(across(c(-type, -cs_nsig, -cs_exp, -n_diff_rel, -n_diff, -n_tot))) %>% 
+          summarize(cs_exp = min(cs_exp),
+                    n_diff_rel = max(n_diff_rel),
+                    bg_cs = min(bg_cs)) %>% 
+          ungroup() %>% 
+          mutate(driver = ifelse(contains_driver == F, 0, 1),
+                 cs_sign = 1-cs_exp,
+                 bg_cs = 1-bg_cs,
+                 cs_sign = ifelse(is.na(cs_exp) & cluster == 'Clonal', 1, cs_sign),
+                 bg_cs = ifelse(is.na(bg_cs) & cluster == 'Clonal', 1, bg_cs),
+                 n_diff_rel = ifelse(is.na(cs_exp) & cluster == 'Clonal', 1, n_diff_rel)) %>% 
+          mutate(score_all = (driver + n_never_tail + ((cs_sign+n_diff_rel+bg_cs)/3))/3,
+                 score_driver = driver, 
+                 score_sign = (cs_sign+n_diff_rel+bg_cs)/3,
+                 score_tail = n_never_tail) %>% 
+          mutate(coverage = cov, purity = pur, spn = spn)
+      } else {
+        interpret_table <- table %>% 
+          select(-match) %>% 
+          group_by(across(c(-type, -cs_nsig, -cs_exp, -n_diff_rel, -n_diff, -n_tot))) %>% 
+          summarize(cs_exp = min(cs_exp),
+                    n_diff_rel = max(n_diff_rel),
+                    bg_cs = min(bg_cs)) %>% 
+          ungroup() %>% 
+          mutate(driver = ifelse(contains_driver == F, 0, 1),
+                 cs_sign = 1-cs_exp,
+                 bg_cs = 1-bg_cs,
+                 cs_sign = ifelse(is.na(cs_exp) & cluster == 'Clonal', 1, cs_sign),
+                 bg_cs = ifelse(is.na(bg_cs) & cluster == 'Clonal', 1, bg_cs),
+                 n_diff_rel = ifelse(is.na(cs_exp) & cluster == 'Clonal', 1, n_diff_rel)) %>% 
+          mutate(score_all = (driver + n_never_tail)/2,
+                 score_driver = driver, 
+                 score_sign = NA,
+                 score_tail = n_never_tail) %>% 
+          mutate(coverage = cov, purity = pur, spn = spn)
+      }
       
       df_all <- bind_rows(df_all, interpret_table)
     }
   }
 }
+saveRDS(object = df_all, file = paste0(out, 'process.rds'))
 
-
-# saveRDS(object = df_all, file = paste0(out, 'process.rds'))
-
-
+df_all <- readRDS(paste0(out, 'process.rds'))
 plt <- df_all %>% 
   pivot_longer(cols = c(score_driver, score_all, score_tail, score_sign)) %>% 
   mutate(name = factor(name, levels = c('score_driver', 'score_tail', 'score_sign', 'score_all'))) %>% 
   ggplot() +
-  annotate("rect", xmin = -Inf, xmax = Inf, ymin = 0.95, ymax = 1, 
-           fill = "palegreen3", alpha = 0.2) + 
-  annotate("rect", xmin = -Inf, xmax = Inf, ymin = 0.8, ymax = 0.95, 
+  annotate("rect", xmin = -Inf, xmax = Inf, ymin = 0.7, ymax = 1, 
+           fill = "palegreen4", alpha = 0.2) + 
+  annotate("rect", xmin = -Inf, xmax = Inf, ymin = 0.2, ymax = 0.7, 
            fill = "goldenrod", alpha = 0.2) + 
-  annotate("rect", xmin = -Inf, xmax = Inf, ymin = 0.6, ymax = 0.8, 
-           fill = "chocolate3", alpha = 0.2) + 
-  annotate("rect", xmin = -Inf, xmax = Inf, ymin = 0.1, ymax = 0.6, 
-           fill = "indianred4", alpha = 0.2) + 
-  annotate("rect", xmin = -Inf, xmax = Inf, ymin = 0.1, ymax = 0, 
-           fill = "gainsboro", alpha = 0.2) + 
+  annotate("rect", xmin = -Inf, xmax = Inf, ymin = 0.2, ymax = 0, 
+           fill = "gainsboro", alpha = 0.2) +
   stat_summary(
     aes(x = name, y = value, color = cluster),
     fun.data = mean_cl_boot,
@@ -414,10 +428,12 @@ plt <- df_all %>%
   xlab('')+ 
   scale_color_manual('Cluster', 
                      values = color_palette_process) +
-  scale_x_discrete(labels = c('score_driver' = 'Only\nDriver',
-                              'score_tail'   = 'Driver\nTail',
-                              'score_sign'   = 'Driver\nSignature',
+  scale_x_discrete(labels = c('score_driver' = 'Driver',
+                              'score_tail'   = 'Tail',
+                              'score_sign'   = 'Signature',
                               'score_all'    = 'All')) +
   facet_wrap(.~spn)
-
 plt
+ggsave(plot = plt, 
+       filename = "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/interpretation/plot_process/process.png",
+       width = 9, height = 9, units = 'in', dpi = 200)

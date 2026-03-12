@@ -10,13 +10,13 @@ source("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/validatio
 
 indir = "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/assing_signature/"
 
-option_list <- list(make_option(c("--spn_id"), type = "character", default = 'SPN02'),
-                    make_option(c("--purity"), type = "double", default = 0.9),
+option_list <- list(make_option(c("--spn_id"), type = "character", default = 'SPN04'),
+                    make_option(c("--purity"), type = "double", default = 0.3),
                     make_option(c("--coverage"), type = "integer", default = 100),
                     make_option(c("--cna_caller"), type = "character", default = 'ascat'),
                     make_option(c("--vcf_caller"), type = "character", default = 'mutect2'),
                     make_option(c("--signature"), type = "character", default = 'BASCULE'),
-                    make_option(c("--tool"), type = "character", default = 'viber')
+                    make_option(c("--tool"), type = "character", default = 'pyclonevi')
 )
 
 opt_parser <- OptionParser(option_list = option_list)
