@@ -8,7 +8,9 @@ source("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/f
 
 
 df_score <- tibble(spn = paste0('SPN0', 1:7),
-                   signature = c(F,F,F,F,F,T,T))
+                   signature = c(F,F,F,F,F,T,T),
+                   driver = c(T,T,T,T,T,T,T),
+                   tail = c(T,T,T,T,T,T,T))
 
 
 colors_cluster = c('indianred', 
@@ -78,6 +80,16 @@ for (i in 1:nrow(combs)){
    ungroup()
   
   f_all <- f_all %>% left_join(df_score)
+  
+  score <- df_score %>% 
+    mutate(w_signature = as.numeric(signature),
+           w_driver = as.numeric(driver),
+           w_tail = as.numeric(tail)) %>% 
+    rowwise() %>% 
+    mutate(n = sum(w_signature, w_driver, w_tail)) %>% 
+    select(spn, w_signature, w_driver, w_tail, n)
+  
+  f_all <- f_all %>% left_join(score)
     
   interpret_table <- f_all %>% 
     mutate(driver = ifelse(contains_driver_tool == F, 0, 1),
@@ -87,14 +99,15 @@ for (i in 1:nrow(combs)){
            cs_sign = ifelse(is.na(cs_exp) & is_clonal_tool == T, 1, cs_sign),
            bg_sign = ifelse(is.na(bg_cs) & is_clonal_tool == T, 1, bg_cs),
            n_rel = ifelse(is.na(cs_exp) & is_clonal_tool == T, 1, n_rel)) %>% 
-    mutate(score_all = ifelse(signature == T, 
-                              (driver + n_never_tail + ((cs_sign+n_rel+bg_sign)/3))/3, 
-                              (driver + n_never_tail)/2),
+    rowwise() %>% 
+    mutate(score_spn = (w_driver * driver + w_tail * n_never_tail + w_signature* ((cs_sign+n_rel+bg_sign)/3))/n,
+           score_all = (driver + n_never_tail + ((cs_sign+n_rel+bg_sign)/3))/3,
            score_driver = driver, 
-           score_sign = ifelse(signature == T, 
-                               (cs_sign+n_rel+bg_sign)/3, 
-                               NA),
-           score_tail = n_never_tail)
+           score_sign = (cs_sign+n_rel+bg_sign)/3,
+           score_tail = n_never_tail,
+           score_no_tail = (driver + ((cs_sign+n_rel+bg_sign)/3))/2,
+           score_no_driver = (((cs_sign+n_rel+bg_sign)/3) + n_never_tail)/2,
+           score_no_sign = (driver + n_never_tail)/2)
 
   
   if (tool == 'pyclonevi'){
@@ -103,17 +116,21 @@ for (i in 1:nrow(combs)){
   }
   
   plt <- interpret_table %>%
-    pivot_longer(cols = c(score_driver, score_all, score_tail, score_sign)) %>%
-    mutate(name = factor(name, levels = c('score_driver', 'score_tail', 'score_sign', 'score_all'))) %>%
+    pivot_longer(cols = c(score_driver, score_all, score_tail, score_no_driver, score_no_tail, score_no_sign, score_sign)) %>%
+    mutate(name = factor(name, levels = c('score_driver', 'score_tail', 'score_sign','score_no_driver', 'score_no_tail', 'score_no_sign', 'score_all'))) %>%
     ggplot() +
-    annotate("rect", xmin = -Inf, xmax = Inf, ymin = 0.7, ymax = 1, 
+    annotate("rect", xmin = -Inf, xmax = Inf, ymin = 0.9, ymax = 1, 
              fill = "palegreen4", alpha = 0.2) + 
-    annotate("rect", xmin = -Inf, xmax = Inf, ymin = 0.2, ymax = 0.7, 
+    annotate("rect", xmin = -Inf, xmax = Inf, ymin = 0.55, ymax = .9, 
              fill = "goldenrod", alpha = 0.2) + 
+    annotate("rect", xmin = -Inf, xmax = Inf, ymin = 0.2, ymax = 0.55, 
+             fill = "salmon1", alpha = 0.2) + 
     annotate("rect", xmin = -Inf, xmax = Inf, ymin = 0.2, ymax = 0, 
              fill = "gainsboro", alpha = 0.2) +
     geom_point(aes(x = name, y = value, col = cluster, shape = contains_driver_process), size = 4) +
     geom_line(data = ~ filter(.x, !is.na(value)), aes(x = name, y = value, col = cluster, group = cluster), linewidth = .6)  +
+    geom_text(data = ~ filter(.x, is_clonal_tool & name == 'score_all'), aes(x = name, y = value+0.07, col = cluster, group = cluster, label = 'Clonal')) + 
+    geom_text(data = ~ filter(.x, contains_driver_process & name == 'score_all'), aes(x = name, y = value+0.03, col = cluster, group = cluster, label = driver_label_process)) + 
     theme_minimal() +
     scale_shape_manual('Contains True Driver', values = c(4, 20)) +
     facet_wrap(.~spn) +
@@ -121,11 +138,16 @@ for (i in 1:nrow(combs)){
     xlab('')+
     scale_color_manual('Cluster',
                        values = colors_cluster) +
-    scale_x_discrete(labels = c('score_driver' = 'Only\nDriver',
-                                'score_tail'   = 'Driver\nTail',
-                                'score_sign'   = 'Driver\nSignature',
+    scale_x_discrete(labels = c('score_driver' = 'Driver',
+                                'score_tail'   = 'Tail',
+                                'score_sign'   = 'Signature',
+                                'score_no_driver' = 'Signature\nTail',
+                                'score_no_tail' = 'Driver\nSignature',
+                                'score_no_sign' = 'Driver\nTail',
                                 'score_all'    = 'All')) +
-    ggtitle(paste0(cov, 'x_',pur, 'p_', tool, '_', s_tool)) + my_ggplot_theme()
+    ggtitle(paste0(cov, 'x_',pur, 'p_', tool, '_', s_tool)) + 
+    my_ggplot_theme() 
+  
 
   
   name_file = paste0('/orfeo/cephfs/scratch/cdslab/shared/SCOUT/interpretation/plot_int/', cov, 'x_', pur, 'p_', s_tool,'_',tool, '.png')
