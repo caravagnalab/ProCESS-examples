@@ -29,7 +29,7 @@ fi
 
 if [ ! -f ${output_file} ]; then
     echo "pigz -dc -p ${SLURM_CPUS_PER_TASK:-1} ${input_files} | pigz -p ${SLURM_CPUS_PER_TASK:-1} > ${output_file}"
-    #time pigz -dc -p ${SLURM_CPUS_PER_TASK:-1} ${input_files} | pigz -p ${SLURM_CPUS_PER_TASK:-1} > ${output_file}
+    time pigz -dc -p ${SLURM_CPUS_PER_TASK:-1} ${input_files} | pigz -p ${SLURM_CPUS_PER_TASK:-1} > ${output_file}
 else 
     echo "File already exists"
 fi
