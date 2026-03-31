@@ -8,14 +8,14 @@ source('../getters/tumourevo_getters.R')
 source('../getters/process_getters.R')
 source("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/validation/SCOUT/colors.R")
 
-indir = "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/assing_signature/"
-
-option_list <- list(make_option(c("--spn_id"), type = "character", default = 'SPN04'),
+indir = "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/assign_signature_new/"
+indir_process= "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/assign_signature_new/"
+option_list <- list(make_option(c("--spn_id"), type = "character", default = 'SPN02'),
                     make_option(c("--purity"), type = "double", default = 0.3),
-                    make_option(c("--coverage"), type = "integer", default = 100),
+                    make_option(c("--coverage"), type = "integer", default = 150),
                     make_option(c("--cna_caller"), type = "character", default = 'ascat'),
                     make_option(c("--vcf_caller"), type = "character", default = 'mutect2'),
-                    make_option(c("--signature"), type = "character", default = 'BASCULE'),
+                    make_option(c("--signature"), type = "character", default = 'SigProfiler'),
                     make_option(c("--tool"), type = "character", default = 'pyclonevi')
 )
 
@@ -53,109 +53,115 @@ colors_cluster = c(colors_cluster, tail)
 
 # univariate
 tool = 'mobster_univariate'
-mutations <-  readRDS(paste0('/orfeo/cephfs/scratch/cdslab/shared/SCOUT//validation_subclonal/tables_interpreted/', tool, '_', spn, '_', cov, 'x_', pur, 'p_', mut_caller, '_', cna_caller, '.rds')) %>% 
-  separate(cluster_id_process, sep = '_', into = c('cluster_id_process', 'tmp')) %>% 
-  select(-tmp)
-samples <- paste(spn, get_sample_names(spn), sep= '_')
-mutations <- mutations %>% mutate(driver_label = sub("_.*", "", driver_label_tool))
-
-driver_tool <- mutations %>% select(patient_id, mutation_id, is_driver_tool, driver_label, is_driver_process)
-
-id_muts <- mutations %>% 
-  dplyr::summarise(n = dplyr::n(), .by = c(patient_id, mutation_id, cluster_id_tool,
-                                           sample_id)) |>
-  dplyr::filter(n > 1L) 
-
-muts_tool_raw <- mutations %>% 
-  filter(!mutation_id %in% id_muts$mutation_id) %>% 
-  select(patient_id, mutation_id, cluster_id_tool, sample_id, vaf_tool) %>% 
-  pivot_wider(values_from = vaf_tool, names_from = sample_id) %>% 
-  replace(is.na(.), 0) %>% 
-  mutate(cluster_id_tool = as.character(cluster_id_tool))
-muts_tool_raw <- muts_tool_raw %>% left_join(driver_tool) %>% distinct()
-
-muts_process <- mutations %>% 
-  filter(!mutation_id %in% id_muts$mutation_id) %>% 
-  select(patient_id, mutation_id, sample_id, vaf_process, cluster_id_process) %>%
-  pivot_wider(values_from = vaf_process, names_from = sample_id) %>% 
-  replace(is.na(.), 0) 
-
-driver_process <- mutations %>%   filter(!mutation_id %in% id_muts$mutation_id) %>% select(patient_id, mutation_id, is_driver_process, driver_label)
-muts_process <- muts_process %>% left_join(driver_process) %>% distinct()
-
-cluster_plots_samples <- list()
-for (i in 1:length(samples)){
-  s1 <- samples[[i]]
-  if (s1 %in% colnames(muts_tool_raw)){
-    
-    color_palette_process = RColorBrewer::brewer.pal(n = max(3,length(unique(muts_process$cluster_id_process))), name = "Dark2") %>%
-      setNames(str_sort(unique(muts_process$cluster_id_process), numeric=T))
-    color_palette_process['Subclonal'] = 'gray70'
-    
-    p_process = muts_process %>%
-      filter(.data[[s1]] != 0) %>% 
-      ggplot(aes(x =.data[[s1]], fill = cluster_id_process))+
-      geom_histogram( alpha=0.6, binwidth = 0.01, position = "identity")+
-      xlim(-0.01,1.01)+
-      xlab(paste0('VAF ', s1)) +
-      theme_bw() +
-      scale_fill_manual('ProCESS clusters', values = color_palette_process)+
-      ggtitle('ProCESS') +
-      guides(color = guide_legend(override.aes = list(size = 3, alpha = 1)))  +
-      ylab('')
-    
-    p_process = p_process + ggrepel::geom_label_repel(
-      data = muts_process %>% filter(is_driver_process == TRUE) %>% filter(.data[[s1]] != 0),
-      aes(
-        x = .data[[s1]],
-        y = 10,
-        label = driver_label,
-        colour = cluster_id_process, 
-      ),
-      show.legend = F,
-      inherit.aes = FALSE,
-      size = 3,
-      min.segment.length = 0,
-      box.padding = 1) +
-      scale_color_manual('ProCESS clusters', values = color_palette_process)
-    
+table_univariate = paste0('/orfeo/cephfs/scratch/cdslab/shared/SCOUT//validation_subclonal_new/tables_interpreted/', tool, '_', spn, '_', cov, 'x_', pur, 'p_', mut_caller, '_', cna_caller, '.rds')
+if (file.exists(table_univariate)){
+  mutations <-  readRDS(paste0('/orfeo/cephfs/scratch/cdslab/shared/SCOUT//validation_subclonal_new//tables_interpreted/', tool, '_', spn, '_', cov, 'x_', pur, 'p_', mut_caller, '_', cna_caller, '.rds')) %>% 
+    separate(cluster_id_process, sep = '_', into = c('cluster_id_process', 'tmp')) %>% 
+    select(-tmp)
+  samples <- paste(spn, get_sample_names(spn), sep= '_')
+  mutations <- mutations %>% mutate(driver_label = sub("_.*", "", driver_label_tool))
   
-    p_tool_raw = muts_tool_raw %>%
-      filter(.data[[s1]] != 0) %>% 
-      ggplot(aes(x =.data[[s1]], fill=cluster_id_tool))+
-      geom_histogram( alpha=0.6, binwidth = 0.01, position = "identity")+
-      xlim(-0.01,1.01)+
-      xlab(paste0('VAF ', s1)) +
-      theme_bw() +
-      ylab('') + 
-      scale_fill_manual('MOBSTER clusters', values = colors_cluster)+
-      theme_bw() +
-      ggtitle('MOBSTER') +
-      guides(color = guide_legend(override.aes = list(size = 3, alpha = 1)))
-    
-    
-    p_tool_raw = p_tool_raw + ggrepel::geom_label_repel(
-      data = muts_tool_raw %>% filter(is_driver_tool == TRUE) %>% filter(.data[[s1]] != 0),
-      aes(
-        x = .data[[s1]],
-        y = 10,
-        label = driver_label,
-        colour = cluster_id_tool, 
-      ),
-      show.legend = F,
-      inherit.aes = FALSE,
-      size = 3,
-      min.segment.length = 0,
-      box.padding = 1,
-      max.overlaps = 50) +
-      scale_color_manual('MOBSTER clusters', values = colors_cluster)
+  driver_tool <- mutations %>% select(patient_id, mutation_id, is_driver_tool, driver_label, is_driver_process)
+  
+  id_muts <- mutations %>% 
+    dplyr::summarise(n = dplyr::n(), .by = c(patient_id, mutation_id, cluster_id_tool,
+                                             sample_id)) |>
+    dplyr::filter(n > 1L) 
+  
+  muts_tool_raw <- mutations %>% 
+    filter(!mutation_id %in% id_muts$mutation_id) %>% 
+    select(patient_id, mutation_id, cluster_id_tool, sample_id, vaf_tool) %>% 
+    pivot_wider(values_from = vaf_tool, names_from = sample_id) %>% 
+    replace(is.na(.), 0) %>% 
+    mutate(cluster_id_tool = as.character(cluster_id_tool))
+  muts_tool_raw <- muts_tool_raw %>% left_join(driver_tool) %>% distinct()
+  
+  muts_process <- mutations %>% 
+    filter(!mutation_id %in% id_muts$mutation_id) %>% 
+    select(patient_id, mutation_id, sample_id, vaf_process, cluster_id_process) %>%
+    pivot_wider(values_from = vaf_process, names_from = sample_id) %>% 
+    replace(is.na(.), 0) 
+  
+  driver_process <- mutations %>%   filter(!mutation_id %in% id_muts$mutation_id) %>% select(patient_id, mutation_id, is_driver_process, driver_label)
+  muts_process <- muts_process %>% left_join(driver_process) %>% distinct()
+  
+  cluster_plots_samples <- list()
+  for (i in 1:length(samples)){
+    s1 <- samples[[i]]
+    if (s1 %in% colnames(muts_tool_raw)){
       
-    cluster_plots_samples[[s1]] <- p_process + p_tool_raw + plot_layout(guides = 'collect')
+      color_palette_process = RColorBrewer::brewer.pal(n = max(3,length(unique(muts_process$cluster_id_process))), name = "Dark2") %>%
+        setNames(str_sort(unique(muts_process$cluster_id_process), numeric=T))
+      color_palette_process['Subclonal'] = 'gray70'
+      
+      p_process = muts_process %>%
+        filter(.data[[s1]] != 0) %>% 
+        ggplot(aes(x =.data[[s1]], fill = cluster_id_process))+
+        geom_histogram( alpha=0.6, binwidth = 0.01, position = "identity")+
+        xlim(-0.01,1.01)+
+        xlab(paste0('VAF ', s1)) +
+        theme_bw() +
+        scale_fill_manual('ProCESS clusters', values = color_palette_process)+
+        ggtitle('ProCESS') +
+        guides(color = guide_legend(override.aes = list(size = 3, alpha = 1)))  +
+        ylab('')
+      
+      p_process = p_process + ggrepel::geom_label_repel(
+        data = muts_process %>% filter(is_driver_process == TRUE) %>% filter(.data[[s1]] != 0),
+        aes(
+          x = .data[[s1]],
+          y = 10,
+          label = driver_label,
+          colour = cluster_id_process, 
+        ),
+        show.legend = F,
+        inherit.aes = FALSE,
+        size = 3,
+        min.segment.length = 0,
+        box.padding = 1) +
+        scale_color_manual('ProCESS clusters', values = color_palette_process)
+      
+    
+      p_tool_raw = muts_tool_raw %>%
+        filter(.data[[s1]] != 0) %>% 
+        ggplot(aes(x =.data[[s1]], fill=cluster_id_tool))+
+        geom_histogram( alpha=0.6, binwidth = 0.01, position = "identity")+
+        xlim(-0.01,1.01)+
+        xlab(paste0('VAF ', s1)) +
+        theme_bw() +
+        ylab('') + 
+        scale_fill_manual('MOBSTER clusters', values = colors_cluster)+
+        theme_bw() +
+        ggtitle('MOBSTER') +
+        guides(color = guide_legend(override.aes = list(size = 3, alpha = 1)))
+      
+      
+      p_tool_raw = p_tool_raw + ggrepel::geom_label_repel(
+        data = muts_tool_raw %>% filter(is_driver_tool == TRUE) %>% filter(.data[[s1]] != 0),
+        aes(
+          x = .data[[s1]],
+          y = 10,
+          label = driver_label,
+          colour = cluster_id_tool, 
+        ),
+        show.legend = F,
+        inherit.aes = FALSE,
+        size = 3,
+        min.segment.length = 0,
+        box.padding = 1,
+        max.overlaps = 50) +
+        scale_color_manual('MOBSTER clusters', values = colors_cluster)
+        
+      cluster_plots_samples[[s1]] <- p_process + p_tool_raw + plot_layout(guides = 'collect')
+    }
   }
+  samples <- names(cluster_plots_samples)
+  heigh_mobster <- rep(.5, length(samples))
+} else {
+  cluster_plots_samples = ggplot()
+  heigh_mobster <-1
 }
 
-heigh <- rep(1, length(samples))
-heigh <- c(heigh, 2)
 
 # multivariate
 plot_exposure <- function(df, sig_type, tool, col, type = '', signature = ''){
@@ -188,7 +194,7 @@ for (sign_type in c('SBS', 'ID')){
   }
   
   
-  process = readRDS(paste0(indir, spn, '/process/',cov, 'x_', pur, 'p/exposure_', sign_type, '.rds'))
+  process = readRDS(paste0(indir_process, spn, '/process/',cov, 'x_', pur, 'p/exposure_', sign_type, '.rds'))
   process_df = process %>% 
     select(cluster_id_process, causes, nmuts_cause, tot_nmuts, exposure) %>% 
     dplyr::rename(Signature=causes,
@@ -229,7 +235,7 @@ for (sign_type in c('SBS', 'ID')){
   plot_sign_all[[sign_type]]  <- wrap_plots(process_plot,tool_plot) + plot_layout(guides = 'collect') & theme(legend.position = 'bottom')
 }
 
-mutations <-  readRDS(paste0('/orfeo/cephfs/scratch/cdslab/shared/SCOUT//validation_subclonal/tables_interpreted/', tool, '_', spn, '_', cov, 'x_', pur, 'p_', mut_caller, '_', cna_caller, '.rds'))
+mutations <-  readRDS(paste0('/orfeo/cephfs/scratch/cdslab/shared/SCOUT//validation_subclonal_new//tables_interpreted/', tool, '_', spn, '_', cov, 'x_', pur, 'p_', mut_caller, '_', cna_caller, '.rds'))
 samples <- unique(mutations$sample_id)
 pairs <- combn(samples, 2, simplify = FALSE)
 mutations <- mutations %>% mutate(driver_label = sub("_.*", "", driver_label_tool))
@@ -344,8 +350,7 @@ for (i in 1:length(pairs)){
   cluster_plots_pair[[i]] <- p_process + p_tool
 }
 
-samples <- names(cluster_plots_samples)
-heigh_mobster <- rep(.5, length(samples))
+
 heigh <- c(heigh_mobster,length(pairs),1.5)
 p_final <- wrap_plots(cluster_plots_samples, 
                        ncol = 2, 

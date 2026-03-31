@@ -34,16 +34,15 @@ df_all_SPN_germline  <- df_all_SPN_germline %>%
 
 caller_line_germline <- ggplot(df_all_SPN_germline, aes(x = metric, y = mean,
                               col = as.factor(tool), fill = as.factor(tool), group = tool)) +
-  geom_ribbon(aes(ymin = ci_lo, ymax = ci_hi, fill = as.factor(tool)), alpha = 0.5, color = NA) +
-  geom_line(size = 1) +
-  geom_point(size = 2) +
+  geom_ribbon(aes(ymin = ci_lo, ymax = ci_hi, fill = as.factor(tool)), alpha = 0.5, color = NA, position = position_dodge(width = 0.3)) +
+  geom_line(size = .7, position = position_dodge(width = 0.3), linetype = 3) +
+  geom_point(size = 2, position = position_dodge(width = 0.3)) +
   scale_color_manual('Caller', values = col_germline_tools) +
   scale_fill_manual('Caller', values = col_germline_tools) +
   ylab('Value') +
   xlab('Metric') +
-  theme_minimal() +
-  ylim(0.9, 1) #+ 
-#theme(axis.text.x = element_text(angle = 30, vjust = 1))
+  ylim(0.9, 1) + 
+  my_ggplot_theme()
 
 
 caller_col_germline <- ggplot(df_all_SPN_germline, aes(x = metric, y = mean,
@@ -53,7 +52,7 @@ caller_col_germline <- ggplot(df_all_SPN_germline, aes(x = metric, y = mean,
   scale_fill_manual('Caller', values = col_germline_tools) +
   ylab('Value') +
   xlab('Metric') +
-  theme_minimal()
+  my_ggplot_theme()
   # ylim(0.9, 1)
 
 
@@ -76,9 +75,9 @@ caller_box_germline <- df_mut_germline %>%
   xlab('Metric') +
   my_ggplot_theme()+
   facet_wrap(.~name, scales = 'free') +
+  my_ggplot_theme()+
+  theme(axis.text.x = element_text(size = 0))
 
-  theme(axis.text.x = element_text(size = 0)) 
-
-plt_germline <- caller_line_germline + caller_box_germline + plot_annotation(tag_levels = 'A') & theme(legend.position = 'bottom')
-ggsave(filename = '/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/germline/germline.pdf', 
-       width = 8, height = 3.5, units = 'in', dpi = 200)
+#plt_germline <- caller_line_germline + caller_box_germline + plot_annotation(tag_levels = 'A') & theme(legend.position = 'bottom')
+#ggsave(filename = '/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/germline/germline.pdf', 
+#       width = 8, height = 3.5, units = 'in', dpi = 200)

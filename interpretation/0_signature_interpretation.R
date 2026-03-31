@@ -8,19 +8,7 @@ source('../getters/tumourevo_getters.R')
 source('../getters/process_getters.R')
 source("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/validation/SCOUT/colors.R")
 
-indir = "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/assing_signature/"
-
-# option_list <- list(make_option(c("--spn_id"), type = "character", default = 'SPN03'),
-#                     make_option(c("--cna_caller"), type = "character", default = 'ascat'),
-#                     make_option(c("--vcf_caller"), type = "character", default = 'mutect2')
-# )
-# 
-# opt_parser <- OptionParser(option_list = option_list)
-# opt <- parse_args(opt_parser)
-# 
-# spn = opt$spn_id
-# cna_caller = opt$cna_caller
-# mut_caller = opt$vcf_caller
+indir = "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/assign_signature_new/"
 
 
 cosine_similarity <- function(vec1, vec2) {
@@ -75,20 +63,22 @@ compare_signatures <- function(df1, df2) {
 
 
 
-cov = 50
+cov = 100
 pur = 0.9
 tool = 'viber'
-signature_tool = 'BASCULE'
+signature_tool = 'SigProfiler'
 sign_type='SBS'
 
 mut_caller= 'mutect2'
 cna_caller = 'ascat'
 
-spn = 'SPN03'
+
+spn_list = paste0('SPN0', c(1,2,3,4,5,6,7))
+spn = 'SPN02'
 
 summary_table <- tibble()
 final_table <- tibble()
-for (spn in paste0('SPN0', 1:7)){
+for (spn in spn_list){
   print(spn)
   for (cov in c(50, 100, 150)){
     for (pur in c(0.3, 0.6, 0.9)){
@@ -145,69 +135,72 @@ for (spn in paste0('SPN0', 1:7)){
             
             if (!is.null(df)){
             
-              mutations <-  readRDS(paste0('/orfeo/cephfs/scratch/cdslab/shared/SCOUT//validation_subclonal/tables_interpreted/', tool, '_', spn, '_', cov, 'x_', pur, 'p_', mut_caller, '_', cna_caller, '.rds'))
+              mutations <-  readRDS(paste0('/orfeo/cephfs/scratch/cdslab/shared/SCOUT//validation_subclonal_new/tables_interpreted/', tool, '_', spn, '_', cov, 'x_', pur, 'p_', mut_caller, '_', cna_caller, '.rds'))
               clonal <- mutations %>% filter(is_clonal_tool == T) %>% pull(cluster_id_tool) %>% unique()
-              if (tool == 'pyclonevi' & signature_tool == 'BASCULE'){
-                clonal <- paste0('X', clonal)
-              }
+              if (length(clonal) > 0){
               
-              df <- df %>% 
-                mutate(is_clonal = ifelse(Samples==clonal, T, F)) %>% 
-                left_join(counts) %>% 
-                mutate(n_sig = round(n*Exposure,0))
-              clonal_sig <- df %>% filter(is_clonal == T) %>% filter(n_sig > 0)
-              other_sig <- df %>% filter(is_clonal == F) %>% filter(n_sig > 0)
-              
-              background = other_sig %>% 
-                group_by(Signature) %>% 
-                summarise(n_sig = sum(n_sig)) %>% 
-                mutate(n = sum(n_sig)) %>% 
-                mutate(Exposure = n_sig/n)
-              
-              
-              tmp_final_table <- lapply(unique(other_sig$Samples), FUN = function(c){
-                tmp <- other_sig %>% filter(Samples == c)
-                result_table <- compare_signatures(df1 = tmp, df2 = clonal_sig) 
-                result <- result_table$df %>% mutate(match = result_table$match,
-                                                     cs_exp = result_table$cs_exp,
-                                                     cs_nsig = result_table$cs_n,
-                                                     n_diff = result_table$n_diff,
-                                                     n_tot = result_table$n_tot) %>% 
-                  mutate(cluster = as.character(c))
-                return(result)
-              }) %>% bind_rows()
-              
-              
-              tmp_final_table_background <- lapply(unique(other_sig$Samples), FUN = function(c){
-                tmp <- other_sig %>% filter(Samples == c)
-                result_table <- compare_signatures(df1 = tmp, df2 = background) 
-                result <- result_table$df %>% mutate(match = result_table$match,
-                                                     cs_exp = result_table$cs_exp,
-                                                     cs_nsig = result_table$cs_n,
-                                                     n_diff = result_table$n_diff,
-                                                     n_tot = result_table$n_tot) %>% 
-                  mutate(cluster = as.character(c))
-                return(result)
-              }) %>% bind_rows()
-              
-              
-              if (nrow(tmp_final_table) > 0){
+                if (tool == 'pyclonevi' & signature_tool == 'BASCULE'){
+                  clonal <- paste0('X', clonal)
+                }
                 
-                f_background <- tmp_final_table_background %>% 
-                  mutate(n_rel = n_diff/n_tot) %>% 
-                  select(cluster, match, cs_exp, n_rel) %>% 
-                  distinct() %>% 
-                  dplyr::rename(bg_match = match, bg_cs_exp =cs_exp, bg_n_rel = n_rel)
+                df <- df %>% 
+                  mutate(is_clonal = ifelse(Samples==clonal, T, F)) %>% 
+                  left_join(counts) %>% 
+                  mutate(n_sig = round(n*Exposure,0))
+                clonal_sig <- df %>% filter(is_clonal == T) %>% filter(n_sig > 0)
+                other_sig <- df %>% filter(is_clonal == F) %>% filter(n_sig > 0)
                 
-                f_table <- tmp_final_table %>% 
-                  mutate(n_rel = n_diff/n_tot) %>% 
-                  select(cluster, match, cs_exp, n_rel) %>% 
-                  distinct() %>% 
-                  left_join(f_background) %>% 
-                  mutate(sig = sign_type, coverage = cov, purity = pur, dec_tool = tool, sig_tool = signature_tool, spn = spn)
+                background = other_sig %>% 
+                  group_by(Signature) %>% 
+                  summarise(n_sig = sum(n_sig)) %>% 
+                  mutate(n = sum(n_sig)) %>% 
+                  mutate(Exposure = n_sig/n)
                 
-                summary_table <- summary_table %>% 
-                  bind_rows(f_table)
+                
+                tmp_final_table <- lapply(unique(other_sig$Samples), FUN = function(c){
+                  tmp <- other_sig %>% filter(Samples == c)
+                  result_table <- compare_signatures(df1 = tmp, df2 = clonal_sig) 
+                  result <- result_table$df %>% mutate(match = result_table$match,
+                                                       cs_exp = result_table$cs_exp,
+                                                       cs_nsig = result_table$cs_n,
+                                                       n_diff = result_table$n_diff,
+                                                       n_tot = result_table$n_tot) %>% 
+                    mutate(cluster = as.character(c))
+                  return(result)
+                }) %>% bind_rows()
+                
+                
+                tmp_final_table_background <- lapply(unique(other_sig$Samples), FUN = function(c){
+                  tmp <- other_sig %>% filter(Samples == c)
+                  result_table <- compare_signatures(df1 = tmp, df2 = background) 
+                  result <- result_table$df %>% mutate(match = result_table$match,
+                                                       cs_exp = result_table$cs_exp,
+                                                       cs_nsig = result_table$cs_n,
+                                                       n_diff = result_table$n_diff,
+                                                       n_tot = result_table$n_tot) %>% 
+                    mutate(cluster = as.character(c))
+                  return(result)
+                }) %>% bind_rows()
+                
+                
+                if (nrow(tmp_final_table) > 0){
+                  
+                  f_background <- tmp_final_table_background %>% 
+                    mutate(n_rel = n_diff/n_tot) %>% 
+                    select(cluster, match, cs_exp, n_rel) %>% 
+                    distinct() %>% 
+                    dplyr::rename(bg_match = match, bg_cs_exp =cs_exp, bg_n_rel = n_rel)
+                  
+                  f_table <- tmp_final_table %>% 
+                    mutate(n_rel = n_diff/n_tot) %>% 
+                    select(cluster, match, cs_exp, n_rel) %>% 
+                    distinct() %>% 
+                    left_join(f_background) %>% 
+                    mutate(sig = sign_type, coverage = cov, purity = pur, dec_tool = tool, sig_tool = signature_tool, spn = spn)
+                  
+                  summary_table <- summary_table %>% 
+                    bind_rows(f_table)
+                }
               }
             }
           } 
@@ -216,6 +209,4 @@ for (spn in paste0('SPN0', 1:7)){
     }
   }
 }
-
-
 saveRDS(summary_table, '/orfeo/cephfs/scratch/cdslab/shared/SCOUT/interpretation/signature_deconvolution_summary.rds')

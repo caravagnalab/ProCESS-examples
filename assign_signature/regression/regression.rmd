@@ -1,0 +1,57 @@
+---
+title: "regression -  signature cluster"
+output: html_document
+date: "2026-02-24"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+```{r include=FALSE}
+source('/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/assign_signature/plot_res.R')
+df <- df %>% 
+  select(-patient_id, -sample, -sample_class, -cluster, -RMSE, -cna_caller, -mut_caller) %>% 
+  mutate(type = factor(type, levels = c('SBS', 'ID')),
+         tool = factor(tool, levels = c('viber', 'pyclonevi', 'mobster_univariate')),
+         sig_tool = factor(sig_tool, levels = c('SigProfiler', 'BASCULE')),
+         cov = factor(cov, levels = c('50', '100', '150')),
+         pur = factor(pur, levels = c('0.3', '0.6', '0.9')))
+```
+
+```{r}
+df
+```
+
+```{r}
+model <- lm(CosineSimilarity ~ . -spn, data = df)
+summary(model)
+```
+
+```{r}
+model_tidied <- tidy(model, conf.int = TRUE) %>%  
+  filter(term != "(Intercept)") 
+
+ggplot(model_tidied, aes(x = estimate, y = term)) +
+  geom_vline(xintercept = 0, color = "red", linetype = "dashed") +
+  geom_point(size = 3) +
+  geom_errorbarh(aes(xmin = conf.low, xmax = conf.high), height = 0.2) +
+  labs(title = "Effect of Predictors on CosineSimilarity",
+       subtitle = "Dots represent the Estimate; bars represent 95% Confidence Intervals",
+       x = "Estimate (Change in CosineSimilarity)",
+       y = "Predictor Variable") +
+  theme_minimal()
+```
+
+**Diagnostic Plot - What to look for:**
+
+-   **Residuals vs Fitted:** You want to see a random "cloud" of points. If you see a clear "U" shape or a "fan" shape, a linear model might not be capturing the full complexity of your data.
+
+-   **Normal Q-Q:** You want the points to fall mostly along the diagonal line. If they curve off at the ends, your errors aren't normally distributed.
+
+```{r}
+par(mfrow = c(2, 2))
+plot(model)
+```

@@ -186,7 +186,7 @@ plt_breakpoint <- df_all_combs_SPN_cna %>%
         legend.spacing.x = unit(0.1, "cm"))
 
 plt_breakpoint
-ggsave(filename = "/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/cna/panel_D.pdf",plot = plt_breakpoint,width = 10,height = 4)
+#ggsave(filename = "/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/cna/panel_D.pdf",plot = plt_breakpoint,width = 10,height = 4)
 
 ##### Plot purity/ploidy 
 
@@ -253,7 +253,7 @@ scatter_purity_ploidy <- df_all_combs_SPN_cna_all_metrics %>%
     fill = guide_legend(nrow = 2, override.aes = list(alpha = 1))
   )
 scatter_purity_ploidy
-ggsave(filename = "/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/cna/panel_B.pdf",plot = scatter_purity_ploidy,width = 10,height = 4)
+#ggsave(filename = "/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/cna/panel_B.pdf",plot = scatter_purity_ploidy,width = 10,height = 4)
 
 ##### Alluvial plot
 df <- df_all_combs_SPN_cna %>% 
@@ -280,13 +280,13 @@ alluvial_plot <- ggplot(
   stat_stratum(
     decreasing = TRUE,
     alpha = .4,
-    width = 0.1,
+    width = 0.25,
     color = "grey40"
   ) +
   stat_flow(
     decreasing = TRUE,
     alpha = .2,
-    width = 0.1,
+    width = 0.25,
     color = "grey40"
   ) +
   
@@ -296,7 +296,7 @@ alluvial_plot <- ggplot(
     aes(
       label = scales::percent(after_stat(prop), accuracy = 2)
     ),
-    size = 3,
+    size = 3.2,
     color = "black",
     decreasing = TRUE
   ) +
@@ -324,11 +324,11 @@ alluvial_plot <- ggplot(
 
 alluvial_plot
 
-ggsave(filename = "/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/cna/panel_C.pdf",plot = alluvial_plot,width = 10,height = 4)
+#ggsave(filename = "/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/cna/panel_C.pdf",plot = alluvial_plot,width = 10,height = 4)
 
 
-plt_breakpoint/scatter_purity_ploidy/alluvial_plot
-write.table(x = df_all_combs_SPN_cna_all_metrics,file = "/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/cna/cna_metrics.tsv",append = F,quote = F,sep = "\t",row.names = F)
+#plt_breakpoint/scatter_purity_ploidy/alluvial_plot
+#write.table(x = df_all_combs_SPN_cna_all_metrics,file = "/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/cna/cna_metrics.tsv",append = F,quote = F,sep = "\t",row.names = F)
 
 # ggsave(plot = scatter_purity_ploidy, filename = '/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/cna/scatter_ploidy_purity.pdf',
 #        width = 6, height = 3, units = 'cm')

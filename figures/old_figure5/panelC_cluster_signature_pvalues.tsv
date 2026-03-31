@@ -1,0 +1,5 @@
+class	group1	group2	n1	n2	p	p.adj	p.adj.signif
+HighComplexity	Clonal	Subclonal	1054	386	6.36e-36	1.272e-35	****
+LowComplexity	Clonal	Subclonal	596	76	0.00271	0.00271	**
+Subclonal	HighComplexity	LowComplexity	386	76	0.000101	0.000101	***
+Clonal	HighComplexity	LowComplexity	1054	596	0.084	0.084	ns

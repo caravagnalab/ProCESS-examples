@@ -64,7 +64,7 @@ median_df_tools <- df_all_SPN_somatic %>%
     sensitivity = median(sensitivity, na.rm = TRUE),
     .groups = "drop"
   )
-write.table(x = median_df_tools,file = "/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/somatic/median_sensitivy_somatic_per_tools.tsv",append = F,quote = F,sep = "\t",row.names = F)
+#write.table(x = median_df_tools,file = "/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/somatic/median_sensitivy_somatic_per_tools.tsv",append = F,quote = F,sep = "\t",row.names = F)
 
 median_df_purity <- df_all_SPN_somatic %>%
   # mutate(CCF_bin = factor(CCF_bin, levels=c("0-5%","5-10%","10-25%","25-50%","50-75%","75-95%","95-100%"))) %>%
@@ -75,7 +75,7 @@ median_df_purity <- df_all_SPN_somatic %>%
     .groups = "drop"
   ) %>% 
   mutate(purity=as.factor(purity))
-write.table(x = median_df_purity,file = "/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/somatic/median_sensitivy_somatic_per_purities.tsv",append = F,quote = F,sep = "\t",row.names = F)
+#write.table(x = median_df_purity,file = "/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/somatic/median_sensitivy_somatic_per_purities.tsv",append = F,quote = F,sep = "\t",row.names = F)
 
 median_df_coverage <- df_all_SPN_somatic %>%
   # mutate(CCF_bin = factor(CCF_bin, levels=c("0-5%","5-10%","10-25%","25-50%","50-75%","75-95%","95-100%"))) %>%
@@ -86,17 +86,19 @@ median_df_coverage <- df_all_SPN_somatic %>%
     .groups = "drop"
   ) %>% 
   mutate(coverage=as.factor(coverage))
-write.table(x = median_df_coverage,file = "/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/somatic/median_sensitivy_somatic_per_coverages.tsv",append = F,quote = F,sep = "\t",row.names = F)
+#write.table(x = median_df_coverage,file = "/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/somatic/median_sensitivy_somatic_per_coverages.tsv",append = F,quote = F,sep = "\t",row.names = F)
 
 purity_line_boxes <-somatic_performance(df_all_SPN_somatic = df_all_SPN_somatic,type = "purity",median_df = median_df_purity)
 coverage_line_boxes <- somatic_performance(df_all_SPN_somatic = df_all_SPN_somatic,type = "coverage",median_df = median_df_coverage)
 caller_line_boxes <- somatic_performance(df_all_SPN_somatic = df_all_SPN_somatic,type = "caller",median_df = median_df_tools)
 
-ggsave(plot = caller_line_boxes, filename = '/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/somatic/caller_line_boxes.pdf',
-       width = 8, height = 5, units = 'in')
+
+
+#ggsave(plot = caller_line_boxes, filename = '/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/somatic/caller_line_boxes.pdf',
+#      width = 8, height = 5, units = 'in')
 # ggsave(plot = plt_purity, filename = '/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/edf_figures/',
 #        width = 8, height = 5, units = 'in')
-write.table(x = df_all_SPN_somatic,file = "/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/somatic/somatic_metrics.tsv",append = F,quote = F,sep = "\t",row.names = F)
+#write.table(x = df_all_SPN_somatic,file = "/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/somatic/somatic_metrics.tsv",append = F,quote = F,sep = "\t",row.names = F)
 #ggsave(plot = line, filename = '/orfeo/cephfs/scratch/area/lvaleriani/tesi/sarek/all_sarek.pdf',width = 6, height = 8, units = 'in')
 
 

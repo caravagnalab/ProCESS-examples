@@ -70,7 +70,7 @@ df_jaccard <- df %>%
   distinct() 
 
 
-plt_jaccard <- df_jaccard %>% 
+plt_jaccard_old <- df_jaccard %>% 
   mutate(tool = case_when(
     tool =='mobster_univariate' ~ 'MOBSTER',
     tool =='pyclonevi' ~ 'PyClone-VI' ,
@@ -89,3 +89,26 @@ plt_jaccard <- df_jaccard %>%
   my_ggplot_theme() +
   facet_grid(.~tool) +
   ylab('Mutation assignment (Jaccard index)')
+
+
+plt_jaccard <- df_jaccard %>% 
+  filter(cluster_process == 'Clonal') %>% 
+  mutate(tool = case_when(
+    tool =='mobster_univariate' ~ 'MOBSTER',
+    tool =='pyclonevi' ~ 'PyClone-VI' ,
+    tool =='viber' ~ 'VIBER'
+  )) %>% 
+  ggplot() +
+  geom_boxplot(aes(x = tool, y = jaccard, col = tool, fill= tool), alpha = .5, outliers = F, show.legend = T) + 
+  scale_color_manual(
+    "Tool",
+    values = c('MOBSTER' = "#219ebc", 'PyClone-VI' =  "palegreen4", 'VIBER' = "lightsalmon2")
+  )  +
+  scale_fill_manual(
+    "Tool",
+    values = c('MOBSTER' = "#219ebc", 'PyClone-VI' =  "palegreen4", 'VIBER' = "lightsalmon2")
+  )  +
+  my_ggplot_theme() +
+  ylab('Clonal cluster mutation assignment\nJaccard index') +
+  xlab('Tool')
+

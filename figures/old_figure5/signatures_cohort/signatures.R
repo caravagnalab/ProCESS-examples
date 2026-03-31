@@ -9,7 +9,7 @@ contexts <- c("SBS96","ID83")
 all_combs <- list()
 all_metrics <- list()
 all_cosine  <- list()
-SPNS <- c("SPN01","SPN02","SPN03","SPN04","SPN05", "SPN06", 'SPN07')
+SPNS <- c("SPN01","SPN03","SPN04","SPN05", "SPN06", 'SPN07')#"SPN02",
 source("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/utils_plot.R")
 source("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/validation/SCOUT/colors.R")
 
@@ -109,6 +109,7 @@ df_simultated_signatures <- lapply(SPNS, function(spn){
 
 
 df_all_combs_SPN_signatures <- lapply(SPNS,function(spn){
+  print(spn)
   validation_dir_spn <- paste0(validation_dir,spn,"/signature/")
   all_combs <- list()
   all_metrics <- list()
@@ -121,24 +122,28 @@ df_all_combs_SPN_signatures <- lapply(SPNS,function(spn){
       cosine_spn  <- list()
       metrics_sample <- list()
       comb_caller <- paste0(variant_caller,"_",cna_caller)
+      
       for (ctx in contexts){
         rds_metrics <- file.path(validation_dir_spn,comb,comb_caller,paste0("metrics_",ctx,"_spn.rds"))
         rds_metrics_sample <- file.path(validation_dir_spn,comb,comb_caller,paste0("metrics_",ctx,"_sample.rds"))
         rds_cosine  <- file.path(validation_dir_spn,comb,comb_caller,paste0("cosine_mse_",ctx,".rds"))
         
-        metrics_spn[[ctx]] <- readRDS(rds_metrics) %>% 
-          dplyr::mutate(context=ctx,
-                        purity=purity,
-                        coverage=coverage)
-        metrics_sample[[ctx]] <- readRDS(rds_metrics_sample) %>% 
-          dplyr::mutate(context=ctx,
-                        purity=purity,
-                        coverage=coverage) %>% 
-          unique()
-        cosine_spn[[ctx]] <- readRDS(rds_cosine) %>% 
-          dplyr::mutate(context=ctx,
-                        purity=purity,
-                        coverage=coverage)
+        if (file.exists(rds_metrics) & file.exists(rds_metrics_sample) & file.exists(rds_cosine)){
+        
+          metrics_spn[[ctx]] <- readRDS(rds_metrics) %>% 
+            dplyr::mutate(context=ctx,
+                          purity=purity,
+                          coverage=coverage)
+          metrics_sample[[ctx]] <- readRDS(rds_metrics_sample) %>% 
+            dplyr::mutate(context=ctx,
+                          purity=purity,
+                          coverage=coverage) %>% 
+            unique()
+          cosine_spn[[ctx]] <- readRDS(rds_cosine) %>% 
+            dplyr::mutate(context=ctx,
+                          purity=purity,
+                          coverage=coverage)
+        }
       }
       
       # bind SBS96 + ID83 for this purity/coverage
@@ -269,6 +274,12 @@ subclonal_arch <- subclonal_arch %>%
 df_all_combs_SPN_signatures <- df_all_combs_SPN_signatures %>% 
   left_join(subclonal_arch %>% select(sample,sample_class,context,median_jaccard_similary_clusters) %>% distinct(),by=c("sample","context")) 
 
+# table <- df_all_combs_SPN_signatures %>% 
+#   group_by(sample_class, caller,context ) %>% 
+#   summarize(mean_cs = mean(cosine),
+#             median_cs = median(cosine),
+#             sd_cs = sd(cosine))
+# write.table(x = table, file = '/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/figure5/panelB_cohort_signature.tsv', quote = F, sep = '\t', row.names = F)
 
 my_comparisons <- list(c("High\nComplexity", "Low\nComplexity"))
 plt_signatures <- df_all_combs_SPN_signatures %>%
@@ -284,7 +295,7 @@ plt_signatures <- df_all_combs_SPN_signatures %>%
   stat_compare_means(comparisons = my_comparisons,label = "p.signif",vjust = 0.5)+
   my_ggplot_theme() +
   xlab('Sample Class') + 
-  ylab('Exposure Accuracy (Cosine Similarity)')
+  ylab('Exposure Accuracy\nCosine Similarity')
 
 # df_all_combs_SPN_signatures %>%
 #   ggplot(aes(x = sample_class, y = cosine)) +

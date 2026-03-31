@@ -6,8 +6,6 @@ library(optparse)
 source('../getters/tumourevo_getters.R')
 source('../getters/process_getters.R')
 
-base = "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/assing_signature/"
-
 option_list <- list(make_option(c("--spn_id"), type = "character", default = 'SPN04'),
                     make_option(c("--purity"), type = "double", default = 0.9),
                     make_option(c("--coverage"), type = "integer", default = 50),
@@ -33,7 +31,7 @@ if (signature_tool == 'SigProfiler'){
   library(bascule)
 }
 
-base = '/orfeo/cephfs/scratch/cdslab/shared/SCOUT/validation_subclonal/tables_interpreted/'
+base = '/orfeo/cephfs/scratch/cdslab/shared/SCOUT/validation_subclonal_new/tables_interpreted/'
 spn = opt$spn_id
 cov = opt$coverage
 pur = opt$purity
@@ -41,8 +39,8 @@ pur = opt$purity
 cna_caller = opt$cna_caller
 mut_caller = opt$vcf_caller
 
-out = "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/assing_signature/"
-tool = 'mobster_univariate'
+out = "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/assign_signature/"
+tool = 'viber'
 for (tool in c('pyclonevi', 'viber')){
   
   out_data_raw = paste0(out, spn, '/', cov, 'x_', pur, 'p_', mut_caller, '_', cna_caller, '/', tool, '_', signature_tool, '_raw/')
@@ -58,7 +56,7 @@ for (tool in c('pyclonevi', 'viber')){
   
   
   if (tool == 'viber'){
-    tool_table <- readRDS(paste0("/orfeo/cephfs/scratch/cdslab/shared/SCOUT/", spn, "/tumourevo/", cov, "x_",pur,"p_",mut_caller,"_",cna_caller,"/subclonal_deconvolution/viber/SCOUT/",spn, "/SCOUT_", spn,"_viber_best_st_fit.rds"))
+    tool_table <- readRDS(paste0("/orfeo/cephfs/scratch/cdslab/shared/SCOUT/", spn, "/tumourevo/", cov, "x_",pur,"p_",mut_caller,"_",cna_caller,"/subclonal_deconvolution/viber/SCOUT/",spn, "/SCOUT_", spn,"_viber_best_fit.rds"))
     mut_ids <- tool_table$data %>% 
       select(chr, from, ref, alt) %>% 
       distinct() %>% 
@@ -284,3 +282,4 @@ for (tool in c('pyclonevi', 'viber')){
       }
     }
 }
+

@@ -10,11 +10,13 @@
 #SBATCH --array=1-7
 # Adjust based on spn number
 
+#module load DefApps
+#module load r/4.4.1
 module load R/4.4.1
 
 # Define your inputs
 spns=(SPN01 SPN02 SPN03 SPN04 SPN06 SPN07 SPN05)
-#spns=(SPN05)
+#spns=(SPN02)
 
 # Compute indices
 task_id=$((SLURM_ARRAY_TASK_ID - 1))
@@ -30,5 +32,5 @@ spn=${spns[$spn_idx]}
 path="/orfeo/scratch/area/lvaleriani/races/ProCESS-examples"
 
 echo $spn
-#Rscript ${path}/assign_signature/assign_process.R --spn_id "${spn}"
+Rscript ${path}/assign_signature/assign_process.R --spn_id "${spn}"
 Rscript ${path}/assign_signature/assign_process_univariate.R --spn_id "${spn}"

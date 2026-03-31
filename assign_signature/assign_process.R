@@ -6,7 +6,7 @@ library(optparse)
 source('../getters/tumourevo_getters.R')
 source('../getters/process_getters.R')
 
-out = "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/assing_signature/"
+out = "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/assign_signature/"
 
 option_list <- list(make_option(c("--spn_id"), type = "character", default = 'SPN02')
 )
@@ -15,7 +15,7 @@ opt_parser <- OptionParser(option_list = option_list)
 opt <- parse_args(opt_parser)
 
 #base = '/orfeo/cephfs/scratch/cdslab/erivar00/GitHub/ProCESS-examples/validation/Subclonal_deconvolution/tables/'
-base = '/orfeo/cephfs/scratch/cdslab/shared/SCOUT/validation_subclonal/tables/'
+base = '/orfeo/cephfs/scratch/cdslab/shared/SCOUT/validation_subclonal_new/tables/'
 spn = opt$spn_id
 
 get_exposure <- function(table){

@@ -50,8 +50,8 @@ names(colors_cluster) = paste0('C',0:15)
 sp = 'SPN01'
 cov = 50
 pur = 0.9
-tool = 'viber'
-s_tool = 'BASCULE'
+tool = 'pyclonevi'
+s_tool = 'SigProfiler'
 
 coverage_list = c(50, 100, 150)
 purity_list = c(0.9, 0.6, 0.3)

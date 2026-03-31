@@ -1,9 +1,13 @@
 ### ASSEMBLE FINAL PANEL
-base = "/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/"
+base = "/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/"
 source(paste0(base, 'figure3/cna/cna.R'))
 source(paste0(base, 'figure3/somatic/somatic.R'))
 base = "/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/"
 source(paste0(base, 'figure3/segm_cna/plot_driver_cna.R'))
+
+
+ggsave(plot = plt_breakpoint, filename = 'plt_breakpoint.pdf', height = 2.5, width = 5, units = 'in')
+ggsave(plot = alluvial_plot, filename = 'plt_alluvial.pdf', height = 2.5, width = 5.5, units = 'in')
 
 cartoon <- ggplot() + labs(tag = "A")
 caller_line_boxes <- caller_line_boxes 
@@ -37,5 +41,5 @@ wrap_plots(
 )
 
 
-ggsave(filename = paste0("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/", 'fig3_main.pdf'), 
+ggsave(filename = paste0("/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/figure3/", 'fig3_main.pdf'), 
         width = 260, height = 210, units = 'mm', dpi = 300) #device = cairo_pdf()

@@ -43,7 +43,7 @@ tool_list = c( 'viber', 'pyclonevi')
 sig_tool_list = c('BASCULE', 'SigProfiler')
 
 base <- '/orfeo/cephfs/scratch/cdslab/shared/SCOUT/interpretation'
-subclonal <- readRDS(paste0(base, '/subclonal_deconvolution_new.rds')) %>% 
+subclonal <- readRDS(paste0(base, '/subclonal_deconvolution.rds')) %>% 
   dplyr::rename(spn = patient_id, 
                 dec_tool = tool, 
                 cluster = cluster_id_tool)
@@ -57,7 +57,7 @@ combs = expand.grid(coverage=coverage_list,
                     tool=tool_list,
                     sig_tool = sig_tool_list)
 
-i=3
+i=13
 
 for (i in 1:nrow(combs)){
   cov = combs[i, "coverage"]
@@ -65,12 +65,24 @@ for (i in 1:nrow(combs)){
   s_tool = combs[i, "sig_tool"]
   tool = combs[i, "tool"]
   
-  f_all <- all %>% 
+  tmp_df <-  all %>% 
     filter(coverage == cov,
            purity == pur, 
            dec_tool == tool,
-           sig_tool == s_tool | is.na(sig_tool), 
-           spn %in% spn_list)
+           spn %in% spn_list) %>% 
+    group_by(spn, sig_tool) %>% 
+    summarise() %>% 
+    filter(!is.na(sig_tool)) %>% 
+    filter(sig_tool == s_tool)
+  
+  f_all <- all %>%
+    filter(
+      coverage == cov,
+      purity == pur,
+      dec_tool == tool,
+      spn %in% spn_list,
+      sig_tool == s_tool | (is.na(sig_tool) & spn %in% tmp_df$spn)
+    )
   
   f_all <- f_all %>% 
    group_by(across(c(-sig, -cs_exp, -match, -n_rel, -bg_match, -bg_cs_exp, -bg_n_rel))) %>% 
@@ -90,10 +102,10 @@ for (i in 1:nrow(combs)){
     select(spn, w_signature, w_driver, w_tail, n)
   
   f_all <- f_all %>% left_join(score)
+  
     
   interpret_table <- f_all %>% 
     mutate(driver = ifelse(contains_driver_tool == F, 0, 1),
-           n_never_tail = (100-percent_tail)/100,
            bg_cs = 1 - bg_cs_exp,
            cs_sign = 1 - cs_exp,
            cs_sign = ifelse(is.na(cs_exp) & is_clonal_tool == T, 1, cs_sign),
@@ -116,6 +128,7 @@ for (i in 1:nrow(combs)){
   }
   
   plt <- interpret_table %>%
+    filter(total_mutations > 200) %>% 
     pivot_longer(cols = c(score_driver, score_all, score_tail, score_no_driver, score_no_tail, score_no_sign, score_sign)) %>%
     mutate(name = factor(name, levels = c('score_driver', 'score_tail', 'score_sign','score_no_driver', 'score_no_tail', 'score_no_sign', 'score_all'))) %>%
     ggplot() +
@@ -157,5 +170,5 @@ for (i in 1:nrow(combs)){
          width = 10, height = 10)
 
   path = paste0('/orfeo/cephfs/scratch/cdslab/shared/SCOUT/interpretation/res_int/', cov, 'x_', pur, 'p_', s_tool,'_',tool)
-  saveRDS(object = interpret_table, file = paste0(path, '_df.rds'))
+  saveRDS(object = interpret_table %>% filter(total_mutations > 200), file = paste0(path, '_df.rds'))
 }

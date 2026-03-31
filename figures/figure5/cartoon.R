@@ -21,7 +21,7 @@ color_palette_process = RColorBrewer::brewer.pal(n = 8, name = "Dark2")
 names(color_palette_process) <- c('Clonal', paste0('Clone ', 1:7))
 color_palette_process['Subclonal'] = 'gray70'
 
-color_palette_process_uni = RColorBrewer::brewer.pal(n = 8, name = "Set1") 
+color_palette_process_uni = RColorBrewer::brewer.pal(n = 8, name = "Dark2") 
 names(color_palette_process_uni) <- c('Clonal', paste0('Clone ', 1:7))
 color_palette_process_uni['Subclonal'] = 'gray70'
 
@@ -159,7 +159,7 @@ pairs <- combn(unique(table_multi_plot$sample_id), 2, simplify = FALSE)
 for (i in 1:length(pairs)){
   s1 <- pairs[[i]][1]
   s2 <- pairs[[i]][2]
-
+  
   p_process = table_wide %>%
     ggplot(aes(x =.data[[s1]], y = .data[[s2]], color=cluster_id_process))+
     geom_point( alpha=0.4, size = .7)+
@@ -170,7 +170,7 @@ for (i in 1:length(pairs)){
     theme_bw() +
     scale_color_manual('ProCESS clusters', values = color_palette_process) +
     guides(color = guide_legend(override.aes = list(size = 3, alpha = 1) ) )
-
+  
   p_process = p_process + ggrepel::geom_label_repel(
     data = table_wide %>% filter(is_driver_process == TRUE),
     aes(
@@ -184,15 +184,15 @@ for (i in 1:length(pairs)){
     size = 3,
     min.segment.length = 0,
     box.padding = 1)
-
+  
   plots_pair[[i]] <- p_process
 }
 
 nc=2
 
 plt_mutlivariate <- wrap_plots(plots_pair,
-           ncol = nc,
-           guides = 'collect')
+                               ncol = nc,
+                               guides = 'collect')
 
 
 table_uni <- table_uni %>% 
@@ -244,16 +244,71 @@ table_id <- table %>%
 exposure_sbs <- get_exposure(table_sbs)
 exposure_id <- get_exposure(table_id)
 
-plt_sbs <- plot_exposure(df = exposure_sbs, sig_type = '')
-plt_id <- plot_exposure(df = exposure_id, sig_type = '')
+plt_sbs <- plot_exposure(df = exposure_sbs, sig_type = '') + theme_minimal() 
+plt_id <- plot_exposure(df = exposure_id, sig_type = '') + theme_minimal() 
 
-plt <- wrap_plots(plt_univariate,
-       plt_mutlivariate, 
-       wrap_plots(plt_sbs, plt_id, nrow=1),
-       nrow = 3, design = 'A\nA\nA\nB\nB\nB\nB\nB\nC')
 
-ggsave(plot = plt,
-       filename = paste0(out, 'plot_process/', spn, '.png'),
-       dpi = 200,
-       width = 8,
-       height = 12)#15
+p = plots_sample[[1]] + theme_minimal() + 
+  plots_sample[[2]] + theme_minimal() + 
+  plots_pair[[1]] + theme_minimal() + 
+  plot_layout(ncol = 3)
+
+ggsave(filename = '/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/figure5/plot.pdf', 
+       plot = p, width = 14, height = 3, dpi = 300, units = 'in')
+
+ggsave(filename = '/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/figure5/plot_sig.pdf', 
+       plot = plt_sbs + plt_id, width = 8, height = 2, dpi = 300, units = 'in')
+
+
+
+color_palette_process = c(RColorBrewer::brewer.pal(n = 8, name = "Dark2"),
+                          RColorBrewer::brewer.pal(n = 9, name = "Set1"),
+                          RColorBrewer::brewer.pal(n = 8, name = "Set2"))
+names(color_palette_process) <- df_all$cluster %>% unique()
+color_palette_process['Subclonal'] = 'gray70'
+
+table = readRDS('/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/figure5/table_SPN04.rds')
+plt <- table %>% 
+  filter(cluster != "Clone 3_SPN04_2.1") %>% 
+  pivot_longer(cols = c(score_driver, score_all, score_tail, score_sign)) %>% #score_no_driver, score_no_tail, score_no_sign, 
+  mutate(name = factor(name, levels = c('score_driver', 'score_tail', 'score_sign', 'score_all'))) %>% #,'score_no_driver', 'score_no_tail', 'score_no_sign',
+  ggplot() +
+  annotate("rect", xmin = -Inf, xmax = Inf, ymin = 0.9, ymax = 1, 
+           fill = "palegreen4", alpha = 0.2) + 
+  annotate("rect", xmin = -Inf, xmax = Inf, ymin = 0.55, ymax = .9, 
+           fill = "goldenrod", alpha = 0.2) + 
+  annotate("rect", xmin = -Inf, xmax = Inf, ymin = 0.2, ymax = 0.55, 
+           fill = "salmon1", alpha = 0.2) + 
+  annotate("rect", xmin = -Inf, xmax = Inf, ymin = 0.2, ymax = 0, 
+           fill = "gainsboro", alpha = 0.2) +
+  stat_summary(
+    aes(x = name, y = value, color = cluster),
+    fun.data = mean_cl_boot,
+    position = position_dodge(width = 0.3),
+    size = .4, 
+    show.legend = T
+  ) +
+  stat_summary(
+    aes(x = name, y = value, color = cluster, group=cluster),
+    fun.data = mean_cl_boot,
+    position = position_dodge(width = 0.3),
+    geom = 'line',
+    linewidth=.6,
+    show.legend = F
+  ) +
+  #geom_text(data = ~ filter(.x, contains_driver & name == 'score_all'), aes(x = name, y = value+0.03, col = cluster, group = cluster, label = driver_label_process)) + 
+  theme_minimal() +
+  ylab('Score') +
+  xlab('')+ 
+  scale_color_manual('Cluster', 
+                     values = color_palette_process) +
+  scale_x_discrete(labels = c('score_driver' = 'Driver',
+                              'score_tail'   = 'Tail',
+                              'score_sign'   = 'Signature',
+                              # 'score_no_driver' = 'Signature\nTail',
+                              # 'score_no_tail' = 'Driver\nSignature',
+                              # 'score_no_sign' = 'Driver\nTail',
+                              'score_all'    = 'All'))
+
+ggsave(filename = '/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/figure5/plot_score.pdf', 
+       plot = plt, width = 4, height = 2, dpi = 300, units = 'in')

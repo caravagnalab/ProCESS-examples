@@ -6,10 +6,9 @@ library(optparse)
 source('../getters/tumourevo_getters.R')
 source('../getters/process_getters.R')
 
-base = "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/assing_signature/"
 
-option_list <- list(make_option(c("--spn_id"), type = "character", default = 'SPN07'),
-                    make_option(c("--purity"), type = "double", default = 0.6),
+option_list <- list(make_option(c("--spn_id"), type = "character", default = 'SPN01'),
+                    make_option(c("--purity"), type = "double", default = 0.9),
                     make_option(c("--coverage"), type = "integer", default = 100),
                     make_option(c("--cna_caller"), type = "character", default = 'ascat'),
                     make_option(c("--vcf_caller"), type = "character", default = 'mutect2'),
@@ -33,7 +32,7 @@ if (signature_tool == 'SigProfiler'){
   library(bascule)
 }
 
-base = '/orfeo/cephfs/scratch/cdslab/shared/SCOUT/validation_subclonal/tables_interpreted/'
+base = '/orfeo/cephfs/scratch/cdslab/shared/SCOUT/validation_subclonal_lucre/tables_interpreted/'
 spn = opt$spn_id
 cov = opt$coverage
 pur = opt$purity
@@ -41,7 +40,7 @@ pur = opt$purity
 cna_caller = opt$cna_caller
 mut_caller = opt$vcf_caller
 
-out = "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/assing_signature/"
+out = "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/assign_signature_new/"
 tool = 'mobster_univariate'
 
 
@@ -60,21 +59,16 @@ for (s in samples){
     unlink(paste0(out_data_int, '/*'), recursive = T)
   }
   
+  name = paste('SCOUT', spn, spn, s, 'mobster_best_fit_rds', sep = '_')
   file = get_tumourevo_subclonal(spn = spn, 
                                  coverage = cov, 
                                  purity = pur, 
                                  vcf_caller = mut_caller,
                                  cna_caller = cna_caller,
                                  sample = s, 
-                                 tool = 'mobster')[['mobsterh_st_best_fit_rds']]
+                                 tool = 'mobster')[[name]]
   if (!is.null(file)){
-    data <- readRDS(get_tumourevo_subclonal(spn = spn, 
-                                        coverage = cov, 
-                                        purity = pur, 
-                                        vcf_caller = mut_caller,
-                                        cna_caller = cna_caller,
-                                        sample = s, 
-                                        tool = 'mobster')[['mobsterh_st_best_fit_rds']])
+    data <- readRDS(file)
     
     mut_ids <- data$data %>% 
       select(chr, from, ref, alt, cluster) %>% 
@@ -146,7 +140,7 @@ for (s in samples){
       data_signature <- get_tumourevo_signatures(spn = spn, 
                                                  coverage = cov, 
                                                  purity = pur, 
-                                                 tool = signature_tool,
+                                                 tool = 'SigProfiler',
                                                  vcf_caller = mut_caller,
                                                  cna_caller = cna_caller,
                                                  context = context)
