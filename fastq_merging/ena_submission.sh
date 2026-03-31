@@ -16,7 +16,7 @@ QUEUE=$(sinfo -h -o "%P %a %D %t" | grep -w 'EPYC\|GENOA\|THIN' |awk '$2 == "up"
 if [[ "$sample_type" == "normal" ]]; then
     purity=1
     JOB1_R1_ID=$(sbatch --parsable --job-name=merging_fastq_${sample_id}_${sample_type}_R1 --nodes=1 \
-	    --cpus-per-task=12--mem=50GB --time=04:00:00 \
+	    --cpus-per-task=12 --mem=50GB --time=04:00:00 \
 	    --partition=$QUEUE \
 	    --output=out/merging_fastq_${sample_id}_${sample_type}_R1.out --error=out/merging_fastq_${sample_id}_${sample_type}_R1.err merge_fastq.sh "$sample_id" "R1" "$sample_type" "$purity" "$spn")
     JOB1_R2_ID=$(sbatch --parsable --job-name=merging_fastq_${sample_id}_${sample_type}_R2 --nodes=1 \

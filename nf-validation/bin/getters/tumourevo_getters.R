@@ -12,7 +12,7 @@ dir_getter <- function(
 ) {
   
   vcf_caller_list <- c("mutect2", "strelka")
-  cna_caller_list <- c("ascat")
+  cna_caller_list <- c("ascat","sequenza")
   
   if (!is.numeric(coverage) || coverage %% 1 != 0) {
     stop("Error: 'coverage' must be integer") # coverage : integer
@@ -267,7 +267,7 @@ get_tumourevo_qc <- function(
 ) {
   
   # quality control
-  tool_list <- c("CNAqc", "join_CNAqc", "tinc")
+  tool_list <- c("cnaqc", "join_cnaqc", "tinc")
   if (!(tool %in% tool_list)) {
     stop("ERROR: wrong tool name!")
   }
@@ -281,9 +281,9 @@ get_tumourevo_qc <- function(
     base_path
   )
   
-  MAIN_PATH <- file.path(MAIN_PATH, "QC", tool, "SCOUT", spn)
+  MAIN_PATH <- file.path(MAIN_PATH, "qc", tool, "SCOUT", spn)
   
-  if (tool != "join_CNAqc") {
+  if (tool != "join_cnaqc") {
     all_entries <- list.dirs(MAIN_PATH, full.names = FALSE, recursive = FALSE)
     matching_dir <- all_entries[grepl(sample, all_entries)]
     MAIN_PATH <- file.path(MAIN_PATH, matching_dir)
@@ -317,7 +317,7 @@ get_tumourevo_signatures <- function(
 ) {
   
   # quality control
-  tool_list <- c("SigProfiler", "SparseSignatures","BASCULE")
+  tool_list <- c("sigprofiler", "sparsesignatures","BASCULE")
   if (!(tool %in% tool_list)) {
     stop("ERROR: wrong tool name!")
   }
@@ -335,7 +335,7 @@ get_tumourevo_signatures <- function(
   
   
   
-  if (tool == "SigProfiler") {
+  if (tool == "sigprofiler") {
     signature_class = gsub('[[:digit:]]+', '', context) 
     context_matrix <- file.path(MAIN_PATH, tool,"SCOUT", "results","output",signature_class,paste0("SCOUT.",context,".all"))
     
@@ -356,7 +356,7 @@ get_tumourevo_signatures <- function(
       denovo_signatures=denovo_signatures
     ))
     
-  } else if (tool == "SparseSignatures") {
+  } else if (tool == "sparsesignatures") {
     
     MAIN_PATH <- file.path(MAIN_PATH, tool, "SCOUT")
     output <- list() 
@@ -377,4 +377,3 @@ get_tumourevo_signatures <- function(
   }
   
 }
-

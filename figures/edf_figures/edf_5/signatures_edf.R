@@ -9,7 +9,7 @@ contexts <- c("SBS96","ID83")
 all_combs <- list()
 all_metrics <- list()
 all_cosine  <- list()
-SPNS <- c("SPN01","SPN02","SPN03","SPN04","SPN05", "SPN06", 'SPN07')
+SPNS <- c("SPN01","SPN03","SPN04","SPN05", "SPN06", 'SPN07')
 source("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/utils_plot.R")
 source("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/validation/SCOUT/colors.R")
 
@@ -244,17 +244,55 @@ cosine_samples <-df_all_combs_SPN_signatures %>%
   theme(
     axis.text.x = element_text(angle = 45, hjust = 1),
     panel.grid.minor = element_blank(),
+    axis.ticks.x = element_blank(),
     strip.text.x.top = element_blank(),panel.spacing.x = unit(0.2, "lines")
   )+
   guides(
     col  = guide_legend(nrow = 2)
   )
 
+subclonal_arch<-readRDS(file="/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure5/signatures_cohort/sample_classification_clonal_heterogeneity.rds")
+jaccard_plot <-subclonal_arch %>% 
+  select(sample,context,median_jaccard_similary_clusters,sample_class) %>% 
+  distinct() %>% 
+  ggplot(aes(x=sample,y="",fill=median_jaccard_similary_clusters))+
+  geom_tile()+
+  scale_fill_continuous("Jaccard similarity",palette = rev(c("#FEE0D2", "#FC9272", "#DE2D26")))+
+  my_ggplot_theme()+
+  facet_wrap(~context)+
+  theme(
+    axis.text.x = element_blank(),
+    axis.title.y = element_blank(),
+    axis.title.x = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.ticks.x = element_blank(),
+    axis.ticks.y = element_blank(),
+    strip.text.x.top = element_blank(),panel.spacing.x = unit(0.2, "lines")
+  )
+
+cosine_plot <-subclonal_arch %>% 
+  select(sample,context,mean_cosine_similary_clusters,sample_class) %>% 
+  distinct() %>% 
+  ggplot(aes(x=sample,y="",fill=mean_cosine_similary_clusters))+
+  geom_tile()+
+  scale_fill_continuous("Cosine similarity",palette = c("#E5F5E0", "#A1D99B", "#31A354"))+
+  my_ggplot_theme()+
+  facet_wrap(~context)+
+  theme(
+    axis.text.x = element_blank(),
+    axis.title.y = element_blank(),
+    axis.ticks.x = element_blank(),
+    axis.ticks.y = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.title.x = element_blank(),
+    strip.text.x.top = element_blank(),panel.spacing.x = unit(0.2, "lines")
+  )
 
 cosine_samples <- cosine_samples + theme(plot.margin = margin(0, 0, 0, 0),panel.spacing = unit(0.05, "lines"))
 abs_counts_exp_plot <- abs_counts_exp_plot + theme(plot.margin = margin(0, 0, 0, 0),panel.spacing = unit(0.05, "lines"))
-plt_signatures_exp <- wrap_plots(list(abs_counts_exp_plot,cosine_samples),
-           design = "AAAA\nBBBB\nBBBB\nBBBB",guides="collect")+
-  plot_layout(heights = c(1, 1, 0.6, 0.6)) &
+plt_signatures_exp <- wrap_plots(list(abs_counts_exp_plot,cosine_samples,jaccard_plot,cosine_plot),
+           design = "AAAA\nCCCC\nDDDD\nBBBB\nBBBB\nBBBB",guides="collect")+
+  plot_layout(heights = c(1, 0.6, 0.6, 1)) &
   theme(legend.position = "bottom")
-ggsave(filename = "/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/edf_figures/edf_5/edf5.pdf",plot = plt_signatures_exp,height = 5,width = 10)
+ggsave(filename = "/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/edf_figures/edf_5/edf5.pdf",plot = plt_signatures_exp,
+       height = 5,width = 10)

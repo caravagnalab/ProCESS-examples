@@ -27,12 +27,14 @@ workflow SIGNATURE_VALIDATION {
     metrics_spn = SIGNATURE_VALIDATION_COMBINATION.out.metrics_spn
     metrics_sample = SIGNATURE_VALIDATION_COMBINATION.out.metrics_sample
     cosine_mse = SIGNATURE_VALIDATION_COMBINATION.out.cosine_mse
-    sankey_plot = SIGNATURE_VALIDATION_COMBINATION.out.sankey_plot    
+    sankey_plot_png = SIGNATURE_VALIDATION_COMBINATION.out.sankey_plot_png
+    sankey_plot_rds = SIGNATURE_VALIDATION_COMBINATION.out.sankey_plot_rds
     
 
     emit:
     cosine_mse
     metrics_spn
     metrics_sample
-    sankey_plot
+    sankey_plot_png
+    sankey_plot_rds
 }
