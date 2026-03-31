@@ -11,7 +11,8 @@ process SIGNATURE_VALIDATION_COMBINATION {
     tuple val(meta), path("metrics_*_spn.rds"),             emit:metrics_spn
     tuple val(meta), path("metrics_*_sample.rds"),          emit:metrics_sample
     tuple val(meta), path("cosine_mse_*.rds"),	            emit:cosine_mse
-    tuple val(meta), path("sankey_plot_*.png"),             emit:sankey_plot
+    tuple val(meta), path("sankey_plot_*.png"),             emit:sankey_plot_png
+    tuple val(meta), path("sankey_plot_*.rds"),             emit:sankey_plot_rds
 
     
     publishDir "${params.outdir}/${meta.spn}/signature/${meta.coverage}x_${meta.purity}/${vcf_caller}_${cna_caller}", mode: 'copy'
@@ -88,7 +89,7 @@ process SIGNATURE_VALIDATION_COMBINATION {
                 purity = purity,
                 vcf_caller = vcf_caller,
                 cna_caller = cna_caller,
-                tool = "SigProfiler",
+                tool = "sigprofiler",
                 context = context
             )
             
@@ -188,9 +189,11 @@ process SIGNATURE_VALIDATION_COMBINATION {
           labs(title = paste0(spn_id,", cov=",coverage,", pur=", purity,", Signature class=",context_classes),
                y = "Exposure", x = "Method") +
           theme_minimal() +
+          scale_fill_manual(values=c(sbs_colors,id_colors))+
           theme(legend.position = "bottom")
         ggsave(filename = paste0("sankey_plot_",context,".png"),plot =p_sankey ,width = 10,height = 5)
-
+        saveRDS(object = p_sankey,file = paste0("sankey_plot_",context,".rds"))
+        
         ### Compare exposure of estimated and true signatures  ###
         
         gt_long <- reshape_exposures_long(exposures_mat = ground_truth_nested,spn = spn_id,
