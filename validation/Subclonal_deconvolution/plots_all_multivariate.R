@@ -21,14 +21,16 @@ vcf_caller = "mutect2"
 cna_caller = "ascat"
 coverage = 100
 
-spns = c('SPN01', 'SPN02', 'SPN03', 'SPN04', 'SPN06', 'SPN07')
+spns = c('SPN01', 'SPN02', 'SPN03', 'SPN04','SPN05', 'SPN06', 'SPN07')
 
 coverage_list = c(50,100, 150)
 purity_list = c(0.3, 0.6, 0.9)
+# coverage_list = c(50)
+# purity_list = c( 0.9)
 vcf_caller_list = c("mutect2")
 cna_caller_list = c("ascat")
 spn_list = c('SPN01', 'SPN02', 'SPN03', 'SPN04','SPN05', 'SPN06', 'SPN07')
-spn_list = c('SPN02', 'SPN03')
+# spn_list = c('SPN02', 'SPN03')
 
 tool = 'viber'
 
@@ -75,11 +77,11 @@ for(spn in spn_list){
     if (is.null(final_table)) {
       next
     }
-    nmi_complete = randnet::NMI(as.factor(final_table$cluster_id_tool),
-                        as.factor(final_table$cluster_id_process))
-    
-    ari_complete = aricode::ARI(as.factor(final_table$cluster_id_tool), 
-                as.factor(final_table$cluster_id_process))
+    # nmi_complete = randnet::NMI(as.factor(final_table$cluster_id_tool),
+    #                     as.factor(final_table$cluster_id_process))
+    # 
+    # ari_complete = aricode::ARI(as.factor(final_table$cluster_id_tool), 
+    #             as.factor(final_table$cluster_id_process))
   
     sample_names = sort(unique(final_table$sample_id))
     
@@ -130,11 +132,11 @@ for(spn in spn_list){
     scatter_process = plot_scatter_process(final_table, sample_names, color_palette_process, driver=T, vertical = T)
     # scatter_process
   
-    nmi_interpreted = randnet::NMI(as.factor(final_table$cluster_id_tool_interpreted),
-                                 as.factor(final_table$cluster_id_process))
-    
-    ari_interpreted = aricode::ARI(as.factor(final_table$cluster_id_tool_interpreted),
-                                as.factor(final_table$cluster_id_process))
+    # nmi_interpreted = randnet::NMI(as.factor(final_table$cluster_id_tool_interpreted),
+    #                              as.factor(final_table$cluster_id_process))
+    # 
+    # ari_interpreted = aricode::ARI(as.factor(final_table$cluster_id_tool_interpreted),
+    #                             as.factor(final_table$cluster_id_process))
   
   if(interpreted_driver==T){
     width=40
@@ -146,12 +148,11 @@ for(spn in spn_list){
       scatter_process + labs(title="Process clusters"),
       design=design, guides = 'collect') &
       patchwork::plot_annotation(tag_levels="a", 
-                                 title = paste0(tool, "_", spn, "_", simulation_id),
-                                 subtitle = paste0("NMI blind = ", nmi_complete, "\nNMI interpreted = ", nmi_interpreted)) &
+                                 title = paste0(tool, "_", spn, "_", simulation_id)) &
       theme(plot.tag=element_text(size=12, face="bold"),
             plot.title = element_text(size=12, face="bold", hjust=0.5), legend.position = 'right')
     
-    plot_name = 'multivariates_png/process'
+    plot_name = 'multivariates/png/process'
     
   }else if(interpreted_driver==F){
       width=30
@@ -162,12 +163,11 @@ for(spn in spn_list){
         scatter_process + labs(title="Process clusters"),
         design=design, guides = 'collect') &
         patchwork::plot_annotation(tag_levels="a", 
-                                   title = paste0(tool, "_", spn, "_", simulation_id),
-                                   subtitle = paste0("NMI blind = ", nmi_complete, "\nNMI interpreted = ", nmi_interpreted)) &
+                                   title = paste0(tool, "_", spn, "_", simulation_id)) &
         theme(plot.tag=element_text(size=12, face="bold"),
               plot.title = element_text(size=12, face="bold", hjust=0.5), legend.position = 'right')
       
-      plot_name = 'multivariates_png/process'
+      plot_name = 'multivariates/png/process'
   }
     
   

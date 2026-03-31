@@ -49,6 +49,7 @@ final_table = input %>%
          is_tail_tool=FALSE) %>% 
   
   group_by(cluster_id_tool, sample_id) %>%
+  # mutate(ccf_tool_pyclone = ccf_tool, ccf_tool=vaf_tool) %>%
   mutate(ccf_tool=mean(ccf_tool, na.rm = TRUE)) %>%
   ungroup()
 

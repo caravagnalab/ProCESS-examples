@@ -84,11 +84,11 @@ for(spn in spn_list){
       # sample_name = samples[[1]]
       print(file.path(path_m,
                       paste0(sample_name),
-                      paste0("SCOUT_", spn, "_", sample_name, "_mobsterh_st_best_fit.rds")))
+                      paste0("SCOUT_", spn, "_", sample_name, "_mobsterbest_fit.rds")))
       
       obj = readRDS(file.path(path_m,
                               paste0(sample_name),
-                              paste0("SCOUT_", spn, "_", sample_name, "_mobsterh_st_best_fit.rds")))
+                              paste0("SCOUT_", spn, "_", sample_name, "_mobster_best_fit.rds")))
       
       plot(obj)+ggtitle(sample_name)
     })

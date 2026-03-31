@@ -162,6 +162,10 @@ get_plots_path = function(save_path, tool, spn, simulation_id, plot_name) {
   file.path(save_path, "plots", paste0(plot_name, "_", tool, "_", spn, "_", simulation_id, ".png"))
 }
 
+get_plots_path_process = function(save_path, tool, spn, simulation_id, plot_name) {
+  file.path(save_path, "plots", paste0(plot_name, "_", spn, "_", simulation_id, ".png"))
+}
+
 get_plots_path_shared = function(save_path, tool, spn, simulation_id, plot_name) {
   file.path(save_path, "subclonal/plots", paste0(plot_name, "_", tool, "_", spn, "_", simulation_id, ".png"))
 }
@@ -336,7 +340,8 @@ plot_mutations_on_tree = function(table_tool,
                                   sample_forest,
                                   phylo_forest,
                                   color_palette_tool, 
-                                  color_palette_process){
+                                  color_palette_process,
+                                  plot_tool =TRUE){
   
   # Here I need to do a join between the process table of this simulation and the tool table
   join_table = table_tool %>%
@@ -381,7 +386,106 @@ plot_mutations_on_tree = function(table_tool,
   
   pl_sticks_process = plot_sticks(sample_forest, labels=final_labels_process, cls = color_palette_process) %>%
     annotate_forest(sample_forest, samples=TRUE, drivers=TRUE)
-  
+
   return(list(pl_sticks_tool,pl_sticks_process))
 }
 
+plot_mutations_on_tree_process = function(table_tool, 
+                                  process_seq, 
+                                  sample_forest,
+                                  phylo_forest,
+                                  color_palette_process){
+  
+  # Here I need to do a join between the process table of this simulation and the tool table
+  join_table = table_tool %>%
+    inner_join(process_seq) %>% 
+    select(chr, chr_pos, ref, alt, mutation_id, cluster_id_process)
+  
+  mutations_with_cell = join_table %>% 
+    rowwise() %>%
+    mutate(cell_id=phylo_forest$get_first_occurrences(Mutation(
+      chr, chr_pos, ref, alt
+    ))[[1]]) %>%
+    ungroup()
+  
+  # Process
+  cells_labels_process = mutations_with_cell %>% 
+    select(mutation_id, cell_id, cluster_id_process) %>% 
+    group_by(cell_id) %>% 
+    summarise(label_list=list(cluster_id_process)) %>% 
+    rowwise() %>% 
+    mutate(label=names(sort(table(label_list[[1]]), decreasing=TRUE))[1]) %>% 
+    ungroup() %>% 
+    select(-label_list)
+  
+  final_labels_process = sample_forest$get_nodes() %>% as_tibble() %>% 
+    left_join(cells_labels_process)
+  
+  pl_sticks_process = plot_sticks(sample_forest, labels=final_labels_process, cls = color_palette_process) %>%
+    annotate_forest(sample_forest, samples=TRUE, drivers=TRUE)
+  
+  return(pl_sticks_process)
+}
+
+get_cell_id = function(mutation_object) {
+  tryCatch(
+    expr = { phylo_forest$get_first_occurrences(mutation_object)[[1]] },
+    error = function(e) return(NA)
+  )
+}
+# table_tool =final_table
+# process_seq
+# sample_forest
+# phylo_forest
+# color_palette_process
+plot_mutations_on_subtree = function(table_tool, 
+                                    process_seq, 
+                                    sample_forest,
+                                    phylo_forest,
+                                    color_palette_tool,
+                                    color_palette_process){
+  
+  # Here I need to do a join between the process table of this simulation and the tool table
+  join_table = table_tool %>%
+    inner_join(process_seq) %>% 
+    select(chr, chr_pos, ref, alt, mutation_id, cluster_id_tool, cluster_id_process, vaf_tool)
+  
+  mutations_with_cell = join_table %>% 
+    rowwise() %>%
+    mutate(cell_id=get_cell_id(Mutation(chr, chr_pos, ref, alt))) %>%
+    ungroup()
+  
+  # tool
+  cells_labels_tool = mutations_with_cell %>% 
+    select(mutation_id, cell_id, cluster_id_tool) %>% 
+    group_by(cell_id) %>% 
+    summarise(label_list=list(cluster_id_tool)) %>% 
+    rowwise() %>% 
+    mutate(label=names(sort(table(label_list[[1]]), decreasing=TRUE))[1]) %>% 
+    ungroup() %>% 
+    select(-label_list)
+  
+  final_labels_tool = sample_forest$get_nodes() %>% as_tibble() %>%
+    left_join(cells_labels_tool)
+  
+  pl_sticks_tool = plot_sticks(sample_forest, labels=final_labels_tool, cls = color_palette_tool) %>%
+    annotate_forest(sample_forest, samples=TRUE, drivers=TRUE)
+  
+  # Process
+  cells_labels_process = mutations_with_cell %>% 
+    select(mutation_id, cell_id, cluster_id_process) %>% 
+    group_by(cell_id) %>% 
+    summarise(label_list=list(cluster_id_process)) %>% 
+    rowwise() %>% 
+    mutate(label=names(sort(table(label_list[[1]]), decreasing=TRUE))[1]) %>% 
+    ungroup() %>% 
+    select(-label_list)
+  
+  final_labels_process = sample_forest$get_nodes() %>% as_tibble() %>% 
+    left_join(cells_labels_process)
+  
+  pl_sticks_process = plot_sticks(sample_forest, labels=final_labels_process, cls = color_palette_process) %>%
+    annotate_forest(sample_forest, samples=TRUE, drivers=TRUE)
+  
+  return(list(pl_sticks_tool,pl_sticks_process))
+}

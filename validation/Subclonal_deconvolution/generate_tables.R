@@ -11,11 +11,8 @@ print(i)
 # github_path = "~/GitHub/ProCESS-examples/"
 github_path = '/orfeo/cephfs/scratch/cdslab/erivar00/GitHub/ProCESS-examples/'
 main_path = "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/"
-# save_path = file.path(github_path, "validation/Subclonal_deconvolution/")
-save_path = file.path(main_path, "validation_subclonal/")
-save_path_shared = file.path(main_path, "validation_subclonal/")
-# save_path = file.path(github_path, "validation/Subclonal_deconvolution/")
-# save_path_shared = file.path(github_path, "validation/Subclonal_deconvolution/")
+save_path = file.path(main_path, "validation_subclonal_new/")
+save_path_shared = file.path(main_path, "validation_subclonal_new/")
 
 setwd(main_path)
 source(file.path(github_path, "validation/Subclonal_deconvolution/utils_tables.R"))
@@ -23,16 +20,14 @@ source(file.path(github_path, "validation/Subclonal_deconvolution/utils_tables.R
 check_if_exists = FALSE
 
 coverage_list = c(50, 100, 150)
-purity_list = c(0.3, 0.6, 0.9)
-vcf_caller_list = c("mutect2")
-cna_caller_list = c("ascat")
-spn_list = paste("SPN", 1:7, sep="0")
-
 # coverage_list = c(50)
-# purity_list = c(0.3)
-# vcf_caller_list = c("mutect2")
+purity_list = c(0.3, 0.6, 0.9)
+# purity_list = c(0.9)
+vcf_caller_list = c("mutect2")
 # cna_caller_list = c("ascat")
-# spn_list = paste("SPN", 1, sep="0")
+cna_caller_list = c("sequenza")
+spn_list = paste("SPN", 1:7, sep="0")
+# spn_list = paste("SPN", 5:7, sep="0")
 
 combs = expand.grid(coverage=coverage_list,
                     purity=purity_list,
@@ -52,22 +47,23 @@ if (!is.na(i)) {
   spn = combs[i, "spn"]
   
   simulation_id = paste0(coverage, "x_", purity, "p_", vcf_caller, "_", cna_caller)
-  
+  print(paste0(spn, '_', simulation_id))
   env = list2env(list(spn=spn, coverage=coverage, purity=purity,
                       vcf_caller=vcf_caller, cna_caller=cna_caller,
                       simulation_id=simulation_id, check_if_exists=check_if_exists),
                  parent=globalenv())
   
-  # table_pyclonevi = get_table(save_path_shared, paste0(github_path, "validation/Subclonal_deconvolution/generate_tables/"), "pyclonevi", env)
+  table_pyclonevi = get_table(save_path_shared, paste0(github_path, "validation/Subclonal_deconvolution/generate_tables/"), "pyclonevi", env)
+  
+  table_viber = get_table(save_path_shared, paste0(github_path, "validation/Subclonal_deconvolution/generate_tables/"), "viber", env)
   
   table_mobster = get_table(path_table=save_path_shared,
                             file_path=paste0(github_path, "validation/Subclonal_deconvolution/generate_tables/"),
                             tool="mobster",
                             env=env)
  
-  # table_viber = get_table(save_path_shared, paste0(github_path, "validation/Subclonal_deconvolution/generate_tables/"), "viber", env)
-
-  # table_viber_h = get_table(save_path_shared, save_path, "viber_heuristics", env)
+  
+  # table_viber_h = get_table(save_path_shared, paste0(github_path, "validation/Subclonal_deconvolution/generate_tables/"), "viber_heuristics", env)
 
   # table_process = get_table(save_path_shared, paste0(github_path, "validation/Subclonal_deconvolution/generate_tables/"), "process", env)
   # table_process_univariate = get_table(save_path_shared, paste0(github_path, "validation/Subclonal_deconvolution/generate_tables/"), "process_univariate", env)

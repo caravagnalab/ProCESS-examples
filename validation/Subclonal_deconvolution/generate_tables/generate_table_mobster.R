@@ -38,7 +38,8 @@ final_table = lapply(samples, function(sample_name) {
   # sample_name = samples[[1]]
   print(file.path(path_m,
                   paste0(sample_name),
-                  paste0("SCOUT_", spn, "_", sample_name, "_mobsterh_st_best_fit.rds")))
+                  paste0("SCOUT_", spn, "_", sample_name, "_mobster_best_fit.rds")))
+                  # paste0("SCOUT_", spn, "_", sample_name, "_mobsterh_st_best_fit.rds")))
   
   # obj = readRDS(file.path(path_m,
   #                         paste0(sample_name),
@@ -46,7 +47,8 @@ final_table = lapply(samples, function(sample_name) {
   
   obj_all = readRDS(file.path(path_m,
                               paste0(sample_name),
-                              paste0("SCOUT_", spn, "_", sample_name, "_mobsterh_st_fit.rds")))
+                              paste0("SCOUT_", spn, "_", sample_name, "_mobster_fit.rds")))
+                              # paste0("SCOUT_", spn, "_", sample_name, "_mobsterh_st_fit.rds")))
   obj = obj_all$best
   
   
@@ -67,13 +69,14 @@ final_table = lapply(samples, function(sample_name) {
     mutation_rate = unique(mu / total_diff)
   }
   
+  my_purity = purity
   # Final table ####
   final_table_s = obj$data %>% 
     mutate(chr=sub("^chr", "", chr)) %>% 
     mutate(mutation_id=paste0(spn, ":", chr, ":", from,  ":", alt),
            patient_id=spn,
            coverage=coverage,
-           purity=purity,
+           purity=my_purity,
            tool=tool,
            ccf_tool=VAF) %>% 
     select(patient_id, sample_id, coverage, purity, tool, mutation_id, driver_label, is_driver, cluster, VAF, ccf_tool) %>% 

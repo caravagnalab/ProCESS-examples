@@ -1,4 +1,4 @@
-get_clonal_cluster_tool = function(final_table) {
+get_clonal_cluster_tool = function(final_table, tool = 'a') {
   theta_long = final_table %>%
     group_by(sample_id, cluster_id_tool) %>%
     summarize(mean_ccf=mean(ccf_tool, na.rm=TRUE), .groups="drop")
@@ -10,11 +10,43 @@ get_clonal_cluster_tool = function(final_table) {
     ) %>%
     select(-sample_id)
   
+  if(tool == 'viber'){
+    theta = theta %>%
+      select(where(~ !all(. > 1.3)))
+  }
+  
   max_colnames = apply(theta, 1, function(row) {
     names(row)[which(row == max(row))]
   }) # Extract all clusters which have max ccf for each sample (because in one sample there can be more than one cluster with ccf == 1)
   
-  names(which.max(table(unlist(max_colnames)))) # extract the cluster which appear more frequently (i.e. possibly in all the samples)
+  # count frequencies
+  freq = table(unlist(max_colnames))
+  
+  # check if there is a tie for top frequency
+  top_freq <- max(freq)
+  n_top <- sum(freq == top_freq)
+  
+  if(n_top > 1){
+  ordered_clusters = theta %>%
+    mutate(max_col = colnames(.)[max.col(., ties.method = "first")]) %>%
+    count(max_col, sort = TRUE) #first row = most frequent
+  
+  result <- ordered_clusters$max_col[
+    sapply(ordered_clusters$max_col, function(cl) all(theta[[cl]] > 0.95))
+  ][1]
+  
+  if(is.na(result)){
+    result = theta %>%
+      select(where(~ all(. > 0.9))) %>%
+      names()
+  }
+  
+  }else{
+    result = names(which.max(table(unlist(max_colnames)))) # extract the cluster which appear more frequently (i.e. possibly in all the samples)
+    # for each cluster in this list we need to check that all the samples have ccf>0.95
+  }
+  
+  return(result)
 }
 
 
