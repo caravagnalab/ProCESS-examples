@@ -11,7 +11,7 @@ option_list <- list(make_option(c("--spn_id"), type = "character", default = 'SP
                     make_option(c("--coverage"), type = "integer", default = 50),
                     make_option(c("--cna_caller"), type = "character", default = 'ascat'),
                     make_option(c("--vcf_caller"), type = "character", default = 'mutect2'),
-                    make_option(c("--signature"), type = "character", default = 'SigProfiler'),
+                    make_option(c("--signature"), type = "character", default = 'BASCULE'),
                     make_option(c("--new"), type = "logical", default = TRUE)
 )
 
@@ -101,7 +101,7 @@ for (tool in c('pyclonevi', 'viber')){
       table_raw <- raw %>% 
         left_join(mut_ids) %>% 
         select(chr,  from, ref, alt, cluster_id_tool) %>% 
-        rename(cluster = cluster_id_tool) %>% 
+        dplyr::rename(cluster = cluster_id_tool) %>% 
         dplyr::mutate(Project = spn, Genome = 'GRCh38', mut_type = 'SNP', Type = 'SOMATIC', ID = cluster, Sample = cluster) %>%
         dplyr::rename(chrom = chr, pos_start = from) %>%
         rowwise() %>%
@@ -113,7 +113,7 @@ for (tool in c('pyclonevi', 'viber')){
       table_int <- int %>% 
         left_join(mut_ids) %>% 
         select(chr,  from, ref, alt, cluster_id_tool_interpreted) %>% 
-        rename(cluster = cluster_id_tool_interpreted) %>% 
+        dplyr::rename(cluster = cluster_id_tool_interpreted) %>% 
         dplyr::mutate(Project = spn, Genome = 'GRCh38', mut_type = 'SNP', Type = 'SOMATIC', ID = cluster, Sample = cluster) %>%
         dplyr::rename(chrom = chr, pos_start = from) %>%
         rowwise() %>%
@@ -150,10 +150,16 @@ for (tool in c('pyclonevi', 'viber')){
         c_type = "83"
       }
       
+      if (signature_tool == 'SigProfiler'){
+        signature_tool_te = 'sigprofiler'
+      } else {
+        signature_tool_te = signature_tool
+      }
+      
       data_signature <- get_tumourevo_signatures(spn = spn, 
                                                  coverage = cov, 
                                                  purity = pur, 
-                                                 tool = signature_tool,
+                                                 tool = signature_tool_te,
                                                  vcf_caller = mut_caller,
                                                  cna_caller = cna_caller,
                                                  context = context)

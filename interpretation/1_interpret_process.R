@@ -6,9 +6,11 @@ library(optparse)
 library(patchwork)
 source('../getters/tumourevo_getters.R')
 source('../getters/process_getters.R')
-source("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/validation/SCOUT/colors.R")
+source("../validation/SCOUT/colors.R")
 
-out = "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/interpretation/"
+out = paste0('/orfeo/cephfs/scratch/cdslab/shared/SCOUT/interpretation/')
+dir.create(out, recursive = T, showWarnings = F)
+
 base = '/orfeo/cephfs/scratch/cdslab/shared/SCOUT/validation_subclonal_new/tables/'
 
 color_palette_process = RColorBrewer::brewer.pal(n = 8, name = "Dark2") 
@@ -395,23 +397,23 @@ names(color_palette_process) <- df_all$cluster %>% unique()
 color_palette_process['Subclonal'] = 'gray70'
 
 df_all <- readRDS(paste0(out, 'process.rds'))
-plt <- df_all %>% 
+plt <- df_all %>%
   pivot_longer(cols = c(score_driver, score_all, score_tail, score_no_driver, score_no_tail, score_no_sign, score_sign)) %>%
   mutate(name = factor(name, levels = c('score_driver', 'score_tail', 'score_sign','score_no_driver', 'score_no_tail', 'score_no_sign', 'score_all'))) %>%
   ggplot() +
-  annotate("rect", xmin = -Inf, xmax = Inf, ymin = 0.9, ymax = 1, 
-           fill = "palegreen4", alpha = 0.2) + 
-  annotate("rect", xmin = -Inf, xmax = Inf, ymin = 0.55, ymax = .9, 
-           fill = "goldenrod", alpha = 0.2) + 
-  annotate("rect", xmin = -Inf, xmax = Inf, ymin = 0.2, ymax = 0.55, 
-           fill = "salmon1", alpha = 0.2) + 
-  annotate("rect", xmin = -Inf, xmax = Inf, ymin = 0.2, ymax = 0, 
+  annotate("rect", xmin = -Inf, xmax = Inf, ymin = 0.9, ymax = 1,
+           fill = "palegreen4", alpha = 0.2) +
+  annotate("rect", xmin = -Inf, xmax = Inf, ymin = 0.55, ymax = .9,
+           fill = "goldenrod", alpha = 0.2) +
+  annotate("rect", xmin = -Inf, xmax = Inf, ymin = 0.2, ymax = 0.55,
+           fill = "salmon1", alpha = 0.2) +
+  annotate("rect", xmin = -Inf, xmax = Inf, ymin = 0.2, ymax = 0,
            fill = "gainsboro", alpha = 0.2) +
   stat_summary(
     aes(x = name, y = value, color = cluster),
     fun.data = mean_cl_boot,
     position = position_dodge(width = 0.3),
-    size = .4, 
+    size = .4,
     show.legend = T
   ) +
   stat_summary(
@@ -422,11 +424,11 @@ plt <- df_all %>%
     linewidth=.6,
     show.legend = F
   ) +
-  #geom_text(data = ~ filter(.x, contains_driver & name == 'score_all'), aes(x = name, y = value+0.03, col = cluster, group = cluster, label = driver_label_process)) + 
+  #geom_text(data = ~ filter(.x, contains_driver & name == 'score_all'), aes(x = name, y = value+0.03, col = cluster, group = cluster, label = driver_label_process)) +
   theme_minimal() +
   ylab('Score') +
-  xlab('')+ 
-  scale_color_manual('Cluster', 
+  xlab('')+
+  scale_color_manual('Cluster',
                      values = color_palette_process) +
   scale_x_discrete(labels = c('score_driver' = 'Driver',
                               'score_tail'   = 'Tail',
@@ -437,6 +439,6 @@ plt <- df_all %>%
                               'score_all'    = 'All')) +
   facet_wrap(.~spn)
 
-ggsave(plot = plt, 
-       filename = "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/interpretation/plot_process/process.png",
+ggsave(plot = plt,
+       filename = paste0(out, "/plot_process/process.png"),
        width = 12, height = 9, units = 'in', dpi = 200)

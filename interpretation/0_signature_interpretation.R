@@ -1,14 +1,15 @@
 setwd('/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/assign_signature')
 .libPaths("/orfeo/LTS/LADE/LT_storage/lvaleriani/R/x86_64-pc-linux-gnu-library/4.4/")
-library(ProCESS)
 library(tidyverse)
-library(optparse)
-library(patchwork)
 source('../getters/tumourevo_getters.R')
 source('../getters/process_getters.R')
-source("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/validation/SCOUT/colors.R")
 
-indir = "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/assign_signature_new/"
+indir = "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/assign_signature/"
+
+mut_caller = "mutect2"
+cna_caller = "sequenza"
+out_path = paste0('/orfeo/cephfs/scratch/cdslab/shared/SCOUT/interpretation/interpretation_', mut_caller, "_", cna_caller, '/')
+dir.create(out_path, recursive = T, showWarnings = F)
 
 
 cosine_similarity <- function(vec1, vec2) {
@@ -62,20 +63,15 @@ compare_signatures <- function(df1, df2) {
 }
 
 
-
+spn = 'SPN02'
 cov = 100
 pur = 0.9
-tool = 'viber'
-signature_tool = 'SigProfiler'
+tool = 'pyclonevi'
+signature_tool = 'BASCULE'
 sign_type='SBS'
-
-mut_caller= 'mutect2'
-cna_caller = 'ascat'
 
 
 spn_list = paste0('SPN0', c(1,2,3,4,5,6,7))
-spn = 'SPN02'
-
 summary_table <- tibble()
 final_table <- tibble()
 for (spn in spn_list){
@@ -88,10 +84,8 @@ for (spn in spn_list){
             #print(c(spn, cov, pur, tool, signature_tool, sign_type))
             if (sign_type == 'SBS'){
               s_type = 'SBS96'
-              colors = sbs_colors
             } else {
               s_type = 'ID83'
-              colors = id_colors
             }
             
             type='raw'
@@ -135,7 +129,7 @@ for (spn in spn_list){
             
             if (!is.null(df)){
             
-              mutations <-  readRDS(paste0('/orfeo/cephfs/scratch/cdslab/shared/SCOUT//validation_subclonal_new/tables_interpreted/', tool, '_', spn, '_', cov, 'x_', pur, 'p_', mut_caller, '_', cna_caller, '.rds'))
+              mutations <-  readRDS(paste0('/orfeo/cephfs/scratch/cdslab/shared/SCOUT/validation_subclonal_new/tables_interpreted/', tool, '_', spn, '_', cov, 'x_', pur, 'p_', mut_caller, '_', cna_caller, '.rds'))
               clonal <- mutations %>% filter(is_clonal_tool == T) %>% pull(cluster_id_tool) %>% unique()
               if (length(clonal) > 0){
               
@@ -209,4 +203,4 @@ for (spn in spn_list){
     }
   }
 }
-saveRDS(summary_table, '/orfeo/cephfs/scratch/cdslab/shared/SCOUT/interpretation/signature_deconvolution_summary.rds')
+saveRDS(summary_table, paste0(out_path,'signature_deconvolution_summary.rds'))

@@ -1,45 +1,32 @@
-library(ggplot2)
 library(tidyverse)
-library(ProCESS)
 
-
-spn = 'SPN05'
-purity=0.9
 vcf_caller = "mutect2"
-cna_caller = "ascat"
-coverage = 100
+cna_caller = "sequenza"
+out_path = paste0('/orfeo/cephfs/scratch/cdslab/shared/SCOUT/interpretation/interpretation_', vcf_caller, "_", cna_caller, '/')
+dir.create(out_path, recursive = T, showWarnings = F)
+
+main_path = "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/"
+
+# spn = 'SPN05'
+# purity=0.9
+# coverage = 100
+# tool = 'pyclonevi'
 
 coverage_list = c(50,100,150)
 purity_list = c(0.3, 0.6, 0.9)
-vcf_caller_list = c("mutect2")
-cna_caller_list = c("ascat")
 spn_list = c('SPN01', 'SPN02', 'SPN03', 'SPN04','SPN05', 'SPN06', 'SPN07')
 tool_list = c( 'viber', 'pyclonevi')
 
-tool = 'pyclonevi'
-
 combs = expand.grid(coverage=coverage_list,
                     purity=purity_list,
-                    vcf_caller=vcf_caller_list,
-                    cna_caller=cna_caller_list,
                     spn=spn_list,
                     tool=tool_list)
 
-github_path = '/orfeo/cephfs/scratch/cdslab/erivar00/GitHub/ProCESS-examples/'
-main_path = "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/"
-save_path = file.path(github_path, "validation/Subclonal_deconvolution/")
-
-source(file.path(save_path, "generate_table_main.R"))
-source(file.path(save_path, "utils_tables.R"))
-
 df_to_save = data.frame()
-
 for(i in 1:nrow(combs)){
   
   coverage = combs[i, "coverage"]
   purity = combs[i, "purity"]
-  vcf_caller = combs[i, "vcf_caller"]
-  cna_caller = combs[i, "cna_caller"]
   spn = combs[i, "spn"]
   tool = combs[i, "tool"]
   
@@ -119,15 +106,6 @@ for(i in 1:nrow(combs)){
     select(cluster_id_tool, driver_label_process) %>% 
     distinct()
   
-  # contains_tail = final_table %>%
-  #   group_by(cluster_id_tool) %>%
-  #   summarise(
-  #     total_mutations = n(),
-  #     tail_mutations = sum(mobster_cluster == "Tail", na.rm = TRUE),
-  #     percent_tail = round(100 * tail_mutations / total_mutations, 3)
-  #   ) %>%
-  #   ungroup()
-  
   contains_tail_patient = final_table %>%
     group_by(cluster_id_tool, sample_id) %>%
     summarise(
@@ -186,4 +164,4 @@ for(i in 1:nrow(combs)){
   df_to_save = bind_rows(df_to_save, final_df)
 }
 
-saveRDS(df_to_save, '/orfeo/cephfs/scratch/cdslab/shared/SCOUT/interpretation/subclonal_deconvolution.rds')
+saveRDS(df_to_save, paste0(out_path, 'subclonal_deconvolution.rds'))

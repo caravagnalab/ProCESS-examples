@@ -1,10 +1,7 @@
-library(ggplot2)
+setwd('/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/assign_signature')
+.libPaths("/orfeo/LTS/LADE/LT_storage/lvaleriani/R/x86_64-pc-linux-gnu-library/4.4/")
+
 library(tidyverse)
-library(ProCESS)
-library(ggalluvial)
-library(purrr)
-library(stringr)
-library(ggtext)  
 
 classify_expansion <- function(score, is_clonal) {
   case_when(
@@ -18,10 +15,14 @@ classify_expansion <- function(score, is_clonal) {
 expansion_levels <- c('Clonal', 'Strong\nExpansion', 'Medium\nExpansion', 'Low\nExpansion', 'Neutral\nExpansion')
 score_types <- c("all", 'no_tail', 'no_driver', 'no_sign')
 
-results <- readRDS('/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/interpretation/performance_cluster.rds')
+
+vcf_caller = "mutect2"
+cna_caller = "sequenza"
+base = paste0('/orfeo/cephfs/scratch/cdslab/shared/SCOUT/interpretation/interpretation_', vcf_caller, "_", cna_caller, '/')
+
+results <- readRDS(paste0(base, '/performance_cluster.rds'))
 
 results_class <- results %>%
-  filter(spn!='SPN02') %>% 
   mutate(across(
     all_of(paste0("score_", score_types, "_process")),
     ~ factor(classify_expansion(.x, cluster_process == 'Clonal'), levels = expansion_levels),
@@ -83,11 +84,11 @@ confusion_per_group_class <- map_dfr(score_types, function(st) {
     Accuracy    = (TP + TN) / (TP + TN + FP + FN)
   )
 
-saveRDS(object = confusion_per_group_class, file = '/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/interpretation/confusion_cluster.rds')
+saveRDS(object = confusion_per_group_class, file = paste0(base, '/confusion_cluster.rds'))
 
 
 #mutations
-mutations <- readRDS('/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/interpretation/performance_mutations.rds')
+mutations <- readRDS(paste0(base, '/performance_mutations.rds'))
 mutations_class <- mutations %>%
   mutate(across(
     all_of(paste0("score_", score_types, "_process")),
@@ -100,7 +101,7 @@ mutations_class <- mutations %>%
     .names = "{paste0('class_', str_extract(.col, '(?<=score_).+(?=_tool)'), '_tool')}"
   ))
 
-saveRDS(object = mutations_class, file = '/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/interpretation/performance_mutations_class.rds')
+saveRDS(object = mutations_class, file = paste0(base, '/performance_mutations_class.rds'))
 
 classes <- mutations_class %>%
   pull(class_all_process) %>%
@@ -150,5 +151,5 @@ confusion_per_group_class_mutations <- map_dfr(score_types, function(st) {
   )
 
 saveRDS(object = confusion_per_group_class_mutations, 
-        file = '/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/interpretation/confusion_mutations.rds')
+        file = paste0(base, '/confusion_mutations.rds'))
 

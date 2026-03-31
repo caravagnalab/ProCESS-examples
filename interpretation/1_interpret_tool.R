@@ -1,10 +1,14 @@
-library(ggplot2)
-library(tidyverse)
+setwd('/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/assign_signature')
+.libPaths("/orfeo/LTS/LADE/LT_storage/lvaleriani/R/x86_64-pc-linux-gnu-library/4.4/")
 library(ProCESS)
-
-source('/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/validation/SCOUT/colors.R')
-source("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/utils_plot.R")
-source("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/utils.R")
+library(tidyverse)
+library(optparse)
+library(patchwork)
+source('../getters/tumourevo_getters.R')
+source('../getters/process_getters.R')
+source("../validation/SCOUT/colors.R")
+source("../figures/figure3/utils_plot.R")
+source("../figures/figure3/utils.R")
 
 
 df_score <- tibble(spn = paste0('SPN0', 1:7),
@@ -32,17 +36,17 @@ colors_cluster = c('indianred',
 names(colors_cluster) = paste0('C',0:15)
 
 vcf_caller = "mutect2"
-cna_caller = "ascat"
+cna_caller = "sequenza"
+base = paste0('/orfeo/cephfs/scratch/cdslab/shared/SCOUT/interpretation/interpretation_', vcf_caller, "_", cna_caller, '/')
+dir.create(paste0(base, '/plot_int'), recursive = T, showWarnings = F)
+dir.create(paste0(base, '/res_int'), recursive = T, showWarnings = F)
 
 coverage_list = c(50, 100, 150)
 purity_list = c(0.9, 0.6, 0.3)
-vcf_caller_list = c("mutect2")
-cna_caller_list = c("ascat")
 spn_list = c('SPN01', 'SPN02', 'SPN03', 'SPN04','SPN05', 'SPN06', 'SPN07')
 tool_list = c( 'viber', 'pyclonevi')
 sig_tool_list = c('BASCULE', 'SigProfiler')
 
-base <- '/orfeo/cephfs/scratch/cdslab/shared/SCOUT/interpretation'
 subclonal <- readRDS(paste0(base, '/subclonal_deconvolution.rds')) %>% 
   dplyr::rename(spn = patient_id, 
                 dec_tool = tool, 
@@ -161,14 +165,13 @@ for (i in 1:nrow(combs)){
     ggtitle(paste0(cov, 'x_',pur, 'p_', tool, '_', s_tool)) + 
     my_ggplot_theme() 
   
-
   
-  name_file = paste0('/orfeo/cephfs/scratch/cdslab/shared/SCOUT/interpretation/plot_int/', cov, 'x_', pur, 'p_', s_tool,'_',tool, '.png')
+  name_file = paste0(base,'/plot_int/', cov, 'x_', pur, 'p_', s_tool,'_',tool, '.png')
   ggsave(plot = plt,
          filename = name_file,
          dpi = 400,
          width = 10, height = 10)
 
-  path = paste0('/orfeo/cephfs/scratch/cdslab/shared/SCOUT/interpretation/res_int/', cov, 'x_', pur, 'p_', s_tool,'_',tool)
+  path = paste0(base, '/res_int/', cov, 'x_', pur, 'p_', s_tool,'_',tool)
   saveRDS(object = interpret_table %>% filter(total_mutations > 200), file = paste0(path, '_df.rds'))
 }

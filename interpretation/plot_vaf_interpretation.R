@@ -6,14 +6,15 @@ library(optparse)
 library(patchwork)
 source('../getters/tumourevo_getters.R')
 source('../getters/process_getters.R')
-source("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/validation/SCOUT/colors.R")
+source("../validation/SCOUT/colors.R")
 
-indir = "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/assign_signature_new/"
-indir_process= "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/assign_signature_new/"
+indir = "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/assign_signature/"
+indir_process= "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/assign_signature/"
+
 option_list <- list(make_option(c("--spn_id"), type = "character", default = 'SPN02'),
                     make_option(c("--purity"), type = "double", default = 0.3),
                     make_option(c("--coverage"), type = "integer", default = 150),
-                    make_option(c("--cna_caller"), type = "character", default = 'ascat'),
+                    make_option(c("--cna_caller"), type = "character", default = 'sequenza'),
                     make_option(c("--vcf_caller"), type = "character", default = 'mutect2'),
                     make_option(c("--signature"), type = "character", default = 'SigProfiler'),
                     make_option(c("--tool"), type = "character", default = 'pyclonevi')
@@ -365,5 +366,7 @@ p_final <- wrap_plots(cluster_plots_samples,
   plot_layout(ncol = 1, 
               heights = heigh)
 
-name_file = paste0('/orfeo/cephfs/scratch/cdslab/shared/SCOUT/interpretation/plot/', spn, '/',spn,'_',cov, 'x_', pur, 'p_', tool,'_',signature_tool,'.png')
+out = paste0('/orfeo/cephfs/scratch/cdslab/shared/SCOUT/interpretation/interpretation_',mut_caller, '_', cna_caller,'/plot/', spn, '/')
+dir.create(out, showWarnings = F, recursive = T)
+name_file = paste0(out, spn,'_',cov, 'x_', pur, 'p_', tool,'_',signature_tool,'.png')
 ggsave(plot = p_final, filename = name_file, dpi = 400, width = 7, height = 3*(length(pairs)+2)+(length(samples)+2))

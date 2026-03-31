@@ -6,11 +6,11 @@ library(optparse)
 library(patchwork)
 source('../getters/tumourevo_getters.R')
 source('../getters/process_getters.R')
-source("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/validation/SCOUT/colors.R")
-source("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/utils_plot.R")
+source("../validation/SCOUT/colors.R")
+source("../figures/figure3/utils_plot.R")
 
 out = "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/interpretation/"
-base = '/orfeo/cephfs/scratch/cdslab/shared/SCOUT/validation_subclonal/tables/'
+base = '/orfeo/cephfs/scratch/cdslab/shared/SCOUT/validation_subclonal_new/tables/'
 
 
 spn='SPN04'

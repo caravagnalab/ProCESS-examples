@@ -11,12 +11,18 @@ library(ggtext)
 
 source('../getters/tumourevo_getters.R')
 source('../getters/process_getters.R')
-source("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/validation/SCOUT/colors.R")
-source("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/utils_plot.R")
-source("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/utils.R")
+source("../validation/SCOUT/colors.R")
+source("../figures/figure3/utils_plot.R")
+source("../figures/figure3/utils.R")
 
-out = "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/interpretation/"
-base = '/orfeo/cephfs/scratch/cdslab/shared/SCOUT/validation_subclonal/tables/'
+
+base_subclonal = '/orfeo/cephfs/scratch/cdslab/shared/SCOUT/validation_subclonal/tables/'
+
+vcf_caller = "mutect2"
+cna_caller = "sequenza"
+base_int = paste0('/orfeo/cephfs/scratch/cdslab/shared/SCOUT/interpretation/interpretation_', vcf_caller, "_", cna_caller)
+out = paste0(base_int, '/plot_performance/')
+dir.create(out, showWarnings = F, recursive = T)
 
 color_palette_process = RColorBrewer::brewer.pal(n = 8, name = "Dark2") 
 names(color_palette_process) <- c('Clonal', paste0('Clone ', 1:7))
@@ -55,29 +61,27 @@ s_tool = 'SigProfiler'
 
 coverage_list = c(50, 100, 150)
 purity_list = c(0.9, 0.6, 0.3)
-vcf_caller_list = c("mutect2")
-cna_caller_list = c("ascat")
 spn_list = c('SPN01', 'SPN02', 'SPN03', 'SPN04','SPN05', 'SPN06', 'SPN07')
 tool_list = c( 'viber', 'pyclonevi')
 sig_tool_list = c('BASCULE', 'SigProfiler')
 
-# combs = expand.grid(spn = spn_list, 
-#                     coverage=coverage_list,
-#                     purity=purity_list,
-#                     tool=tool_list,
-#                     sig_tool = sig_tool_list)
-# results <- lapply(1:nrow(combs), FUN = function(i){
-#   sp = combs[i, "spn"]
-#   cov = combs[i, "coverage"]
-#   pur = combs[i, "purity"]
-#   s_tool = combs[i, "sig_tool"]
-#   tool = combs[i, "tool"]
+combs = expand.grid(spn = spn_list,
+                    coverage=coverage_list,
+                    purity=purity_list,
+                    tool=tool_list,
+                    sig_tool = sig_tool_list)
 
-full_class_mutations <- readRDS('/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/interpretation/performance_mutations_class.rds')
-for (sp in spn_list){
+full_class_mutations <- readRDS(paste0(base_int,'/performance_mutations_class.rds'))
+for (i in 1:nrow(combs)){
+  cov = combs[i, "coverage"]
+  pur = combs[i, "purity"]
+  s_tool = combs[i, "sig_tool"]
+  tool = combs[i, "tool"]
+  sp = combs[i, "spn"]
 
-  df_process <- readRDS(paste0(out, 'process.rds')) %>% 
+  df_process <- readRDS(paste0('/orfeo/cephfs/scratch/cdslab/shared/SCOUT/interpretation/process.rds')) %>% 
     filter(spn == sp, coverage == cov, purity == pur)
+  
   plt_process <- df_process %>% 
     pivot_longer(cols = c(score_driver, score_all, score_tail, score_no_driver, score_no_tail, score_no_sign, score_sign)) %>%
     mutate(name = factor(name, levels = c('score_driver', 'score_tail', 'score_sign','score_no_driver', 'score_no_tail', 'score_no_sign', 'score_all'))) %>%
@@ -107,7 +111,7 @@ for (sp in spn_list){
     my_ggplot_theme()  +
     ggtitle(paste0(cov, 'x_',pur, 'p_ProCESS'))
   
-  df_tool = readRDS(paste0('/orfeo/cephfs/scratch/cdslab/shared/SCOUT/interpretation/res_int/', cov, 'x_', pur, 'p_', s_tool,'_',tool, '_df.rds')) %>% 
+  df_tool = readRDS(paste0(base_int, '/res_int/', cov, 'x_', pur, 'p_', s_tool,'_',tool, '_df.rds')) %>% 
     filter(spn == sp)
   
   plt_tool <- df_tool %>%
@@ -211,6 +215,6 @@ for (sp in spn_list){
   
   plt <- plt_process + plt_tool + wrap_plots(plt_score)+ plot_layout(design = 'AB\nCC\nCC')
   ggsave(plot =  plt, 
-         filename = paste0('/orfeo/cephfs/scratch/cdslab/shared/SCOUT/interpretation/plot_performance/', sp, '_', cov, 'x_', pur, 'p_', s_tool,'_',tool, '.png'),
+         filename = paste0(out, sp, '_', cov, 'x_', pur, 'p_', s_tool,'_',tool, '.png'),
          height = 9, width = 11)
 }
