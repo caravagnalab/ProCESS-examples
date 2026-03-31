@@ -32,3 +32,4 @@
 sequenza/test/*
 sequenza/data/*
 **.nextflow*
+nf-validation/samplesheet.csv
