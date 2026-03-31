@@ -18,8 +18,15 @@ source("../figures/figure3/utils.R")
 
 base_subclonal = '/orfeo/cephfs/scratch/cdslab/shared/SCOUT/validation_subclonal/tables/'
 
-vcf_caller = "mutect2"
-cna_caller = "sequenza"
+option_list <- list(make_option(c("--cna_caller"), type = "character", default = 'sequenza'),
+                    make_option(c("--vcf_caller"), type = "character", default = 'mutect2')
+)
+
+opt_parser <- OptionParser(option_list = option_list)
+opt <- parse_args(opt_parser)
+
+vcf_caller = opt$vcf_caller #"mutect2"
+cna_caller = opt$cna_caller #"sequenza"
 base_int = paste0('/orfeo/cephfs/scratch/cdslab/shared/SCOUT/interpretation/interpretation_', vcf_caller, "_", cna_caller)
 out = paste0(base_int, '/plot_performance/')
 dir.create(out, showWarnings = F, recursive = T)

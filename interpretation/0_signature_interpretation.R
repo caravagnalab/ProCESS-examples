@@ -1,16 +1,24 @@
 setwd('/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/assign_signature')
 .libPaths("/orfeo/LTS/LADE/LT_storage/lvaleriani/R/x86_64-pc-linux-gnu-library/4.4/")
 library(tidyverse)
+library(optparse)
 source('../getters/tumourevo_getters.R')
 source('../getters/process_getters.R')
 
-indir = "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/assign_signature/"
+option_list <- list(make_option(c("--cna_caller"), type = "character", default = 'sequenza'),
+                    make_option(c("--vcf_caller"), type = "character", default = 'mutect2')
+)
 
-mut_caller = "mutect2"
-cna_caller = "sequenza"
+opt_parser <- OptionParser(option_list = option_list)
+opt <- parse_args(opt_parser)
+
+mut_caller = opt$vcf_caller #"mutect2"
+cna_caller = opt$cna_caller #"sequenza"
 out_path = paste0('/orfeo/cephfs/scratch/cdslab/shared/SCOUT/interpretation/interpretation_', mut_caller, "_", cna_caller, '/')
 dir.create(out_path, recursive = T, showWarnings = F)
 
+
+indir = "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/assign_signature/"
 
 cosine_similarity <- function(vec1, vec2) {
   sum(vec1 * vec2) / (sqrt(sum(vec1^2)) * sqrt(sum(vec2^2)))

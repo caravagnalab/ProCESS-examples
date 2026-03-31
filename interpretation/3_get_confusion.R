@@ -2,6 +2,7 @@ setwd('/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/assign_signa
 .libPaths("/orfeo/LTS/LADE/LT_storage/lvaleriani/R/x86_64-pc-linux-gnu-library/4.4/")
 
 library(tidyverse)
+library(optparse)
 
 classify_expansion <- function(score, is_clonal) {
   case_when(
@@ -16,8 +17,15 @@ expansion_levels <- c('Clonal', 'Strong\nExpansion', 'Medium\nExpansion', 'Low\n
 score_types <- c("all", 'no_tail', 'no_driver', 'no_sign')
 
 
-vcf_caller = "mutect2"
-cna_caller = "sequenza"
+option_list <- list(make_option(c("--cna_caller"), type = "character", default = 'sequenza'),
+                    make_option(c("--vcf_caller"), type = "character", default = 'mutect2')
+)
+
+opt_parser <- OptionParser(option_list = option_list)
+opt <- parse_args(opt_parser)
+
+vcf_caller = opt$vcf_caller #"mutect2"
+cna_caller = opt$cna_caller #"sequenza"
 base = paste0('/orfeo/cephfs/scratch/cdslab/shared/SCOUT/interpretation/interpretation_', vcf_caller, "_", cna_caller, '/')
 
 results <- readRDS(paste0(base, '/performance_cluster.rds'))

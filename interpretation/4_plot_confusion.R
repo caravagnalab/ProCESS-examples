@@ -18,8 +18,15 @@ color_class <- c("palegreen4","darkseagreen", "goldenrod", "indianred", "gray")
 names(color_class) <- c('Clonal', 'Strong\nExpansion', 'Medium\nExpansion', 'Low\nExpansion', 'Neutral\nExpansion')
 color_score <- c('plum4', 'darkseagreen4', 'cadetblue4', 'salmon2')
 
-vcf_caller = "mutect2"
-cna_caller = "sequenza"
+option_list <- list(make_option(c("--cna_caller"), type = "character", default = 'sequenza'),
+                    make_option(c("--vcf_caller"), type = "character", default = 'mutect2')
+)
+
+opt_parser <- OptionParser(option_list = option_list)
+opt <- parse_args(opt_parser)
+
+vcf_caller = opt$vcf_caller #"mutect2"
+cna_caller = opt$cna_caller #"sequenza"
 base = paste0('/orfeo/cephfs/scratch/cdslab/shared/SCOUT/interpretation/interpretation_', vcf_caller, "_", cna_caller, '/')
 
 

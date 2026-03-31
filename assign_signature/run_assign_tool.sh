@@ -47,7 +47,13 @@ echo $spn
 echo $purity
 echo $coverage
 
-Rscript ${path}/assign_signature/assign_tool.R --spn_id "${spn}" --coverage "$coverage" --purity "$purity" --signature "SigProfiler" --cna_caller "sequenza"
-Rscript ${path}/assign_signature/assign_tool.R --spn_id "${spn}" --coverage "$coverage" --purity "$purity" --signature "BASCULE" --cna_caller "sequenza"
+vcf='mutect2'
+cna='ascat'
+
+echo $vcf
+echo $cna
+
+Rscript ${path}/assign_signature/assign_tool.R --spn_id "${spn}" --coverage "$coverage" --purity "$purity" --signature "SigProfiler" --cna_caller ${cna} --vcf_caller ${vcf}
+Rscript ${path}/assign_signature/assign_tool.R --spn_id "${spn}" --coverage "$coverage" --purity "$purity" --signature "BASCULE" --cna_caller ${cna} --vcf_caller ${vcf}
 
 

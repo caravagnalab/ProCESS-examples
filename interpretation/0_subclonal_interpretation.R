@@ -1,7 +1,19 @@
-library(tidyverse)
+setwd('/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/assign_signature')
+.libPaths("/orfeo/LTS/LADE/LT_storage/lvaleriani/R/x86_64-pc-linux-gnu-library/4.4/")
 
-vcf_caller = "mutect2"
-cna_caller = "sequenza"
+library(tidyverse)
+library(optparse)
+
+option_list <- list(make_option(c("--cna_caller"), type = "character", default = 'sequenza'),
+                    make_option(c("--vcf_caller"), type = "character", default = 'mutect2')
+)
+
+opt_parser <- OptionParser(option_list = option_list)
+opt <- parse_args(opt_parser)
+
+vcf_caller = opt$vcf_caller #"mutect2"
+cna_caller = opt$cna_caller #"sequenza"
+
 out_path = paste0('/orfeo/cephfs/scratch/cdslab/shared/SCOUT/interpretation/interpretation_', vcf_caller, "_", cna_caller, '/')
 dir.create(out_path, recursive = T, showWarnings = F)
 

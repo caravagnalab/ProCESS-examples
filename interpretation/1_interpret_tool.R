@@ -35,8 +35,16 @@ colors_cluster = c('indianred',
                    'black')
 names(colors_cluster) = paste0('C',0:15)
 
-vcf_caller = "mutect2"
-cna_caller = "sequenza"
+option_list <- list(make_option(c("--cna_caller"), type = "character", default = 'sequenza'),
+                    make_option(c("--vcf_caller"), type = "character", default = 'mutect2')
+)
+
+opt_parser <- OptionParser(option_list = option_list)
+opt <- parse_args(opt_parser)
+
+vcf_caller = opt$vcf_caller #"mutect2"
+cna_caller = opt$cna_caller #"sequenza"
+
 base = paste0('/orfeo/cephfs/scratch/cdslab/shared/SCOUT/interpretation/interpretation_', vcf_caller, "_", cna_caller, '/')
 dir.create(paste0(base, '/plot_int'), recursive = T, showWarnings = F)
 dir.create(paste0(base, '/res_int'), recursive = T, showWarnings = F)
