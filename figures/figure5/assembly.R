@@ -8,8 +8,17 @@ names(color_class) <- c('Clonal', 'Strong\nExpansion', 'Medium\nExpansion', 'Low
 
 color_score <- c('plum4', 'darkseagreen4', 'cadetblue4', 'salmon2')
 
-confusion_per_group_class <- readRDS('/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/interpretation/confusion_cluster.rds')
-confusion_per_group_class_mutations <- readRDS('/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/interpretation/confusion_mutations.rds')
+pairs <- c('mutect2_ascat','strelka_ascat', 'mutect2_sequenza')
+confusion_per_group_class <- lapply(pairs, FUN = function(p){
+  readRDS(paste0('/orfeo/cephfs/scratch/cdslab/shared/SCOUT/interpretation/interpretation_',p, '/confusion_cluster.rds')) %>% 
+    mutate(pair = p) %>% 
+    tidyr::separate(pair, into = c('mut_caller', 'cna_caller'), sep = '_')
+}) %>% bind_rows()
+confusion_per_group_class_mutations <- lapply(pairs,FUN = function(p){
+    readRDS(paste0('/orfeo/cephfs/scratch/cdslab/shared/SCOUT/interpretation/interpretation_',p, '/confusion_mutations.rds')) %>% 
+      mutate(pair = p) %>% 
+      tidyr::separate(pair, into = c('mut_caller', 'cna_caller'), sep = '_')
+  }) %>% bind_rows()
 
 cluster <- confusion_per_group_class %>%
   pivot_longer(cols = c(Precision, Recall, Specificity, F1, Accuracy)) %>%
