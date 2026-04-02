@@ -47,7 +47,7 @@ echo $spn
 echo $purity
 echo $coverage
 
-vcf='mutect2'
+vcf='strelka'
 cna='ascat'
 
 echo $vcf

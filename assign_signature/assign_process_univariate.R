@@ -8,13 +8,13 @@ source('../getters/process_getters.R')
 
 out = "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/assing_signature/"
 
-option_list <- list(make_option(c("--spn_id"), type = "character", default = 'SPN04')
+option_list <- list(make_option(c("--spn_id"), type = "character", default = 'SPN01')
 )
 
 opt_parser <- OptionParser(option_list = option_list)
 opt <- parse_args(opt_parser)
 
-base = '/orfeo/cephfs/scratch/cdslab/shared/SCOUT/validation_subclonal/tables/'
+base = '/orfeo/cephfs/scratch/cdslab/shared/SCOUT/validation_subclonal_new/tables/'
 spn = opt$spn_id
 
 get_exposure <- function(table){
@@ -62,7 +62,7 @@ for (cov in c(50,100,150)){
     # correct name of clusters
     table <- table %>% 
       group_by(cluster_id_process, sample_id) %>%
-      mutate(is_clonal_process=replace(FALSE, ccf_process > 0.9, TRUE)) %>% 
+      mutate(is_clonal_process=replace(FALSE, ccf_process > 0.95, TRUE)) %>% 
       ungroup() %>%
       mutate(cluster_id_process_full = cluster_id_process) %>%
       mutate(cluster_id_process = replace(cluster_id_process_full, is_clonal_process==TRUE, 'Clonal')) %>% 

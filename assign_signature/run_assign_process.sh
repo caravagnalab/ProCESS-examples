@@ -32,5 +32,5 @@ spn=${spns[$spn_idx]}
 path="/orfeo/scratch/area/lvaleriani/races/ProCESS-examples"
 
 echo $spn
-Rscript ${path}/assign_signature/assign_process.R --spn_id "${spn}"
+#Rscript ${path}/assign_signature/assign_process.R --spn_id "${spn}"
 Rscript ${path}/assign_signature/assign_process_univariate.R --spn_id "${spn}"
