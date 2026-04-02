@@ -1,7 +1,7 @@
 source('/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/validation/drivers/plot_driver.R')
-source('/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/old_figure5/signatures_cohort/signatures.R')
+source('/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/figure4//signatures.R')
 source('/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/figure4/subclone_mobster.R')
-source('/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/old_figure4/js.R')
+source('/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/figure4/js.R')
 
 p_all <- 
   ggplot() + labs(tag = "A") +

@@ -41,7 +41,7 @@ plt <- cluster %>%
   scale_color_manual('ProCESS Class', values = color_class) +
   scale_fill_manual('ProCESS Class', values = color_class) +
   my_ggplot_theme() +
-  facet_grid(type~.) +
+  ggh4x::facet_grid2(type~mut_caller+cna_caller) +
   ylab('Class Assignment\nAccuracy')  +
   xlab('') + 
   ylim(0,1)

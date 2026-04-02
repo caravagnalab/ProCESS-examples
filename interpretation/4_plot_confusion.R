@@ -78,3 +78,5 @@ all_metrics_score <- confusion_per_group_class %>%
 
 ggsave(filename = paste0(base, "/plot_score.pdf"), 
        plot = all_metrics_score, device="pdf", width=8.5, height=6, units="in")
+
+
