@@ -41,5 +41,5 @@ plt_jaccard <- df_jaccard %>%
   my_ggplot_theme() +
   ylab('Clonal cluster mutation assignment\nJaccard index') +
   xlab('Tool') #+
-  facet_grid(.~cna_caller)
+  #facet_grid(.~cna_caller)
 
