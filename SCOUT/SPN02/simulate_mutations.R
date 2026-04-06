@@ -24,7 +24,7 @@ mu_ID_clone3 = 7e-9
 mu_CNA_clone3 = 1e-11
 
 m_engine <- MutationEngine(setup_code = "GRCh38", 
-                           context_sampling = 20,
+                           context_sampling = 10,
                            tumour_type = "COADREAD",
                            germline_subject = "HG01113")
 

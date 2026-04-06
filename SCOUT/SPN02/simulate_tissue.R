@@ -1,5 +1,5 @@
 rm(list=ls())
-.libPaths(new = '~/R/rstudio_4_4/')
+#.libPaths(new = '~/R/rstudio_4_4/')
 library(ProCESS)
 library(dplyr)
 library(ggplot2)
@@ -83,11 +83,11 @@ sim$run_up_to_size("Clone 3", 100000)
 # bboxD_lower_corner <- c(255, 400)
 # bboxD_upper_corner <- c(300, 445)
 
-bboxA_lower_corner <- c(350, 500)
-bboxA_upper_corner <- c(395, 545)
+bboxA_lower_corner <- c(375, 500)
+bboxA_upper_corner <- c(420, 545)
 
-bboxB_lower_corner <- c(590, 450)
-bboxB_upper_corner <- c(635, 495)
+bboxB_lower_corner <- c(590, 435)
+bboxB_upper_corner <- c(635, 480)
 
 plot_tissue(sim) +
   # geom_rect(xmin = bboxA_lower_corner[1], xmax = bboxA_upper_corner[1],

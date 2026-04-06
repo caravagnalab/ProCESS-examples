@@ -6,7 +6,7 @@ include { SOMATIC_VALIDATION } from './subworkflows/somatic_validation/main.nf'
 include { CNA_VALIDATION } from './subworkflows/cna_validation/main.nf'
 include { SIGNATURE_VALIDATION } from './subworkflows/signature_validation/main.nf'
 include { DRIVER_VALIDATION } from './subworkflows/driver_validation/main.nf'
-
+include { QC_VALIDATION } from './subworkflows/qc_validation/main.nf'
 workflow {
     samplesheet = params.input ? Channel.fromList(samplesheetToList(params.input, "assets/schema_input.json")) : Channel.empty()
     
@@ -32,8 +32,12 @@ workflow {
         SIGNATURE_VALIDATION(samples_ch_tumour)
     }
     
-        if (params.step && params.step.split(',').contains('driver')){
+    if (params.step && params.step.split(',').contains('driver')){
         DRIVER_VALIDATION(samples_ch_tumour)
+    }
+    
+    if (params.step && params.step.split(',').contains('qc')){
+        QC_VALIDATION(samples_ch_tumour)
     }
 
     //SUBCLONAL_VALIDATION()
