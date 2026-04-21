@@ -1,11 +1,11 @@
-setwd('/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/assign_signature')
+setwd('/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/figure4/')
 .libPaths("/orfeo/LTS/LADE/LT_storage/lvaleriani/R/x86_64-pc-linux-gnu-library/4.4/")
 library(ProCESS)
 library(tidyverse)
 library(optparse)
 library(patchwork)
-source('../getters/tumourevo_getters.R')
-source('../getters/process_getters.R')
+source('../../getters/tumourevo_getters.R')
+source('../../getters/process_getters.R')
 source('/orfeo/scratch/area/lvaleriani/races/ProCESS-examples/figures/figure3/utils_plot.R')
 
 color_palette_process_uni = RColorBrewer::brewer.pal(n = 8, name = "Set1") 
@@ -45,7 +45,7 @@ class <- c(NA, 'Monoclonal', NA,
            'Monoclonal', 'Polyclonal', 'Monoclonal', 'Monoclonal', NA,
            'Monoclonal', 'Polyclonal', 'Monoclonal', 'Monoclonal', 'Monoclonal')
 sub_class <- c(NA, 'Monoclonal', NA, 
-               'Sampling Bias', 'Sampling Bias', 
+               'Monoclonal', 'Sampling Bias', 
                'Monoclonal', 'Weak evidence','Sampling Bias', 'Polyclonal',
                'Monoclonal', 'Sampling Bias', 
                'Weak evidence','Monoclonal','Weak evidence', 
@@ -63,6 +63,7 @@ for (sp in spns){
   
   samples = get_sample_names(sp)
   
+  s=samples[[1]]
   for (s in samples){
     print(s)
     tmp_name = paste0(sp, '_', s)

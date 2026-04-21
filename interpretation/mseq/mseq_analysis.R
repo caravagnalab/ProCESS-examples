@@ -102,7 +102,7 @@ compare_signatures <- function(df1, df2) {
               'n_tot' = ntot))
 }
 
-base = "/orfeo/cephfs/scratch/area/lvaleriani/te_scripts/results_mseq_no_heuristic_no_filter/"
+base = "/orfeo/cephfs/scratch/area/lvaleriani/te_scripts/results_mseq//"
 patient = 'Set07'
 tool = 'viber'
 
@@ -164,7 +164,7 @@ final_table_subclonal <- subclonal_pyclone %>%
 pairs <- combn(samples[samples != ''], 2, simplify = FALSE)
 cluster_plots_pair <- list()
 
-join_table = read.table('/orfeo/cephfs/scratch/area/lvaleriani/te_scripts/results_mseq_no_heuristic_no_filter/formatter/cnaqc2tsv/MSeq/Set07/MSeq_Set07_joint_table.tsv', header = T, sep = '\t') %>% 
+join_table = read.table('/orfeo/cephfs/scratch/area/lvaleriani/te_scripts/results_mseq/formatter/cnaqc2tsv/MSeq/Set07/MSeq_Set07_joint_table.tsv', header = T, sep = '\t') %>% 
   select(chr, from, to, ref, alt, VAF, Indiv, is_driver, driver_label) %>% 
   mutate(chr = gsub("^chr", "", chr)) %>% 
   mutate(mutation_id = paste(patient,chr, from, alt, sep = ':')) %>% 
@@ -338,6 +338,6 @@ plt <- final_table %>%
   theme_minimal()
 
 final_plt <- wrap_plots(plt_multivariate, plt, plt_signature) + plot_layout(design = 'AA\nAA\nAA\nAA\nAA\nAA\nAA\nAA\nBC')
-ggsave(filename = '/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/interpretation/mseq_06_no_filter_no_heuristic.png',
+ggsave(filename = '/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/interpretation/mseq_06.png',
        plot = final_plt, width = 10, height = 18)
 

@@ -4,7 +4,7 @@ setwd('/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/assign_signa
 library(tidyverse)
 library(optparse)
 
-option_list <- list(make_option(c("--cna_caller"), type = "character", default = 'sequenza'),
+option_list <- list(make_option(c("--cna_caller"), type = "character", default = 'ascat'),
                     make_option(c("--vcf_caller"), type = "character", default = 'mutect2')
 )
 

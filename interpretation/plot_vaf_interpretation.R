@@ -11,13 +11,22 @@ source("../validation/SCOUT/colors.R")
 indir = "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/assign_signature/"
 indir_process= "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/assign_signature/"
 
-option_list <- list(make_option(c("--spn_id"), type = "character", default = 'SPN02'),
-                    make_option(c("--purity"), type = "double", default = 0.3),
-                    make_option(c("--coverage"), type = "integer", default = 150),
-                    make_option(c("--cna_caller"), type = "character", default = 'sequenza'),
+color_palette_process = RColorBrewer::brewer.pal(n = 8, name = "Dark2") 
+names(color_palette_process) <- c('Clonal', paste0('Clone ', 1:7))
+color_palette_process['Subclonal'] = 'gray70'
+
+color_palette_process_uni = RColorBrewer::brewer.pal(n = 8, name = "Set1") 
+names(color_palette_process_uni) <- c('Clonal', paste0('Clone ', 1:7))
+color_palette_process_uni['Subclonal'] = 'gray70'
+
+
+option_list <- list(make_option(c("--spn_id"), type = "character", default = 'SPN06'),
+                    make_option(c("--purity"), type = "double", default = 0.9),
+                    make_option(c("--coverage"), type = "integer", default = 50),
+                    make_option(c("--cna_caller"), type = "character", default = 'ascat'),
                     make_option(c("--vcf_caller"), type = "character", default = 'mutect2'),
                     make_option(c("--signature"), type = "character", default = 'SigProfiler'),
-                    make_option(c("--tool"), type = "character", default = 'pyclonevi')
+                    make_option(c("--tool"), type = "character", default = 'viber')
 )
 
 opt_parser <- OptionParser(option_list = option_list)
@@ -91,10 +100,6 @@ if (file.exists(table_univariate)){
     s1 <- samples[[i]]
     if (s1 %in% colnames(muts_tool_raw)){
       
-      color_palette_process = RColorBrewer::brewer.pal(n = max(3,length(unique(muts_process$cluster_id_process))), name = "Dark2") %>%
-        setNames(str_sort(unique(muts_process$cluster_id_process), numeric=T))
-      color_palette_process['Subclonal'] = 'gray70'
-      
       p_process = muts_process %>%
         filter(.data[[s1]] != 0) %>% 
         ggplot(aes(x =.data[[s1]], fill = cluster_id_process))+
@@ -102,7 +107,7 @@ if (file.exists(table_univariate)){
         xlim(-0.01,1.01)+
         xlab(paste0('VAF ', s1)) +
         theme_bw() +
-        scale_fill_manual('ProCESS clusters', values = color_palette_process)+
+        scale_fill_manual('ProCESS clusters', values = color_palette_process_uni)+
         ggtitle('ProCESS') +
         guides(color = guide_legend(override.aes = list(size = 3, alpha = 1)))  +
         ylab('')
@@ -120,7 +125,7 @@ if (file.exists(table_univariate)){
         size = 3,
         min.segment.length = 0,
         box.padding = 1) +
-        scale_color_manual('ProCESS clusters', values = color_palette_process)
+        scale_color_manual('ProCESS clusters', values = color_palette_process_uni)
       
     
       p_tool_raw = muts_tool_raw %>%
@@ -289,11 +294,7 @@ cluster_plots_pair <- list()
 for (i in 1:length(pairs)){
   s1 <- pairs[[i]][1]
   s2 <- pairs[[i]][2]
-  
-  color_palette_process = RColorBrewer::brewer.pal(n = max(3,length(unique(muts_process$cluster_id_process))), name = "Dark2") %>%
-    setNames(str_sort(unique(muts_process$cluster_id_process), numeric=T))
-  color_palette_process['Subclonal'] = 'gainsboro'
-  
+
   p_process = muts_process %>%
     ggplot(aes(x =.data[[s1]], y = .data[[s2]], color=cluster_id_process))+
     geom_point( alpha=0.2, size = .5)+

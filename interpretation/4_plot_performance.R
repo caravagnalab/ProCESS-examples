@@ -18,7 +18,7 @@ source("../figures/figure3/utils.R")
 
 base_subclonal = '/orfeo/cephfs/scratch/cdslab/shared/SCOUT/validation_subclonal/tables/'
 
-option_list <- list(make_option(c("--cna_caller"), type = "character", default = 'sequenza'),
+option_list <- list(make_option(c("--cna_caller"), type = "character", default = 'ascat'),
                     make_option(c("--vcf_caller"), type = "character", default = 'mutect2')
 )
 

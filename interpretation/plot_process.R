@@ -6,14 +6,14 @@ library(optparse)
 library(patchwork)
 source('../getters/tumourevo_getters.R')
 source('../getters/process_getters.R')
-source("../validation/SCOUT/colors.R")
 source("../figures/figure3/utils_plot.R")
+source("../validation/SCOUT/colors.R")
 
 out = "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/interpretation/"
 base = '/orfeo/cephfs/scratch/cdslab/shared/SCOUT/validation_subclonal_new/tables/'
 
 
-spn='SPN04'
+spn='SPN03'
 cov=100
 pur=.9
 
@@ -74,6 +74,7 @@ true_drivers_table = true_drivers_table  %>% rowwise() %>%
   ungroup() %>%
   select(mutation_id, code)
 
+
 table_multi <- readRDS(paste0(base, 'table_process_', spn, '_', cov, 'x_', pur, 'p_mutect2_ascat.rds')) %>% 
   filter(!str_detect(causes, "errors")) 
 
@@ -109,7 +110,6 @@ table_multi = table_multi %>%
       FALSE
     )
   ) %>% 
-  # mutate(is_clonal_process=replace(FALSE, all(ccf_process > 0.95), TRUE)) %>% ungroup() %>% 
   dplyr::mutate(cluster_id_process_full = cluster_id_process) %>% 
   dplyr::mutate(cluster_id_process=replace(cluster_id_process_full, is_clonal_process==TRUE, 'Clonal')) %>% 
   dplyr::mutate(cluster_id_process=ifelse(cluster_id_process=='Truncal', 'Clonal', cluster_id_process))
@@ -256,4 +256,4 @@ ggsave(plot = plt,
        filename = paste0(out, 'plot_process/', spn, '.png'),
        dpi = 200,
        width = 8,
-       height = 12)#15
+       height = 15)#10,12,15,18

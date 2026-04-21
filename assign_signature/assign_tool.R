@@ -40,7 +40,6 @@ cna_caller = opt$cna_caller
 mut_caller = opt$vcf_caller
 
 out = "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/assign_signature/"
-tool = 'viber'
 for (tool in c('pyclonevi', 'viber')){
   
   out_data_raw = paste0(out, spn, '/', cov, 'x_', pur, 'p_', mut_caller, '_', cna_caller, '/', tool, '_', signature_tool, '_raw/')

@@ -57,12 +57,14 @@ cosine_similarity <- function(vec1, vec2) {
 
 compare_signatures <- function(df1, df2) {
   
-  df1_f <- df1 %>% filter(exposure>.1)
-  df2_f <- df2 %>% filter(exposure>.1)
+  df1_f <- df1 %>% filter(exposure>.05)
+  df2_f <- df2 %>% filter(exposure>.05)
   
   # Check if signatures are identical
   sigs_match <- setequal(df1_f$causes, df2_f$causes)
-  ndiff <- length(setdiff(df1_f$causes, df2_f$causes))
+  ndiff_1 <- length(setdiff(df2_f$causes, df1_f$causes))
+  ndiff_2 <- length(setdiff(df1_f$causes, df2_f$causes))
+  ndiff = sum(ndiff_1 + ndiff_2)
   ntot <- length(c(df1_f$causes, df2_f$causes) %>% unique())
   
   comparison <- full_join(
@@ -106,7 +108,7 @@ compare_signatures <- function(df1, df2) {
               'n_tot' = ntot))
 }
 
-spn='SPN04'
+spn='SPN06'
 cov=50
 pur=.9
 
@@ -157,11 +159,10 @@ for (spn in paste0('SPN0',1:7)){
         mutate(
           is_clonal_process = if_else(
             dplyr::first(cluster_id_process) %in% c$cluster_id_process, # first returns the first value in the current group
-            all(ccf_process > 0.95),
+            all(ccf_process > 0.9),
             FALSE
           )
         ) %>%
-        # mutate(is_clonal_process=replace(FALSE, all(ccf_process > 0.95), TRUE)) %>% ungroup() %>%
         dplyr::mutate(cluster_id_process_full = cluster_id_process) %>%
         dplyr::mutate(cluster_id_process=replace(cluster_id_process_full, is_clonal_process==TRUE, 'Clonal')) %>%
         dplyr::mutate(cluster_id_process=ifelse(cluster_id_process=='Truncal', 'Clonal', cluster_id_process))
@@ -249,21 +250,6 @@ for (spn in paste0('SPN0',1:7)){
       clonal_sig_id = exposure_id %>% filter(cluster_id_process == 'Clonal')
 
 
-      background_sbs = exposure_sbs %>%
-        filter(cluster_id_process != 'Clonal') %>%
-        group_by(causes) %>%
-        summarise(nmuts_cause = sum(nmuts_cause)) %>%
-        mutate(tot_nmuts = sum(nmuts_cause)) %>%
-        mutate(exposure = nmuts_cause/tot_nmuts)
-
-      background_id = exposure_id %>%
-        filter(cluster_id_process != 'Clonal') %>%
-        group_by(causes) %>%
-        summarise(nmuts_cause = sum(nmuts_cause)) %>%
-        mutate(tot_nmuts = sum(nmuts_cause)) %>%
-        mutate(exposure = nmuts_cause/tot_nmuts)
-
-
       table_sbs <- lapply(unique(exposure_sbs$cluster_id_process), FUN = function(c){
         if (c != 'Clonal'){
           tmp <- exposure_sbs %>% filter(cluster_id_process == c)
@@ -282,6 +268,14 @@ for (spn in paste0('SPN0',1:7)){
       table_sbs_background <- lapply(unique(exposure_sbs$cluster_id_process), FUN = function(c){
         if (c != 'Clonal'){
           tmp <- exposure_sbs %>% filter(cluster_id_process == c)
+          
+          background_sbs = exposure_sbs %>%
+            filter(cluster_id_process != c) %>%
+            group_by(causes) %>%
+            summarise(nmuts_cause = sum(nmuts_cause)) %>%
+            mutate(tot_nmuts = sum(nmuts_cause)) %>%
+            mutate(exposure = nmuts_cause/tot_nmuts)
+          
           result_table <- compare_signatures(df1 = tmp, df2 = background_sbs)
           result <- result_table$df %>% mutate(match = result_table$match,
                                                cs_exp = result_table$cs_exp,
@@ -311,7 +305,16 @@ for (spn in paste0('SPN0',1:7)){
       table_id_background <- lapply(unique(exposure_sbs$cluster_id_process), FUN = function(c){
         if (c != 'Clonal'){
           tmp <- exposure_id %>% filter(cluster_id_process == c)
+          
+          background_id = exposure_id %>%
+            filter(cluster_id_process != c) %>%
+            group_by(causes) %>%
+            summarise(nmuts_cause = sum(nmuts_cause)) %>%
+            mutate(tot_nmuts = sum(nmuts_cause)) %>%
+            mutate(exposure = nmuts_cause/tot_nmuts)
           result_table <- compare_signatures(df1 = tmp, df2 = background_id)
+          
+          
           result <- result_table$df %>% mutate(match = result_table$match,
                                                cs_exp = result_table$cs_exp,
                                                cs_nsig = result_table$cs_n,
@@ -342,10 +345,9 @@ for (spn in paste0('SPN0',1:7)){
                     mutate(type = 'ID')) %>%
         mutate(n_diff_rel = n_diff/n_tot) %>%
         group_by(across(c(-type, -cs_nsig, -cs_exp, -match, -n_diff_rel, -n_diff, -n_tot))) %>%
-        summarize(match = sum(match),
-                  cs_exp = mean(cs_exp),
-                  n_diff_rel = mean(n_diff_rel)) %>%
-        dplyr::rename(bg_match = match, bg_cs = cs_exp, bg_diff = n_diff_rel)
+        summarize(cs_exp = min(cs_exp),
+                  n_diff_rel = max(n_diff_rel)) %>% 
+        dplyr::rename(bg_cs = cs_exp, bg_diff = n_diff_rel)
 
       table <- full_join(df_tail, df_driver) %>%
         dplyr::rename(cluster = cluster_id_process) %>%
@@ -389,11 +391,8 @@ for (spn in paste0('SPN0',1:7)){
 }
 saveRDS(object = df_all, file = paste0(out, 'process.rds'))
 
-
-color_palette_process = c(RColorBrewer::brewer.pal(n = 8, name = "Dark2"),
-                          RColorBrewer::brewer.pal(n = 9, name = "Set1"),
-                          RColorBrewer::brewer.pal(n = 8, name = "Set2"))
-names(color_palette_process) <- df_all$cluster %>% unique()
+color_palette_process= RColorBrewer::brewer.pal(n = 8, name = "Dark2") 
+names(color_palette_process) <- c('Clonal', paste0('Clone ', 1:7))
 color_palette_process['Subclonal'] = 'gray70'
 
 df_all <- readRDS(paste0(out, 'process.rds'))

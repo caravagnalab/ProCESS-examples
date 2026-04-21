@@ -35,7 +35,7 @@ colors_cluster = c('indianred',
                    'black')
 names(colors_cluster) = paste0('C',0:15)
 
-option_list <- list(make_option(c("--cna_caller"), type = "character", default = 'sequenza'),
+option_list <- list(make_option(c("--cna_caller"), type = "character", default = 'ascat'),
                     make_option(c("--vcf_caller"), type = "character", default = 'mutect2')
 )
 
@@ -44,6 +44,9 @@ opt <- parse_args(opt_parser)
 
 vcf_caller = opt$vcf_caller #"mutect2"
 cna_caller = opt$cna_caller #"sequenza"
+
+print(vcf_caller)
+print(cna_caller)
 
 base = paste0('/orfeo/cephfs/scratch/cdslab/shared/SCOUT/interpretation/interpretation_', vcf_caller, "_", cna_caller, '/')
 dir.create(paste0(base, '/plot_int'), recursive = T, showWarnings = F)
@@ -69,9 +72,10 @@ combs = expand.grid(coverage=coverage_list,
                     tool=tool_list,
                     sig_tool = sig_tool_list)
 
-i=13
+i=21
 
 for (i in 1:nrow(combs)){
+  print(i)
   cov = combs[i, "coverage"]
   pur = combs[i, "purity"]
   s_tool = combs[i, "sig_tool"]
@@ -114,7 +118,6 @@ for (i in 1:nrow(combs)){
     select(spn, w_signature, w_driver, w_tail, n)
   
   f_all <- f_all %>% left_join(score)
-  
     
   interpret_table <- f_all %>% 
     mutate(driver = ifelse(contains_driver_tool == F, 0, 1),

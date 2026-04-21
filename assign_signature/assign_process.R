@@ -8,7 +8,7 @@ source('../getters/process_getters.R')
 
 out = "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/assign_signature/"
 
-option_list <- list(make_option(c("--spn_id"), type = "character", default = 'SPN02')
+option_list <- list(make_option(c("--spn_id"), type = "character", default = 'SPN06')
 )
 
 opt_parser <- OptionParser(option_list = option_list)
@@ -59,14 +59,35 @@ for (cov in c(50,100,150)){
       filter(is_driver_process != TRUE) %>% 
       filter(!str_detect(causes, "errors")) 
     
-    # correct name of clusters
-    table <- table %>% 
-      group_by(cluster_id_process, sample_id) %>%
-      mutate(is_clonal_process=replace(FALSE, ccf_process > 0.9, TRUE)) %>% 
-      ungroup() %>%
-      mutate(cluster_id_process_full = cluster_id_process) %>%
-      mutate(cluster_id_process = replace(cluster_id_process_full, is_clonal_process==TRUE, 'Clonal'))
     
+    c = table %>%
+      distinct(cluster_id_process, sample_id) %>%   # keep unique pairs
+      dplyr::count(cluster_id_process) %>%
+      filter(n==n_samples) %>%
+      select(cluster_id_process)
+    
+    table = table %>%
+      group_by(cluster_id_process) %>%
+      mutate(
+        is_clonal_process = if_else(
+          dplyr::first(cluster_id_process) %in% c$cluster_id_process, # first returns the first value in the current group
+          all(ccf_process > 0.9),
+          FALSE
+        )
+      ) %>%
+      dplyr::mutate(cluster_id_process_full = cluster_id_process) %>%
+      dplyr::mutate(cluster_id_process=replace(cluster_id_process_full, is_clonal_process==TRUE, 'Clonal')) %>%
+      dplyr::mutate(cluster_id_process=ifelse(cluster_id_process=='Truncal', 'Clonal', cluster_id_process))
+    
+    
+    # correct name of clusters
+    # table <- table %>% 
+    #   group_by(cluster_id_process, sample_id) %>%
+    #   mutate(is_clonal_process=replace(FALSE, ccf_process > 0.9, TRUE)) %>% 
+    #   ungroup() %>%
+    #   mutate(cluster_id_process_full = cluster_id_process) %>%
+    #   mutate(cluster_id_process = replace(cluster_id_process_full, is_clonal_process==TRUE, 'Clonal'))
+
     n_muts <- table %>% 
       group_by(cluster_id_process) %>% 
       summarise(n = n()) %>% 
