@@ -9,7 +9,7 @@ contexts <- c("SBS96","ID83")
 all_combs <- list()
 all_metrics <- list()
 all_cosine  <- list()
-SPNS <- c("SPN01","SPN03","SPN04","SPN05", "SPN06", 'SPN07')
+SPNS <- c("SPN01","SPN02","SPN03","SPN04","SPN05", "SPN06", 'SPN07')
 source("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/utils_plot.R")
 source("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/validation/SCOUT/colors.R")
 
@@ -287,10 +287,40 @@ cosine_plot <-subclonal_arch %>%
     axis.title.x = element_blank(),
     strip.text.x.top = element_blank(),panel.spacing.x = unit(0.2, "lines")
   )
+clonal_subcl_exp <- subclonal_arch %>% 
+  filter(coverage==150, purity==0.9) %>% 
+  ggplot(aes(
+    x = interaction(cluster_id_process,sample),  # ← key change
+    y = exposure, 
+    fill = causes
+  )) +
+  geom_col() +
+  labs(
+    x = "Name",
+    y = "Exposure",
+    fill = "Signature"
+  ) +
+  my_ggplot_theme() +
+  scale_fill_manual(values = c(sbs_colors, id_colors)) +
+  facet_nested(
+    ~ context + spn ,
+    scales = "free_x",
+    space = "free_x"
+  ) +
+  xlab("") +
+  theme(
+    axis.text.x = element_blank(),
+    panel.spacing.x = unit(0.2, "lines"),
+    legend.box = "horizontal",
+    panel.grid.minor = element_blank(),
+    axis.ticks.x = element_blank(),
+    axisticks = element_blank()
+  ) +
+  guides(col = guide_legend(nrow = 3))
 
 cosine_samples <- cosine_samples + theme(plot.margin = margin(0, 0, 0, 0),panel.spacing = unit(0.05, "lines"))
 abs_counts_exp_plot <- abs_counts_exp_plot + theme(plot.margin = margin(0, 0, 0, 0),panel.spacing = unit(0.05, "lines"))
-plt_signatures_exp <- wrap_plots(list(abs_counts_exp_plot,cosine_samples,jaccard_plot,cosine_plot),
+plt_signatures_exp <- wrap_plots(list(clonal_subcl_exp,cosine_samples,jaccard_plot,cosine_plot),
            design = "AAAA\nCCCC\nDDDD\nBBBB\nBBBB\nBBBB",guides="collect")+
   plot_layout(heights = c(1, 0.6, 0.6, 1)) &
   theme(legend.position = "bottom")
