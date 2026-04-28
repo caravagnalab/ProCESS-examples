@@ -9,7 +9,7 @@ names(color_class) <- c('Tier 1', 'Tier 2', 'Tier 3', 'Tier 4')
 
 color_score <- c('plum4', 'darkseagreen4', 'cadetblue4', 'salmon2')
 
-pairs <- c('mutect2_ascat', 'mutect2_sequenza')#,'strelka_ascat', 'mutect2_sequenza'
+pairs <- c('mutect2_ascat', 'mutect2_sequenza', 'strelka_ascat', 'strelka_sequenza')
 confusion_per_group_class <- lapply(pairs, FUN = function(p){
   readRDS(paste0('/orfeo/cephfs/scratch/cdslab/shared/SCOUT/interpretation/interpretation_',p, '/confusion_cluster.rds')) %>% 
     mutate(pair = p) %>% 
@@ -54,8 +54,8 @@ plt <- cluster %>%
   scale_color_manual('ProCESS Class', values = color_class) +
   scale_fill_manual('ProCESS Class', values = color_class) +
   my_ggplot_theme() +
-  #ggh4x::facet_grid2(type~mut_caller+cna_caller) +
   ggh4x::facet_grid2(type~.) +
+  #ggh4x::facet_grid2(type~sub_tool+mut_caller) +
   ylab('Class Assignment\nAccuracy')  +
   xlab('') + 
   ylim(0,1)
