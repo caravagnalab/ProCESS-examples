@@ -60,6 +60,10 @@ plt <- cluster %>%
   xlab('') + 
   ylim(0,1)
 
+
+ggsave(filename = paste0("/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/figure5/fig5_boxplot.pdf"), 
+       plot = plt, device="pdf", width=4, height=2, units="in")
+
 # source('/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/edf_figures/spn02/edf_spn02.R')
 # 
 # free(p_tool + theme(legend.position = 'none')) + plt + plot_layout(nrow = 2)

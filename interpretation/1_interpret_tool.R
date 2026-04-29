@@ -35,8 +35,8 @@ colors_cluster = c('indianred',
                    'black')
 names(colors_cluster) = paste0('C',0:15)
 
-option_list <- list(make_option(c("--cna_caller"), type = "character", default = 'ascat'),
-                    make_option(c("--vcf_caller"), type = "character", default = 'mutect2')
+option_list <- list(make_option(c("--cna_caller"), type = "character", default = 'sequenza'),
+                    make_option(c("--vcf_caller"), type = "character", default = 'strelka')
 )
 
 opt_parser <- OptionParser(option_list = option_list)
@@ -72,7 +72,7 @@ combs = expand.grid(coverage=coverage_list,
                     tool=tool_list,
                     sig_tool = sig_tool_list)
 
-i=21
+i=2
 
 for (i in 1:nrow(combs)){
   print(i)

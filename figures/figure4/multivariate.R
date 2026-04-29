@@ -77,8 +77,8 @@ plt_multivariate <- results %>%
   facet_grid(.~name) +
   my_ggplot_theme() + 
   xlab('Purity') +
-  scale_fill_manual('SPN', values = c('darkseagreen4', 'steelblue4')) + 
-  scale_color_manual('SPN', values = c('darkseagreen4', 'steelblue4')) + 
+  scale_fill_manual('SPN', values = c('darkseagreen4', 'orangered3')) + 
+  scale_color_manual('SPN', values = c('darkseagreen4', 'orangered3')) + 
   ylab('Relative number of inferred cluster\nClusters / Samples')
 
 
