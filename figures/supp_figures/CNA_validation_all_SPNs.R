@@ -170,13 +170,13 @@ graphics = list(
     grid.points(x, y, gp = gpar(col = "black"), pch = 16)
   },
   "not WGD" = function(x, y, w, h) {
-    grid.points(x, y, gp = gpar(col = "white"), pch = 16)
+    grid.points(x, y, gp = gpar(col = "gainsboro"), pch = 16)
   }
 )
 
 column_ha <- HeatmapAnnotation(
-  fga = anno_barplot(fga_values, beside = T, border = F, bar_width = 1, gp = gpar(fill = '#DBD7D2', col = 'white'), height = unit(1, "cm")),
-  fgs = anno_barplot(fgs_values, beside = T, border = F, bar_width = 1, gp = gpar(fill = '#DBD7D2', col = 'white'), height = unit(1, "cm")),
+  fga = anno_barplot(fga_values, beside = T, border = F, bar_width = 1, gp = gpar(fill = '#DBD7D2', col = 'gainsboro'), height = unit(1, "cm")),
+  fgs = anno_barplot(fgs_values, beside = T, border = F, bar_width = 1, gp = gpar(fill = '#DBD7D2', col = 'gainsboro'), height = unit(1, "cm")),
   #coverage = anno_simple(coverages, col= col_coverages),
   spn = spn_ids, 
   # tool = tools,
@@ -187,7 +187,7 @@ column_ha <- HeatmapAnnotation(
 )
 
 column_bottom_ha <- HeatmapAnnotation(
-  true_ploidy = anno_barplot(true_ploidy_values,  beside = T, border = F, bar_width = 1, gp = gpar(fill = '#DBD7D2', col = 'white'), height = unit(1, "cm")),
+  true_ploidy = anno_barplot(true_ploidy_values,  beside = T, border = F, bar_width = 1, gp = gpar(fill = '#DBD7D2', col = 'gainsboro'), height = unit(1, "cm")),
   WGD = anno_customize(wgd_values, graphics = graphics),
   annotation_label = c('True ploidy', 'WGD')
   #coverage = anno_simple(coverages, col= col_coverages),
@@ -202,7 +202,7 @@ row_ha <- rowAnnotation(
   col = list(coverage=coverage_colors, purity=purity_colors),show_annotation_name = F
 )
 ####
-#col_fun_purity = circlize::colorRamp2(c(-1,0, 1), c("forestgreen","white", "darkorange"))
+#col_fun_purity = circlize::colorRamp2(c(-1,0, 1), c("forestgreen","gainsboro", "darkorange"))
 # col_fun_classes <- c(
 #   "correctly estimated"   = "#A5D6A7",  # soft green
 #   "highly overestimated"  = "#EF9A9A",  # soft red
@@ -213,7 +213,7 @@ row_ha <- rowAnnotation(
 # )
 
 col_fun_classes_purity <-  c(
-  "correctly estimated"   = "snow",  # green
+  "correctly estimated"   = "gainsboro",  # green
   "delta purity > 0.3"  = "#1976D2",  # dark red
   "0.1 < delta purity < 0.3"  = "#BBDEFB",  # light red
   "delta purity < -0.3" = "#D32F2F",  # dark blue
@@ -222,7 +222,7 @@ col_fun_classes_purity <-  c(
 )
 
 col_fun_classes_ploidy <-  c(
-  "correctly estimated"   = "snow",  # green
+  "correctly estimated"   = "gainsboro",  # green
   "delta ploidy > 1"  = "#1976D2",  # dark red
   "0.5 < delta ploidy < 1"  = "#BBDEFB",  # light red
   "delta ploidy < -1" = "#D32F2F",  # dark blue
@@ -265,7 +265,7 @@ h_purity = ComplexHeatmap::Heatmap(list_purities,cluster_rows = F,cluster_column
                                 show_row_names = F,rect_gp = gpar(col = "white", lwd = 1),  
                                 name = "Purity estimation classes"
 )
-# col_fun_ploidy = circlize::colorRamp2(c(-3,0, 3), c("forestgreen","white", "darkorange"))
+# col_fun_ploidy = circlize::colorRamp2(c(-3,0, 3), c("forestgreen","gainsboro", "darkorange"))
 h_ploidy = ComplexHeatmap::Heatmap(list_ploidy,cluster_rows = F,cluster_columns = F,
                                    # top_annotation = column_ha,
                                    left_annotation = row_ha,
@@ -278,7 +278,7 @@ h_ploidy = ComplexHeatmap::Heatmap(list_ploidy,cluster_rows = F,cluster_columns 
                                    show_row_names = F,rect_gp = gpar(col = "white", lwd = 1),  
                                    name = "Ploidy estimation classes"
 )
-#col_fun_correctness_clonal = circlize::colorRamp2(c(0, 1), c("white", "goldenrod2"))
+#col_fun_correctness_clonal = circlize::colorRamp2(c(0, 1), c("gainsboro", "goldenrod2"))
 h_correc = ComplexHeatmap::Heatmap(list_correctness_clonal,cluster_rows = F,cluster_columns = F,
                                    # top_annotation = column_ha,
                                    left_annotation = row_ha,
@@ -292,7 +292,7 @@ h_correc = ComplexHeatmap::Heatmap(list_correctness_clonal,cluster_rows = F,clus
                                    name = "Correclty inferred clonal CNAs"
 )
 
-col_fun_correctness_clonal = circlize::colorRamp2(c(0, 1), c("white", "#D64F54"))
+col_fun_correctness_clonal = circlize::colorRamp2(c(0, 1), c("gainsboro", "#D64F54"))
 h_precision_bp = ComplexHeatmap::Heatmap(list_bp_precision,cluster_rows = F,cluster_columns = F,
                                    # top_annotation = column_ha,
                                    left_annotation = row_ha,
@@ -321,11 +321,12 @@ h_recall_bp = ComplexHeatmap::Heatmap(list_bp_recall,cluster_rows = F,cluster_co
 )
 
 h_final_cna <- h_purity %v% h_ploidy %v% h_correc %v% h_precision_bp %v% h_recall_bp
-pdf("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/supplementary/Final_CNA_SCOUT_Validation.pdf",width = 9,height = 7)
+pdf("/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/supp_figures/Final_CNA_SCOUT_Validation.pdf",
+    width = 13,height = 8)
 draw(
   h_final_cna,
-  heatmap_legend_side = "bottom",
-  annotation_legend_side = "bottom",
+  #heatmap_legend_side = "bottom",
+  #annotation_legend_side = "bottom",
   merge_legends = TRUE   # merges multiple legends into one row if possible
 )
 dev.off()

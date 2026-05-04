@@ -34,7 +34,7 @@ all_abs = lapply(paste0('SPN0', 1:7), FUN = function(sp){
   }
 ) %>% bind_rows()
 
-all <- all %>% left_join(treatment)
+all <- all_abs %>% left_join(treatment)
 
 treatment_norm <- all %>%
   filter(!is.na(start)) %>%
@@ -77,6 +77,12 @@ long <- all %>%
 # Jitter position — same seed keeps circle/square pairs aligned vertically
 pos <- position_jitter(height = 0, width = 0, seed = 42)
 
+long <- long %>% 
+  filter(spn %in% c('SPN04', 'SPN06', 'SPN07')) %>% 
+  mutate(type = ifelse(spn == 'SPN04', 'Resistance\nby plasticity', 'Resistance by \ngenetic bottleneck'))
+treatment_norm <- treatment_norm%>% 
+  mutate(type = ifelse(spn == 'SPN04', 'Resistance\nby plasticity', 'Resistance by \ngenetic bottleneck'))
+
 pp <- ggplot(long, aes(x = norm_time, y = sub_sample, fill = sub_sample, col = sub_sample)) +
   geom_rect(
     data        = treatment_norm,
@@ -106,14 +112,18 @@ pp <- ggplot(long, aes(x = norm_time, y = sub_sample, fill = sub_sample, col = s
     )
   ) +
   my_ggplot_theme() + 
-  theme_minimal() +
+  theme_light() +
   theme(panel.grid.major.x = element_blank(),
         panel.grid.minor.x = element_blank()) +
-  facet_grid(spn~., scales = 'free_y') 
+  ggh4x::facet_nested(
+    type + spn ~.,
+    scales = "free",
+    strip = ggh4x::strip_nested(bleed = TRUE)  # <-- this merges the outer strip
+  )
 
 pp
 ggsave(filename = '/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/figure5/mrca_timeline.pdf',
        plot = pp, 
-       width = 3.5, 
-       height = 4.5, 
+       width = 4.7, 
+       height = 3.5, 
        units = 'in' )

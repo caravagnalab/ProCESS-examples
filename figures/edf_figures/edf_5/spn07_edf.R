@@ -78,6 +78,7 @@ n_tot_counts <- joined %>%
   group_by(sample_name,causes) %>% 
   summarise(n_counts=n()) %>% 
   mutate(label_c=paste0(causes," mutations = ",n_counts))
+
 pp1 <- joined %>% 
   filter(sample_name%in%samples) %>% 
   filter(status == "TP") %>% 
@@ -98,12 +99,13 @@ pp1 <- joined %>%
   #   vjust = 1.5,
   #   inherit.aes = FALSE
   # ) +
-  facet_wrap(~sample_name, nrow = 1) +
+  facet_wrap(~sample_name, nrow = 2) +
   scale_fill_manual(values = sbs_colors) +
   coord_cartesian(clip = "off") +
   my_ggplot_theme()+
-  theme(strip.text.x.top = element_blank())
+  theme(strip.text.x.top = element_blank()) 
 samples <- c("SPN07_1.1","SPN07_2.1")
+
 pp2 <- subclonal_arch %>% 
   filter(spn=="SPN07") %>% 
   filter(sample%in%samples) %>% 
@@ -221,13 +223,14 @@ pp3 <- all_data %>%
   filter(sample_name%in%samples) %>% 
   ggplot(aes(x=causes,y=n,fill=causes)) +
   geom_col()+
-  facet_wrap(~sample_name,nrow = 1)+
+  facet_wrap(~sample_name,nrow = 2)+
   scale_fill_manual(values=sbs_colors)+
   # geom_hline(yintercept = 250,linetype = "dashed")+
   my_ggplot_theme()+
   theme(strip.text.x.top = element_blank())
+
 spn07 <- wrap_plots(list(pp2,pp1,pp3,p_sankey+
                            theme(strip.text.x = element_blank(),
                                  strip.text.y = element_blank())),
-                    design = "AAAA\nBBBB\nCCCC\nDDDD", guides="collect") & theme(legend.position = "bottom")
+                    design = "AAAA\nBBBC\nBBBC\nDDDD", guides="collect") & theme(legend.position = "bottom")
 spn07

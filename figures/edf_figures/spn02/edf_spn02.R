@@ -109,10 +109,12 @@ color_palette_process = RColorBrewer::brewer.pal(n = max(3,length(unique(muts_pr
   setNames(str_sort(unique(muts_process$cluster_id_process), numeric=T))
 color_palette_process['Subclonal'] = 'gainsboro'
 
+data = muts_tool_raw %>%
+  sample_n(70000) 
 
-p_tool = muts_tool_raw %>%
+p_tool = data %>% 
   ggplot(aes(x =.data[[s1]], y = .data[[s2]], color=cluster_id_tool))+
-  geom_point( alpha=0.2, size = .5)+
+  geom_point( alpha=0.2, size = .7)+
   xlim(0,1)+
   ylim(0,1)+
   xlab(s1) +
@@ -121,20 +123,34 @@ p_tool = muts_tool_raw %>%
   theme_bw() +
   guides(color = guide_legend(override.aes = list(size = 3, alpha = 1) ) )
 
-p_tool = p_tool + ggrepel::geom_label_repel(
-  data = muts_tool_raw %>% filter(is_driver_tool == TRUE),
+driver_labels_per_cluster <- muts_tool_raw %>%
+  filter(is_driver_tool == TRUE) %>%
+  group_by(cluster_id_tool) %>%
+  summarise(
+    driver_label = paste(unique(driver_label), collapse = "\n"),
+    # Take the mean position of mutations in that cluster for placement
+    !!s1 := mean(.data[[s1]]),
+    !!s2 := mean(.data[[s2]]),
+    .groups = "drop"
+  )
+
+
+p_tool = ggplot() + ggrepel::geom_label_repel(
+  data = driver_labels_per_cluster,
   aes(
     x = .data[[s1]],
     y = .data[[s2]],
     label = driver_label,
-    colour = cluster_id_tool, 
+    colour = cluster_id_tool,
   ),
-  show.legend = F,
+  show.legend = FALSE,
   inherit.aes = FALSE,
-  size = 2,
+  size = 2.5,
   min.segment.length = 0,
   box.padding = 1,
-  max.overlaps = 50)
+  max.overlaps = 50
+)+
+  scale_color_manual('Tool clusters', values = colors_cluster)
 
 base = paste0('/orfeo/cephfs/scratch/cdslab/shared/SCOUT/interpretation/interpretation_', mut_caller, "_", cna_caller, '/')
 s_tool = 'SigProfiler'
@@ -145,8 +161,40 @@ score = readRDS(paste0(path, '_df.rds')) %>% filter(spn == sp)
 sz = 4
 plt <- score %>%
   mutate(cluster = factor(cluster, levels = paste0('C', 1:15))) %>% 
-  pivot_longer(cols = c(score_driver, score_all, score_tail, score_no_driver, score_sign)) %>%
-  mutate(name = factor(name, levels = c('score_driver', 'score_tail', 'score_sign','score_no_driver','score_all'))) %>%
+  pivot_longer(cols = c(score_tail, score_sign)) %>%
+  mutate(name = factor(name, levels = c( 'score_tail', 'score_sign'))) %>%
+  ggplot() +
+  annotate("rect", xmin = -Inf, xmax = Inf, ymin = 0.9, ymax = 1, 
+           fill = "palegreen4", alpha = 0.2) + 
+  annotate("rect", xmin = -Inf, xmax = Inf, ymin = 0.55, ymax = .9, 
+           fill = "goldenrod", alpha = 0.2) + 
+  annotate("rect", xmin = -Inf, xmax = Inf, ymin = 0.2, ymax = 0.55, 
+           fill = "salmon1", alpha = 0.2) + 
+  annotate("rect", xmin = -Inf, xmax = Inf, ymin = 0.2, ymax = 0, 
+           fill = "gainsboro", alpha = 0.2) +
+  geom_point(aes(x = name, y = value, col = cluster, shape = contains_driver_process), size = 3, show.legend = F) +
+  geom_line(data = ~ filter(.x, !is.na(value)), aes(x = name, y = value, col = cluster, group = cluster), linewidth = .7, show.legend = F)  +
+  #geom_text(data = ~ filter(.x, is_clonal_tool & name == 'score_all'), aes(x = name, y = value+0.07, col = cluster, group = cluster, label = 'Clonal'), size = sz) + 
+  #geom_text(data = ~ filter(.x, contains_driver_tool & name == 'score_all'), aes(x = name, y = value+0.03, col = cluster, group = cluster, label = driver_label_process), size = sz) + 
+  theme_minimal() +
+  scale_shape_manual('Contains True Driver', values = c(4, 20)) +
+  ylab('Score') +
+  xlab('')+
+  scale_color_manual('Cluster',
+                     values = colors_cluster) +
+  scale_x_discrete(labels = c(
+                              'score_tail'   = 'Tail',
+                              'score_sign'   = 'Signature'
+                              #'score_no_driver' = 'Signature\nTail',
+                              #'score_no_tail' = 'Driver\nSignature',
+                              #'score_no_sign' = 'Driver\nTail',
+                              #'score_all'    = 'All'
+                              )) +
+  theme_minimal()
+
+plt2 <- score %>%
+  mutate(cluster = factor(cluster, levels = paste0('C', 1:15))) %>% 
+  pivot_longer(cols = c(score_no_driver)) %>%
   ggplot() +
   annotate("rect", xmin = -Inf, xmax = Inf, ymin = 0.9, ymax = 1, 
            fill = "palegreen4", alpha = 0.2) + 
@@ -158,24 +206,27 @@ plt <- score %>%
            fill = "gainsboro", alpha = 0.2) +
   geom_point(aes(x = name, y = value, col = cluster, shape = contains_driver_process), size = 3) +
   geom_line(data = ~ filter(.x, !is.na(value)), aes(x = name, y = value, col = cluster, group = cluster), linewidth = .7)  +
-  #geom_text(data = ~ filter(.x, is_clonal_tool & name == 'score_all'), aes(x = name, y = value+0.07, col = cluster, group = cluster, label = 'Clonal'), size = sz) + 
-  #geom_text(data = ~ filter(.x, contains_driver_tool & name == 'score_all'), aes(x = name, y = value+0.03, col = cluster, group = cluster, label = driver_label_process), size = sz) + 
   theme_minimal() +
   scale_shape_manual('Contains True Driver', values = c(4, 20)) +
   ylab('Score') +
   xlab('')+
   scale_color_manual('Cluster',
                      values = colors_cluster) +
-  scale_x_discrete(labels = c('score_driver' = 'Driver',
-                              'score_tail'   = 'Tail',
-                              'score_sign'   = 'Signature',
-                              'score_no_driver' = 'Signature\nTail',
-                              #'score_no_tail' = 'Driver\nSignature',
-                              #'score_no_sign' = 'Driver\nTail',
-                              'score_all'    = 'All')) +
-  my_ggplot_theme() 
+  scale_x_discrete(labels = c(
+   # 'score_tail'   = 'Tail',
+    #'score_sign'   = 'Signature'
+    'score_no_driver' = 'Signature\nTail'
+    #'score_no_tail' = 'Driver\nSignature',
+    #'score_no_sign' = 'Driver\nTail',
+    #'score_all'    = 'All'
+  )) +
+  my_ggplot_theme()  +
+  theme_minimal() + 
+  theme(axis.title.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.text.y = element_blank())
 
-
+pp <- plt + plt2 + plot_layout(design = 'AAB')
 
 plot_exposure <- function(df, sig_type, tool, col, type = '', signature = ''){
   plot <- df %>% 
@@ -232,17 +283,17 @@ plot_id <- plot_exposure(df, sig_type = sign_type, tool = tool, type = tool, sig
 #        filename = '/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/edf_figures/spn02/spn02.pdf')
 
 
-# sz = 7
-# all <- free(p_tool + theme(legend.position = 'none')) +  
-#   # plot_sbs + theme(legend.position = 'none') + 
-#   # plot_id  + theme(legend.position = 'none') + 
-#   free(plt) + 
-#   plot_layout(design = 'AABBB')
+sz = 7
+all <- p_tool + theme_minimal() + theme(legend.position = 'none') +
+  pp +
+  plot_layout(design = 'AAABBB')
 
-# ggsave(plot = all, width = 7.5, height = 2.8, units = 'in',
-#        filename = '/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/edf_figures/spn02/spn02_v2.png')
-# ggsave(plot = all, width = 7.5, height = 2.8, units = 'in',
-#        filename = '/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/edf_figures/spn02/spn02_v2.pdf')
+
+ggsave(plot = all, width = 6.5, height = 2.5, units = 'in',
+       filename = '/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/edf_figures/spn02/spn02_v2.pdf')
+
+ggsave(plot = all, width = 6.5, height = 2.5, units = 'in',
+       filename = '/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/edf_figures/spn02/spn02_v2.png')
 
 
 

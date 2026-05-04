@@ -163,7 +163,7 @@ h_cosine = ComplexHeatmap::Heatmap(list_cosine,cluster_rows = F,cluster_columns 
 )
 
 col_fun = circlize::colorRamp2(c(min(list_mse,na.rm=TRUE), 
-                                 max(list_mse,na.rm=TRUE)), c("white","mediumpurple4"))
+                                 max(list_mse,na.rm=TRUE)), c("white","chocolate"))
 h_mse = ComplexHeatmap::Heatmap(list_mse,cluster_rows = F,cluster_columns = F,
                                    col=col_fun,
                                    left_annotation = row_ha,show_column_names = F,
@@ -178,11 +178,12 @@ h_mse = ComplexHeatmap::Heatmap(list_mse,cluster_rows = F,cluster_columns = F,
 
 h_final_signatures <- h_cosine %v% h_mse
 
-pdf("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/supplementary/Final_Signatures_SCOUT_Validation.pdf",width =9,height = 5)
+pdf("/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/supp_figures/Final_Signatures_SCOUT_Validation.pdf",
+    width =9,height = 6)
 draw(
   h_final_signatures,
-  heatmap_legend_side = "bottom",
-  annotation_legend_side = "bottom",
+  #heatmap_legend_side = "bottom",
+  #annotation_legend_side = "bottom",
   merge_legends = TRUE   # merges multiple legends into one row if possible
 )
 dev.off()

@@ -13,7 +13,7 @@ source('/orfeo/scratch/area/lvaleriani/races/ProCESS-examples/figures/figure3/ut
 # purity_list = c(0.9, 0.6, 0.3)
 # vcf_caller_list = c("strelka", "mutect2")
 # cna_caller_list = c("sequenza", "ascat")
-# spn_list = c('SPN01', 'SPN02', 'SPN03', 'SPN04','SPN05', 'SPN06', 'SPN07')
+spn_list = c('SPN01', 'SPN02', 'SPN03', 'SPN04','SPN05', 'SPN06', 'SPN07')
 # combs = expand.grid(spn = spn_list,
 #                     coverage = coverage_list,
 #                     purity = purity_list,
@@ -69,6 +69,12 @@ results = results %>%
   left_join(class, by = join_by(spn)) %>% 
   mutate(viber = cluster_viber/samples,
          pyclone = cluster_pyclone/samples)
+
+
+results %>% 
+  group_by(type, purity) %>% 
+  summarise(m_viber = median(viber),
+            m_pyclone = median(pyclone))
 
 plt_multivariate <- results %>% 
   pivot_longer(cols = c(viber, pyclone)) %>% 

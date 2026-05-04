@@ -220,11 +220,11 @@ h_mean_sensitivity_low_subclonal <- create_heatmap(df_all_combs_SPN=df_all_combs
                                                    column_annotation = T,row_title = "Subclonal CCF <10%",
                                                    CCF_class = "Subclonal Low CCF")
 h_mean_sensitivity_high_subclonal <- create_heatmap(df_all_combs_SPN=df_all_combs_SPN,mutation_type = "SNV",
-                                                   name_measure = "mean_sensitivity",max_color = "goldenrod2",
+                                                   name_measure = "mean_sensitivity",max_color = "deepskyblue4",
                                                    column_annotation = F,row_title = "Subclonal CCF >10%",
                                                    CCF_class = "Subclonal High CCF")
 h_mean_sensitivity_clonal <- create_heatmap(df_all_combs_SPN=df_all_combs_SPN,mutation_type = "SNV",
-                                                    name_measure = "mean_sensitivity",max_color = "goldenrod3",
+                                                    name_measure = "mean_sensitivity",max_color = "seagreen4",
                                                     column_annotation = F,row_title = "Clonal",CCF_class = "Subclonal High CCF")
 
 h_fdr <- create_heatmap(df_all_combs_SPN=df_all_combs_SPN,mutation_type = "SNV",
@@ -238,11 +238,11 @@ h_mean_sensitivity_low_subclonal <- create_heatmap(df_all_combs_SPN=df_all_combs
                                                    column_annotation = T,row_title = "Subclonal CCF <10%",
                                                    CCF_class = "Subclonal Low CCF")
 h_mean_sensitivity_high_subclonal <- create_heatmap(df_all_combs_SPN=df_all_combs_SPN,mutation_type = "INDEL",
-                                                    name_measure = "mean_sensitivity",max_color = "goldenrod2",
+                                                    name_measure = "mean_sensitivity",max_color = "deepskyblue4",
                                                     column_annotation = F,row_title = "Subclonal CCF >10%",
                                                     CCF_class = "Subclonal High CCF")
 h_mean_sensitivity_clonal <- create_heatmap(df_all_combs_SPN=df_all_combs_SPN,mutation_type = "INDEL",
-                                            name_measure = "mean_sensitivity",max_color = "goldenrod3",
+                                            name_measure = "mean_sensitivity",max_color = "seagreen4",
                                             column_annotation = F,row_title = "Clonal",CCF_class = "Subclonal High CCF")
 
 h_fdr <- create_heatmap(df_all_combs_SPN=df_all_combs_SPN,mutation_type = "INDEL",
@@ -264,10 +264,11 @@ h_final_somatic <- h_final_somatic_SNV %v% h_final_somatic_INDEL
 #      annotation_legend_side = "bottom",
 #      merge_legends = TRUE )
 # dev.off()
-pdf("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/supplementary/Final_Somatic_SCOUT_Validation.pdf",width = 9,height = 7)
+pdf("/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/supp_figures/Final_Somatic_SCOUT_Validation.pdf",
+    width = 12,height = 10)
 draw(object = h_final_somatic,
-     heatmap_legend_side = "bottom",
-     annotation_legend_side = "bottom",
+     #heatmap_legend_side = "bottom",
+     #annotation_legend_side = "bottom",
      merge_legends = TRUE )
 dev.off()
 

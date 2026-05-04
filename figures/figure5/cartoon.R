@@ -260,18 +260,17 @@ ggsave(filename = '/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/
        plot = plt_sbs + plt_id, width = 8, height = 2, dpi = 300, units = 'in')
 
 
-
+table = readRDS('/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/figure5/table_SPN04.rds')
 color_palette_process = c(RColorBrewer::brewer.pal(n = 8, name = "Dark2"),
                           RColorBrewer::brewer.pal(n = 9, name = "Set1"),
                           RColorBrewer::brewer.pal(n = 8, name = "Set2"))
-names(color_palette_process) <- df_all$cluster %>% unique()
+names(color_palette_process) <- table$cluster %>% unique()
 color_palette_process['Subclonal'] = 'gray70'
 
-table = readRDS('/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/figure5/table_SPN04.rds')
 plt <- table %>% 
   filter(cluster != "Clone 3_SPN04_2.1") %>% 
-  pivot_longer(cols = c(score_driver, score_all, score_tail, score_sign)) %>% #score_no_driver, score_no_tail, score_no_sign, 
-  mutate(name = factor(name, levels = c('score_driver', 'score_tail', 'score_sign', 'score_all'))) %>% #,'score_no_driver', 'score_no_tail', 'score_no_sign',
+  pivot_longer(cols = c(score_driver, score_tail, score_sign)) %>% #score_no_driver, score_no_tail, score_no_sign, 
+  mutate(name = factor(name, levels = c('score_driver', 'score_tail', 'score_sign'))) %>% #,'score_no_driver', 'score_no_tail', 'score_no_sign',
   ggplot() +
   annotate("rect", xmin = -Inf, xmax = Inf, ymin = 0.9, ymax = 1, 
            fill = "palegreen4", alpha = 0.2) + 
@@ -286,7 +285,7 @@ plt <- table %>%
     fun.data = mean_cl_boot,
     position = position_dodge(width = 0.3),
     size = .4, 
-    show.legend = T
+    show.legend = F
   ) +
   stat_summary(
     aes(x = name, y = value, color = cluster, group=cluster),
@@ -304,11 +303,60 @@ plt <- table %>%
                      values = color_palette_process) +
   scale_x_discrete(labels = c('score_driver' = 'Driver',
                               'score_tail'   = 'Tail',
-                              'score_sign'   = 'Signature',
+                              'score_sign'   = 'Signature'
                               # 'score_no_driver' = 'Signature\nTail',
                               # 'score_no_tail' = 'Driver\nSignature',
                               # 'score_no_sign' = 'Driver\nTail',
-                              'score_all'    = 'All'))
+                              #'score_all'    = 'All'
+                              ))
 
-ggsave(filename = '/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/figure5/plot_score.pdf', 
-       plot = plt, width = 4, height = 2, dpi = 300, units = 'in')
+plt_all <- table %>% 
+  filter(cluster != "Clone 3_SPN04_2.1") %>% 
+  pivot_longer(cols = c(score_all)) %>% #score_no_driver, score_no_tail, score_no_sign, 
+  #mutate(name = factor(name, levels = c('score_driver', 'score_tail', 'score_sign'))) %>% #,'score_no_driver', 'score_no_tail', 'score_no_sign',
+  ggplot() +
+  annotate("rect", xmin = -Inf, xmax = Inf, ymin = 0.9, ymax = 1, 
+           fill = "palegreen4", alpha = 0.2) + 
+  annotate("rect", xmin = -Inf, xmax = Inf, ymin = 0.55, ymax = .9, 
+           fill = "goldenrod", alpha = 0.2) + 
+  annotate("rect", xmin = -Inf, xmax = Inf, ymin = 0.2, ymax = 0.55, 
+           fill = "salmon1", alpha = 0.2) + 
+  annotate("rect", xmin = -Inf, xmax = Inf, ymin = 0.2, ymax = 0, 
+           fill = "gainsboro", alpha = 0.2) +
+  stat_summary(
+    aes(x = name, y = value, color = cluster),
+    fun.data = mean_cl_boot,
+    #position = position_dodge(width = 0),
+    size = .4, 
+    show.legend = T
+  ) +
+  stat_summary(
+    aes(x = name, y = value, color = cluster, group=cluster),
+    fun.data = mean_cl_boot,
+    position = position_dodge(width = 0.3),
+    geom = 'line',
+    linewidth=.6,
+    show.legend = F
+  ) +
+  #geom_text(data = ~ filter(.x, contains_driver & name == 'score_all'), aes(x = name, y = value+0.03, col = cluster, group = cluster, label = driver_label_process)) + 
+  theme_minimal() +
+  ylab('') +
+  xlab('')+ 
+  scale_color_manual('Cluster', 
+                     values = color_palette_process) +
+  scale_x_discrete(labels = c(
+                              # 'score_no_driver' = 'Signature\nTail',
+                              # 'score_no_tail' = 'Driver\nSignature',
+                              # 'score_no_sign' = 'Driver\nTail',
+                              'score_all'    = 'All'
+  ), expand = c(0,0)) +
+  theme(axis.title.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.text.y = element_blank())
+
+pp= plt + plt_all + plot_layout(design = 'AAB')
+
+ggsave(filename = '/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/figure5/plot_score_all.pdf', 
+       plot = pp, width = 4.2, height = 2, dpi = 300, units = 'in')
+
+
