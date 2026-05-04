@@ -9,12 +9,12 @@ library(ComplexHeatmap)
 source("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/getters/process_getters.R")
 # source("compute_FGA.R")
 scout_dir <-"/orfeo/cephfs/scratch/cdslab/shared/SCOUT/"
-SPNS <- c("SPN01","SPN02","SPN03","SPN04", "SPN06", "SPN07")
+SPNS <- c("SPN01","SPN02","SPN03","SPN04", "SPN05", "SPN06", "SPN07")
 COVERAGES <- c("50","100", "150")
 PURITIES <- c("0.3","0.6","0.9")
 
 source("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/utils_plot.R")
-WGD_samples <- c("SPN01_1.1","SPN01_1.3","SPN06_3.1","SPN06_3.2")
+WGD_samples <- c("SPN01_1.1","SPN01_1.3","SPN06_3.2")
 
 validation_dir <- "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/VALIDATION"
 params_grid = expand.grid(COVERAGES, PURITIES)
@@ -62,20 +62,16 @@ df_all_combs_SPN<- df_all_combs_SPN %>%
   arrange(tool) %>% 
   mutate(id=paste(sample,tool,sep=":")) %>% 
   mutate(comb=paste(coverage,true_purity,sep=":")) %>% 
-  
-  mutate(delta_purity_class = case_when(delta_purity>=0.3  ~ "delta purity > 0.3",
-                                        delta_purity<=-0.3 ~ "delta purity < -0.3",
-                                        delta_purity>=0.1 & delta_purity<0.3~ "0.1 < delta purity < 0.3",
-                                        delta_purity<=-0.1 & delta_purity>-0.3~ "-0.1 < delta purity < -0.3",
+  mutate(abs_delta_purity = abs(delta_purity),
+         abs_delta_ploidy = abs(delta_ploidy)) %>% 
+  mutate(delta_purity_class = case_when(abs_delta_purity > 0.2  ~ "delta purity > 0.2",
                                         is.na(delta_ploidy) ~ "not estimated",
                                         TRUE ~ "correctly estimated",
                                         )) %>% 
-  mutate(delta_ploidy_class = case_when(delta_ploidy>1  ~ "delta ploidy > 1",#"highly underestimated",
-                                        delta_ploidy<=-1 ~ "delta ploidy < -1", #"highly overestimated",
-                                        delta_ploidy>=0.5 & delta_ploidy<1~ "0.5 < delta ploidy < 1", #"poorly underestimated",
-                                        delta_ploidy<=-0.5 & delta_ploidy>-1~ "-0.5 < delta ploidy < -1", #"poorly overestimated",
+  mutate(delta_ploidy_class = case_when(delta_ploidy > .7  ~ "delta ploidy > .7",#"highly underestimated",
                                         is.na(delta_ploidy) ~ "not estimated",
                                         TRUE ~ "correctly estimated")) %>% 
+  
   mutate(correctness_clonal_class= case_when(correctness_clonal>=q_corr_clonal[3]  ~ "> 3th quantile",
                                              correctness_clonal<q_corr_clonal[3] & correctness_clonal>=q_corr_clonal[2]   ~ "2th - 3th quantile",
                                              correctness_clonal<q_corr_clonal[2] & correctness_clonal>=q_corr_clonal[1]   ~ "1th - 2th quantile",
@@ -150,6 +146,10 @@ spn_ids <- sapply(strsplit(colnames(list_purities), "_"), `[`, 1)
 #col_spns <-c("#1b9e77", "#d95f02", "#7570b3", "#e7298a")
 #names(col_spns) <- SPNS
 
+complexity <- readRDS(file = "/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/fga_df.rds") %>% 
+  select(spn, fga_class) %>% dplyr::rename(sample = spn)
+df_all_combs_SPN <- df_all_combs_SPN %>% left_join(complexity)
+
 fga_map <- df_all_combs_SPN %>% distinct(sample, fga)
 fga_values <- fga_map$fga[match(samples, fga_map$sample)]
 fgs_map <- df_all_combs_SPN %>% distinct(sample, fgs)
@@ -159,41 +159,40 @@ wgd_values <- wgd_map$WGD[match(samples, wgd_map$sample)]
 true_ploidy_map <- df_all_combs_SPN %>% distinct(sample, true_ploidy)
 true_ploidy_values <- true_ploidy_map$true_ploidy[match(samples, true_ploidy_map$sample)]
 col_fun_true_ploidy = circlize::colorRamp2(c(2, 3, 4,5), c("khaki1", "khaki2", "khaki3","khaki4"))
+class_map = df_all_combs_SPN %>% distinct(sample, fga_class)
+class_values <- class_map$fga_class[match(samples, class_map$sample)]
 
 coverages <- as.numeric(sapply(strsplit(rownames(list_purities), ":"), `[`, 1))
 purities <- as.numeric(sapply(strsplit(rownames(list_purities), ":"), `[`, 2))
 
 
-
-graphics = list(
-  "WGD" = function(x, y, w, h) {
-    grid.points(x, y, gp = gpar(col = "black"), pch = 16)
-  },
-  "not WGD" = function(x, y, w, h) {
-    grid.points(x, y, gp = gpar(col = "gainsboro"), pch = 16)
-  }
-)
-
 column_ha <- HeatmapAnnotation(
+  true_ploidy = anno_barplot(true_ploidy_values,  beside = T, border = F, bar_width = 1, gp = gpar(fill = '#DBD7D2', col = 'gainsboro'), height = unit(1, "cm")),
   fga = anno_barplot(fga_values, beside = T, border = F, bar_width = 1, gp = gpar(fill = '#DBD7D2', col = 'gainsboro'), height = unit(1, "cm")),
   fgs = anno_barplot(fgs_values, beside = T, border = F, bar_width = 1, gp = gpar(fill = '#DBD7D2', col = 'gainsboro'), height = unit(1, "cm")),
-  #coverage = anno_simple(coverages, col= col_coverages),
+  wgd = wgd_values,
+  class = class_values, 
   spn = spn_ids, 
-  # tool = tools,
-  col = list(spn=SPN_colors),
-  annotation_label = c('FGA',#"fraction of genome altered", 
+  col = list(spn=SPN_colors, 
+             wgd =  c('not WGD' = 'gainsboro', 'WGD' = 'gray30'),
+             class = c("High FGA" = 'indianred2', 'Low FGA' = 'dodgerblue3')),
+  annotation_label = c('True Ploidy',
+                      'FGA',#"fraction of genome altered", 
                       'FGS', #"fraction of genome subclonal", 
+                      'WGD',
+                      'FGA Class',
                       "SPN")
 )
 
-column_bottom_ha <- HeatmapAnnotation(
-  true_ploidy = anno_barplot(true_ploidy_values,  beside = T, border = F, bar_width = 1, gp = gpar(fill = '#DBD7D2', col = 'gainsboro'), height = unit(1, "cm")),
-  WGD = anno_customize(wgd_values, graphics = graphics),
-  annotation_label = c('True ploidy', 'WGD')
-  #coverage = anno_simple(coverages, col= col_coverages),
-  # # tool = tools,
-  # col = list(true_ploidy=col_fun_true_ploidy)
-)
+
+# column_bottom_ha <- HeatmapAnnotation(
+#   true_ploidy = anno_barplot(true_ploidy_values,  beside = T, border = F, bar_width = 1, gp = gpar(fill = '#DBD7D2', col = 'gainsboro'), height = unit(1, "cm")),
+#   WGD = anno_customize(wgd_values, graphics = graphics),
+#   annotation_label = c('True ploidy', 'WGD')
+#   #coverage = anno_simple(coverages, col= col_coverages),
+#   # # tool = tools,
+#   # col = list(true_ploidy=col_fun_true_ploidy)
+# )
 
 row_ha <- rowAnnotation(
   coverage = coverages,
@@ -212,21 +211,33 @@ row_ha <- rowAnnotation(
 #   "not estimated" = "grey"
 # )
 
+# col_fun_classes_purity <-  c(
+#   "correctly estimated"   = "gainsboro",  # green
+#   "delta purity > 0.3"  = "#1976D2",  # dark red
+#   "0.1 < delta purity < 0.3"  = "#BBDEFB",  # light red
+#   "delta purity < -0.3" = "#D32F2F",  # dark blue
+#   "-0.1 < delta purity < -0.3" = "#FFCDD2",   # light blue,
+#   "not estimated" = "grey"
+# )
+
 col_fun_classes_purity <-  c(
-  "correctly estimated"   = "gainsboro",  # green
-  "delta purity > 0.3"  = "#1976D2",  # dark red
-  "0.1 < delta purity < 0.3"  = "#BBDEFB",  # light red
-  "delta purity < -0.3" = "#D32F2F",  # dark blue
-  "-0.1 < delta purity < -0.3" = "#FFCDD2",   # light blue,
+  "correctly estimated"   = "palegreen4",  # green
+  "delta purity > 0.2"  = "goldenrod",  # dark red
   "not estimated" = "grey"
 )
 
+# col_fun_classes_ploidy <-  c(
+#   "correctly estimated"   = "gainsboro",  # green
+#   "delta ploidy > 1"  = "#1976D2",  # dark red
+#   "0.5 < delta ploidy < 1"  = "#BBDEFB",  # light red
+#   "delta ploidy < -1" = "#D32F2F",  # dark blue
+#   "-0.5 < delta ploidy < 1" = "#FFCDD2",   # light blue,
+#   "not estimated" = "grey"
+# )
+
 col_fun_classes_ploidy <-  c(
-  "correctly estimated"   = "gainsboro",  # green
-  "delta ploidy > 1"  = "#1976D2",  # dark red
-  "0.5 < delta ploidy < 1"  = "#BBDEFB",  # light red
-  "delta ploidy < -1" = "#D32F2F",  # dark blue
-  "-0.5 < delta ploidy < 1" = "#FFCDD2",   # light blue,
+  "correctly estimated"   = "palegreen4",  # green
+  "delta ploidy > .7"  = "indianred",  # dark red
   "not estimated" = "grey"
 )
 
@@ -307,7 +318,7 @@ h_precision_bp = ComplexHeatmap::Heatmap(list_bp_precision,cluster_rows = F,clus
 )
 h_recall_bp = ComplexHeatmap::Heatmap(list_bp_recall,cluster_rows = F,cluster_columns = F,
                                          # top_annotation = column_ha,
-                                         bottom_annotation = column_bottom_ha,
+                                         #bottom_annotation = column_bottom_ha,
                                          left_annotation = row_ha,
                                          col=col_fun_recall,
                                          row_title = "Recall\nbreakpoint",
@@ -322,7 +333,7 @@ h_recall_bp = ComplexHeatmap::Heatmap(list_bp_recall,cluster_rows = F,cluster_co
 
 h_final_cna <- h_purity %v% h_ploidy %v% h_correc %v% h_precision_bp %v% h_recall_bp
 pdf("/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/supp_figures/Final_CNA_SCOUT_Validation.pdf",
-    width = 13,height = 8)
+    width = 13,height = 9)
 draw(
   h_final_cna,
   #heatmap_legend_side = "bottom",

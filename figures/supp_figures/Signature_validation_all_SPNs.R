@@ -4,12 +4,12 @@ library(patchwork)
 library(tidyverse)
 
 purities <- c(0.3,0.6,0.9)
-coverages <- c(50,100)
+coverages <- c(50,100,150)
 contexts <- c("SBS96","ID83")
 all_combs <- list()
 all_metrics <- list()
 all_cosine  <- list()
-SPNS <- c("SPN01","SPN02","SPN03","SPN04", "SPN06", 'SPN07')
+SPNS <- c("SPN01","SPN02","SPN03","SPN04", "SPN05", "SPN06", 'SPN07')
 source("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/utils_plot.R")
 validation_dir <- "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/VALIDATION/"
 
@@ -105,16 +105,23 @@ list_mse <- df_all_combs_SPN_signatures %>%
   tibble::column_to_rownames("comb") %>% 
   as.matrix()
 
+complexity <- readRDS(file="/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure5/signatures_cohort/sample_classification_clonal_heterogeneity.rds") %>% 
+  select(sample, sample_class) %>% 
+  distinct()
+df_all_combs_SPN_signatures <- df_all_combs_SPN_signatures %>% left_join(complexity)
+
 
 ###### get annotation for heatmap ######
-
-
 samples <- sapply(strsplit(colnames(list_cosine), ":"), `[`, 1)
 tools <- sapply(strsplit(colnames(list_cosine), ":"), `[`, 2)
 col_tools <- c('BASCULE' = 'purple1','SigProfiler' = 'orange2')
 
 spn_ids <- sapply(strsplit(colnames(list_cosine), "_"), `[`, 1)
-
+sample_class <- df_all_combs_SPN_signatures %>% 
+  select(sample_class) %>% 
+  as.matrix()
+rownames(sample_class) <- df_all_combs_SPN_signatures$sample
+sample_class <- sample_class[samples, ]
 
 muts_counts_map_snv <- df_all_combs_SPN_signatures %>% 
   dplyr::filter(type=="SNV") %>% 
@@ -130,16 +137,20 @@ coverages <- as.numeric(sapply(strsplit(rownames(list_cosine), ":"), `[`, 1))
 purities <- as.numeric(sapply(strsplit(rownames(list_cosine), ":"), `[`, 2))
 contexts <- sapply(strsplit(rownames(list_cosine), ":"), `[`, 3)
 
+
 column_ha <- HeatmapAnnotation(
   mutation_count_snv = anno_lines(muts_counts_values_snv,add_points = T),
   mutation_count_indel = anno_lines(muts_counts_values_indel,add_points = T),
   spn = spn_ids, 
-  # tool = tools,
-  col = list(spn=SPN_colors),
+  class = sample_class, 
+  col = list(spn=SPN_colors, class = c('high complexity'= 'salmon', 'low complexity' = 'aquamarine4')),
   annotation_label = c('log(TMB) SNV',
                        'log(TMB) INDEL',
-                       "SPN")
+                       "SPN",
+                       'Sample Class')
 )
+draw(column_ha, test = '')
+
 row_ha <- rowAnnotation(
   coverage = coverages,
   purity = purities,
@@ -149,6 +160,7 @@ row_ha <- rowAnnotation(
 )
 col_fun = circlize::colorRamp2(c(min(list_cosine,na.rm=TRUE), 
                                  max(list_cosine,na.rm=TRUE)), c("steelblue4","white"))
+
 h_cosine = ComplexHeatmap::Heatmap(list_cosine,cluster_rows = F,cluster_columns = F,
                                    top_annotation = column_ha,
                                    col=col_fun,
@@ -179,7 +191,7 @@ h_mse = ComplexHeatmap::Heatmap(list_mse,cluster_rows = F,cluster_columns = F,
 h_final_signatures <- h_cosine %v% h_mse
 
 pdf("/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/supp_figures/Final_Signatures_SCOUT_Validation.pdf",
-    width =9,height = 6)
+    width =9,height = 4)
 draw(
   h_final_signatures,
   #heatmap_legend_side = "bottom",

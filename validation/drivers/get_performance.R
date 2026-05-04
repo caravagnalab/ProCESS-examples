@@ -6,8 +6,8 @@ setwd("/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/validation/d
 
 coverage_list = c(50, 100, 150)
 purity_list = c(0.9, 0.6, 0.3)
-vcf_caller_list = c("mutect2")
-cna_caller_list = c("ascat")
+vcf_caller_list = c("mutect2", 'strelka')
+cna_caller_list = c("ascat", 'sequenza')
 spn_list = c('SPN01', 'SPN02', 'SPN03', 'SPN04','SPN05', 'SPN06', 'SPN07')
 combs = expand.grid(spn = spn_list,
                     coverage=coverage_list,
@@ -16,7 +16,6 @@ combs = expand.grid(spn = spn_list,
                     cna_caller = cna_caller_list)
 
 
-i=3
 results <- lapply(1:nrow(combs), FUN = function(i){
   print(i)
   sp = combs[i, "spn"]

@@ -2,7 +2,7 @@ library(tidyverse)
 library(patchwork)
 
 base = "/orfeo/scratch/cdslab/shared/SCOUT/VALIDATION/"
-SPNS <- paste0('SPN0', c(1,2,3,4,6,7))
+SPNS <- paste0('SPN0', c(1,2,3,4,5,6,7))
 CALLERS <- c('haplotypecaller', 'strelka', 'freebayes')
 source("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/utils_plot.R")
 df_all_SPN_germline = lapply(SPNS, function(i) {
@@ -17,6 +17,7 @@ df_all_SPN_germline = lapply(SPNS, function(i) {
 
 
 metrics <- c("Accuracy","Sensitivity","Precision","F1_Score")
+df_all_SPN_germline_orig <- df_all_SPN_germline
 
 df_all_SPN_germline  <- df_all_SPN_germline %>%
   pivot_longer(all_of(metrics), names_to = "metric", values_to = "value") %>%

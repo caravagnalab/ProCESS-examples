@@ -11,26 +11,28 @@ info <- tibble(spn = paste0('SPN0',1:7),
                class = c('Other', 'Hypermutant', 'Other', 'Other', 'Hypermutant', 'Other', 'Hypermutant'))
 
 data <- readRDS('/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/validation/drivers/performance_driver.rds') %>% 
-  left_join(info)
-
+  left_join(info) %>% 
+  mutate(tool = paste(vcf_caller, cna_caller, sep = '-')) 
 
 f1_data <- data %>% 
-  mutate(id=spn) %>% 
+  mutate(id=paste(spn, tool, class, sep =':')) %>% 
   mutate(comb=paste(coverage,purity,sep=":")) %>% 
   dplyr::select(comb, id, F1) %>%
   tidyr::pivot_wider(names_from = id, values_from = F1) %>% 
   tibble::column_to_rownames("comb") %>% 
   as.matrix()
 
-spn_ids <- sapply(strsplit(colnames(f1_data), "_"), `[`, 1)
-wgd <- info$class 
+
+spn_ids <- sapply(strsplit(colnames(f1_data), ":"), `[`, 1)
+tools <- sapply(strsplit(colnames(f1_data), ":"), `[`, 2)
+class <- sapply(strsplit(colnames(f1_data), ":"), `[`, 3)
 coverages <- as.numeric(sapply(strsplit(rownames(f1_data), ":"), `[`, 1))
 purities <- as.numeric(sapply(strsplit(rownames(f1_data), ":"), `[`, 2))
 
 column_ha <- HeatmapAnnotation(
   spn = spn_ids, 
-  wgd = wgd,
-  col = list(spn=SPN_colors, wgd = c('Other' = 'gray', 'Hypermutant' = 'gray30')),
+  Hypermutant = class,
+  col = list(spn=SPN_colors, Hypermutant = c('Other' = 'gray', 'Hypermutant' = 'gray30')),
   annotation_label = c("SPN", 'Hypermutant')
 )
 
@@ -61,13 +63,13 @@ f1 <- ComplexHeatmap::Heatmap(f1_data,
                               show_column_names = F,
                               show_row_names = F,
                               rect_gp = gpar(col = "white", lwd = 1),
-                              #column_split = tools,
+                              column_split = tools,
                               name = "F1"
 )
 
 
 precision_data <- data %>% 
-  mutate(id=spn) %>% 
+  mutate(id=paste(spn, tool, sep =':')) %>% 
   mutate(comb=paste(coverage,purity,sep=":")) %>% 
   dplyr::select(comb, id, Precision) %>%
   tidyr::pivot_wider(names_from = id, values_from = Precision) %>% 
@@ -94,12 +96,12 @@ precision <- ComplexHeatmap::Heatmap(precision_data,
                               show_column_names = F,
                               show_row_names = F,
                               rect_gp = gpar(col = "white", lwd = 1),
-                              #column_split = tools,
+                              column_split = tools,
                               name = "Precision"
 )
 
 recall_data <- data %>% 
-  mutate(id=spn) %>% 
+  mutate(id=paste(spn, tool, sep =':')) %>% 
   mutate(comb=paste(coverage,purity,sep=":")) %>% 
   dplyr::select(comb, id, Recall) %>%
   tidyr::pivot_wider(names_from = id, values_from = Recall) %>% 
@@ -126,13 +128,13 @@ recall <- ComplexHeatmap::Heatmap(recall_data,
                                      show_column_names = F,
                                      show_row_names = F,
                                      rect_gp = gpar(col = "white", lwd = 1),
-                                     #column_split = tools,
+                                     column_split = tools,
                                      name = "Recall"
 )
 
 final <- f1 %v% precision %v% recall
 pdf("/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/supp_figures/Final_Driver_SCOUT_Validation.pdf",
-    width = 6,height = 6)
+    width = 10,height = 8)
 draw(
   final,
   #heatmap_legend_side = "bottom",

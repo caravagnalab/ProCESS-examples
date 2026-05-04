@@ -9,6 +9,8 @@ info <- tibble(spn = paste0('SPN0',1:7),
 data <- readRDS('/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/validation/drivers/performance_driver.rds') %>% 
   left_join(info)
 
+data %>% group_by(class) %>% summarise(m =median(Precision))
+
 plt_driver <- data %>% 
   mutate(class = factor(class, levels = c('Hypermutant', 'Other'))) %>% 
   ggplot(aes(x = class, y = F1)) +
