@@ -2,6 +2,7 @@ library(dplyr)
 library(ggplot2)
 library(patchwork)
 library(tidyverse)
+library(ComplexHeatmap)
 
 source('/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/figure3/germline/germline.R')
 df_all_SPN_germline_orig_n <- df_all_SPN_germline_orig %>% 
