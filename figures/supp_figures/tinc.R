@@ -8,63 +8,82 @@ library(patchwork)
 
 source('../../getters/process_getters.R')
 source('../../getters/tumourevo_getters.R')
+df_all_combs_SPN_cna<- readRDS("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/cna/cna_all.rds")
+df_all_combs_SPN_cna <- df_all_combs_SPN_cna %>% 
+  dplyr::rename(cna_caller=tool) %>% 
+  mutate(cna_caller=case_when(cna_caller=="Sequenza"~"sequenza",
+                              cna_caller=="ASCAT" ~ "ascat",
+                              TRUE~cna_caller)) %>% 
+  
+  mutate(purity=as.numeric(true_purity),
+         cn_purity=as.numeric(purity),
+         coverage=as.numeric(coverage)) %>% 
+  select(sample,spn,coverage,cn_purity,class,cna_caller,purity)
 
-option_list <- list( 
-  make_option(c("-v", "--variantcaller"), type="character", default='mutect2', help="variant caller"),
-  make_option(c("-c", "--cnacaller"), type="character", default='ascat', help="cna caller")
-)
-param <- parse_args(OptionParser(option_list=option_list))
+fga_df <-readRDS("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/fga_df.rds") %>% 
+  dplyr::rename(sample=spn) %>% 
+  mutate(fga_class=case_when(sample%in%c("SPN01_1.1","SPN01_1.3","SPN06_3.2")~"WGD",
+                             TRUE ~ fga_class))
 
-SPN <- paste0('SPN0', seq(1,7))
-COV <- c(50, 100, 150, 200)
-PUR <- c(0.3, 0.6, 0.9)
+SPN <- paste0('SPN0', c(1,3,4,5,6,7))
+coverages <- c(50, 100, 150)
+purities <- c(0.3, 0.6, 0.9)
+cna_callers <- c("sequenza","ascat")
+variant_callers <- c("mutect2","strelka")
+params_grid = expand.grid(coverages, purities,cna_callers,variant_callers)
+colnames(params_grid) = c("coverage", "purity","cna_caller","snv_caller")
 
-final_table <- tibble()
+
+validation_dir <- "/orfeo/cephfs/scratch/cdslab/shared/SCOUT/VALIDATION/"
+validate_spns <- list()
 for (spn in SPN){
   print(spn)
-  for (cov in COV){
-    for (pur in PUR){
-      samples <- get_sample_names(spn)
+  validate_tables <- list()
+  for (i in 1:nrow(params_grid)){
+    print(i)
+    cov <- params_grid$coverage[i]
+    pur <- params_grid$purity[i]
+    cna_caller <- params_grid$cna_caller[i]
+    snv_caller <- params_grid$snv_caller[i]
+    
+    samples <- get_sample_names(spn)
+    
+    table <- lapply(samples, FUN = function(sample){
+      file <- get_tumourevo_qc(spn = spn, coverage = cov, purity = pur, tool = 'tinc', 
+                               vcf_caller =snv_caller, cna_caller =cna_caller, sample = sample)
       
-      table <- lapply(samples, FUN = function(sample){
-        file <- get_tumourevo_qc(spn = spn, coverage = cov, purity = pur, tool = 'tinc', vcf_caller = param$variantcaller, cna_caller = param$cnacaller, sample = sample)
-
-        if (length(file) > 0){
-          if (file.exists(file$fit_rds)){
-            data <- readRDS(file$fit_rds)
-            tmp <- tibble(TIT = data$TIT, TIN = data$TIN, sample = sample)
-            return(tmp)
-          }
+      if (length(file) > 0){
+        if (file.exists(file$fit_rds)){
+          data <- readRDS(file$fit_rds)
+          tmp <- tibble(TIT = data$TIT, TIN = data$TIN, sample = sample)
+          return(tmp)
         }
-      }) %>% bind_rows()
-      
-      if (nrow(table) > 1){
-        table$coverage = as.numeric(cov)
-        table$purity = as.numeric(pur)
-        table$vc = param$variantcaller
-        table$cnc = 'ascat'
-        table$SPN = spn
-        table$N = length(samples)
-        table <- table %>% mutate(error = abs(purity-TIT))
       }
-      final_table <- bind_rows(final_table, table)
-    }
+    }) %>% bind_rows()
+    table$coverage = as.numeric(cov)
+    table$purity = as.numeric(pur)
+    table$vcf_caller = snv_caller
+    table$cna_caller = cna_caller
+    table$spn = spn
+    table$N = length(samples)
+    table <- table %>% mutate(error = abs(purity-TIT))
+    validate_tables[[i]] <- table
   }
+  validate_spns[[spn]] <- do.call("bind_rows",validate_tables)
 }
-#saveRDS(object = table, file = paste0(out, param$cov,'x_',param$pur,'p_',param$variantcaller,'_ascat.rds'))
+final_table_tinc <- do.call("bind_rows",validate_spns)
+final_table_tinc <- final_table_tinc %>% 
+  rename(spn=SPN) %>% 
+  left_join(df_all_combs_SPN_cna) %>% 
+  left_join(fga_df)
 
-#sp <- ggpubr::ggscatter(final_table, x = "TIT", y = "purity",
-#                color = "SPN", palette = "jco", position = 'jitter',
-#                add = "reg.line") 
-#corr <- sp + ggpubr::stat_cor(aes(color = SPN), label.x = 0.6, label.y.npc = c(0.27, 0.3))
-
-
-v1 <- final_table %>% 
+v1 <- final_table_tinc %>% 
+  filter(fga_class!="WGD") %>% 
   ggplot() +
   geom_abline(linewidth = 0.5, col = 'gray') +
-  geom_point(aes(y = TIT, x = purity, col = SPN), size = 3) +
+  geom_point(aes(y = TIT, x = purity, col=spn, shape=fga_class), size = 3) +
   geom_point(aes(x = purity, y = purity), size = 3, shape = 8) +
-  facet_grid(. ~ coverage) + 
+  facet_grid(. ~ class) + 
   ylab('TIT (TINC)') +
   xlab('purity (ProCESS)') + 
   scale_color_manual(values = c('steelblue', 'seagreen', 'goldenrod', 'coral', 'palevioletred', 'indianred3')) +
@@ -72,8 +91,19 @@ v1 <- final_table %>%
   ylim(0,1) +
   theme_bw()
 v1
+v2 <- final_table_tinc %>% 
+  filter(fga_class!="WGD") %>% 
+  ggplot( aes(x = fga_class, y = error, col = class)) +
+  geom_boxplot() +
+#  geom_jitter() +
+  ylab('|ProCESS - TINC|') +
+  # scale_color_manual(values = c('steelblue', 'seagreen', 'goldenrod', 'coral', 'palevioletred', 'indianred3'))+
+  facet_grid(.~cna_caller) +
+  my_ggplot_theme()
 
-v2 <- ggplot(final_table, aes(x = SPN, y = error, col = SPN)) +
+v2
+
+v2 <- ggplot(final_table_tinc, aes(x = spn, y = error, col = spn)) +
   geom_boxplot() +
   geom_jitter() +
   ylab('|ProCESS - TINC|') +
