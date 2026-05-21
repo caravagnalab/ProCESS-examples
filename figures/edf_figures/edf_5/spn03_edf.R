@@ -222,4 +222,3 @@ pp3 <- all_data %>%
   my_ggplot_theme()+
   theme(strip.text.x.top = element_blank())
 #wrap_plots(list(pp2,pp1,pp3,p_sankey+theme(strip.text.x = element_blank(),strip.text.y = element_blank())),design = "AAAA\nBBBB\nCCCC\nDDDD", guides="collect") & theme(legend.position = "bottom")
-spn03 <- wrap_plots(list(pp2,pp1,pp3,p_sankey+theme(strip.text.x = element_blank(),strip.text.y = element_blank())),design = "AAAA\nBBBC\nBBBC\nDDDD", guides="collect") & theme(legend.position = "bottom")

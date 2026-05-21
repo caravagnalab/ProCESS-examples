@@ -287,6 +287,7 @@ cosine_plot <-subclonal_arch %>%
     axis.title.x = element_blank(),
     strip.text.x.top = element_blank(),panel.spacing.x = unit(0.2, "lines")
   )
+
 clonal_subcl_exp <- subclonal_arch %>% 
   filter(coverage==150, purity==0.9) %>% 
   ggplot(aes(

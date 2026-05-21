@@ -10,24 +10,24 @@ source('/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/getters/p
 source('/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples//getters/tumourevo_getters.R')
 source("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/utils_plot.R")
 source("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/validation/SCOUT/colors.R")
-df_all_combs_SPN_cna<- readRDS("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/cna/cna_all.rds")
-df_all_combs_SPN_cna <- df_all_combs_SPN_cna %>% 
-  dplyr::rename(cna_caller=tool) %>% 
+source("/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/figure3/cna/cna.R")
+df_all_combs_SPN_cna <- df_all_combs_SPN_cna %>%
+  dplyr::rename(cna_caller=tool) %>%
   mutate(cna_caller=case_when(cna_caller=="Sequenza"~"sequenza",
                               cna_caller=="ASCAT" ~ "ascat",
                               TRUE~cna_caller))
 
-fga_df <-readRDS("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/fga_df.rds") %>% 
-  dplyr::rename(sample=spn) %>% 
+fga_df <-readRDS("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/fga_df.rds") %>%
+  dplyr::rename(sample=spn) %>%
   mutate(fga_class=case_when(sample%in%c("SPN01_1.1","SPN01_1.3","SPN06_3.2")~"WGD",
                              TRUE ~ fga_class))
-### select columns of interest
-
-df_all_combs_SPN_cna <- df_all_combs_SPN_cna %>% 
-  select(sample,spn,coverage,true_purity,class,cna_caller) %>% 
+# ### select columns of interest
+# 
+df_all_combs_SPN_cna <- df_all_combs_SPN_cna %>%
+  select(sample,spn,coverage,true_purity,class,cna_caller) %>%
   mutate(true_purity=as.numeric(true_purity),
          coverage=as.numeric(coverage))
-SPN <- paste0('SPN0', c(1,3,4,5,6,7))
+SPN <- paste0('SPN0', c(1,2,3,4,5,6,7))
 coverages <- c(50, 100, 150)
 purities <- c(0.3, 0.6, 0.9)
 cna_callers <- c("sequenza","ascat")
@@ -45,20 +45,24 @@ for (spn in SPN){
     pur <- params_grid$purity[i]
     cna_caller <- params_grid$cna_caller[i]
     snv_caller <- params_grid$snv_caller[i]
-    
+
     cnaqc_file <- file.path(validation_dir,spn,"cnaqc",paste0(cov, 'x_', pur),paste0(snv_caller, "_",cna_caller),"cnaqc_validate.rds")
     if (file.exists(cnaqc_file)){
       validate_tables[[i]] <- readRDS(cnaqc_file)
     } else{
       print(paste0('Missing file for: ', spn, '-', cov, 'x-', pur, 'p', snv_caller, "-",cna_caller))
     }
-    
+
   }
   validate_spns[[spn]] <- do.call("bind_rows",validate_tables)
 }
 cnaqc_df <-do.call("bind_rows",validate_spns)
-cnaqc_df <- cnaqc_df %>% 
+cnaqc_df <- cnaqc_df %>%
   left_join(y = df_all_combs_SPN_cna)
+
+saveRDS(object = cnaqc_df, file = '/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/supp_figures/data/final_table_cnaqc.rds')
+cnaqc_df <- readRDS("/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/supp_figures/data/final_table_cnaqc.rds")
+
 cnaqc_df_filt <- cnaqc_df %>%
   mutate(comb_te=paste0(vcf_caller,"_",cna_caller)) %>% 
   mutate(CNAqc = ifelse(is.na(CNAqc), 'NA', CNAqc)) %>% 
@@ -74,7 +78,7 @@ cnaqc_df_filt <- cnaqc_df %>%
     )) 
 
 cnaqc_df_filt_tot_counts <- cnaqc_df_filt %>%
-  select(true_purity, class,cna_caller,sample) %>%
+  select(true_purity, class, cna_caller, sample) %>%
   unique() %>%
   group_by(true_purity, class,cna_caller) %>%
   # group_by(true_purity, class,cna_caller) %>%
@@ -110,7 +114,7 @@ cnaqc_df_filt %>%
 
 
 ##########################################
-cnaqc_df_filt %>% 
+plt <- cnaqc_df_filt %>% 
   # filter(spn=="SPN04") %>% 
   group_by(cna_caller,CNAqc_superclass,class,true_purity,sample) %>%
   mutate(n_superclass = n())  %>% 
@@ -125,21 +129,23 @@ cnaqc_df_filt %>%
     names_prefix = "freq_"
   ) %>% 
   unique() %>% 
-  mutate(sample_cnaqc_class=case_when(freq_CNAqc_OK>=0.8~"CNAqc_sample_OK",
-                                      TRUE~"CNAqc_sample_FAIL" ))  %>% 
-  filter(spn=="SPN04") %>% 
+  mutate(sample_cnaqc_class=case_when(freq_CNAqc_OK>=0.8~"PASS",
+                                      TRUE~"FAIL" ))  %>% 
+  mutate(sample = str_remove(sample, "^SPN\\d+_")) %>% 
+  #filter(spn=="SPN04") %>% 
   ggplot(aes(x = sample, y = cna_caller, fill = sample_cnaqc_class,color=class)) +
   geom_tile(linewidth = 1,alpha=0.4) +
   labs(x = "Sample", y = "CNA caller", fill = "Class",color="CN caller performance",caption = "A sample is CNAqc OK when more than 80% of the segments are CNAqc-OK") +
-  scale_fill_manual(values=c("CNAqc_sample_OK"="seagreen3","CNAqc_sample_FAIL"="indianred3")) + 
-  scale_color_manual(values=c("correct"="forestgreen","uncorrect purity"="orange","uncorrect ploidy"="purple")) + 
-  ggh4x::facet_nested(~ true_purity+coverage)+
+  scale_fill_manual('CNAqc', values=c("PASS"="seagreen3","FAIL"="indianred3")) + 
+  scale_color_manual(values=c("correct"="forestgreen","uncorrect purity"="orange","uncorrect ploidy"="indianred3")) + 
+  ggh4x::facet_nested(spn~ true_purity+coverage, independent =  'x', scales = 'free_x')+
   my_ggplot_theme()+
   theme(
     axis.text.x = element_text(angle = 45, hjust = 1)
   )
 
-
+ggsave(plot = plt, filename = "/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/supp_figures/plots/Final_CNAqc_SCOUT_Validation.pdf",
+    width = 10, height = 7, units = 'in')
 
 
 

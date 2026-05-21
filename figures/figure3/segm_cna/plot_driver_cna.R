@@ -24,6 +24,7 @@ snv_driver = lapply(spns_details %>% names, function(s) {
     dplyr::mutate(category = ifelse(str_length(ref) != 1 |  str_length(alt) != 1, 'SNV', 'SNV'))
 })
 names(snv_driver) = names(spns_details)
+snv_driver$SPN02 = snv_driver$SPN02 %>% mutate(code = ifelse(chr == 2, 'POLE p.V411L', code))
 
 
 snv_driver_pivoted = lapply(snv_driver, function(x) {
@@ -167,84 +168,95 @@ gene_pos <- CNAqc::gene_coordinates_GRCh38 %>%
 source('../../../getters/process_getters.R')
 source('../../../getters/tumourevo_getters.R')
 source('../../../getters/sarek_getters.R')
-SPNS <- c("SPN02")#","SPN02","SPN03","SPN04", "SPN06",'SPN07'
-all_df <- tibble()
-
-for (tool in c('ascat', 'sequenza')){
-  print(tool)
-  for (p in c(0.3,0.6, 0.9)){
-    print(p)
-    for (c in c(50, 100, 150)){
-      print(c)
-      for (spn in SPNS){
-        print(spn)
-        samples <- get_sample_names(spn = spn)
-        for (s in samples){
-          if (tool == 'ascat'){
-            cna_data <- readRDS(get_tumourevo_qc(spn = spn,
-                                                 coverage = c,
-                                                 purity = p,
-                                                 tool = 'cnaqc',
-                                                 vcf_caller = 'mutect2',
-                                                 cna_caller = tool,
-                                                 sample = s)$qc_rds)
-
-            pred_cna_gene <- CNAqc::CNA_gene(cna_data, genes = all_gene) %>%
-              mutate(CN = Major + minor) %>%
-              dplyr::select(gene, karyotype, CN) %>%
-              filter(karyotype != 'NA:NA')
-
-          } else if (tool == 'sequenza'){
-            sequenza <- get_sarek_cna_file(spn = spn, sampleID = s, coverage = 100, purity = 0.9, caller = 'sequenza')
-            cna <- parse_Sequenza(segments_file = sequenza$segments, extra_file = sequenza$confints_CP)
-            muts <- readRDS(paste0('/orfeo/cephfs/scratch/cdslab/shared/SCOUT/', spn, '/tumourevo/100x_0.3p_mutect2_ascat/formatter/vcf2cnaqc/SCOUT/', spn, '/', spn, '_', s, '/SCOUT_', spn, '_', spn, '_', s, '_snv.rds'))
-            cna_data <- CNAqc::init(mutations = muts[[paste0(spn, '_', s)]]$mutations, cna = cna$segments, purity = cna$purity, ref = 'GRCh38')
-            pred_cna_gene <- CNAqc::CNA_gene(cna_data, genes = all_gene) %>%
-              mutate(CN = Major + minor) %>%
-              select(gene, karyotype, CN) %>%
-              filter(karyotype != 'NA:NA')
-          }
-          true_cna <- readRDS(get_process_cna(spn = spn,
-                                              sample = s)) %>% mutate(chr = paste0('chr', chr))
-          driver <- all_mut_info %>%
-            filter(sample == s) %>%
-            dplyr::mutate(code = str_remove(code, " .*$")) %>%
-            select(sample, code, driver) %>%
-            distinct()
-
-          true_cna_gene <- gene_pos %>%
-            left_join(true_cna, by = join_by(chr), relationship = "many-to-many") %>%
-            filter(from >= begin, to <= end) %>%
-            filter(ratio>.1) %>%
-            group_by(gene) %>%
-            slice_max(ratio, n = 1, with_ties = FALSE) %>%
-            ungroup() %>%
-            mutate(karyotype = paste(major, minor, sep = ':')) %>%
-            mutate(CN = major + minor) %>%
-            select(gene, karyotype, CN, ratio)
-
-
-          df <- true_cna_gene %>%
-            select(gene, true = karyotype, CN) %>%
-            inner_join(pred_cna_gene %>% dplyr::rename(pred = karyotype, pred_CN = CN), by = "gene") %>%
-            mutate(delta = CN - pred_CN) %>%
-            mutate(spn = spn, sample = s, tool = tool) %>%
-            left_join(driver %>% select(code = code, driver),
-                      by = c("gene" = "code")) %>%
-            mutate(is_driver = ifelse(is.na(driver), F, T)) %>%
-            select(-driver) %>%
-            distinct() %>%
-            mutate(purity = p, coverage = c)
-         all_df <- bind_rows(all_df, df)
-        }
-      }
-    }
-  }
-}
-
+SPNS <- c("SPN01", "SPN02","SPN03","SPN04","SPN05", "SPN06",'SPN07')#","SPN02","SPN03","SPN04", "SPN06",'SPN07'
+# all_df <- tibble()
+# 
+# for (tool in c('ascat', 'sequenza')){
+#   print(tool)
+#   for (p in c(0.3,0.6, 0.9)){
+#     print(p)
+#     for (c in c(50, 100, 150)){
+#       print(c)
+#       for (spn in SPNS){
+#         print(spn)
+#         samples <- get_sample_names(spn = spn)
+#         for (s in samples){
+#           if (tool == 'ascat'){
+#             cna_data <- readRDS(get_tumourevo_qc(spn = spn,
+#                                                  coverage = c,
+#                                                  purity = p,
+#                                                  tool = 'cnaqc',
+#                                                  vcf_caller = 'mutect2',
+#                                                  cna_caller = tool,
+#                                                  sample = s)$qc_rds)
+# 
+#             pred_cna_gene <- CNAqc::CNA_gene(cna_data, genes = all_gene) %>%
+#               mutate(CN = Major + minor) %>%
+#               dplyr::select(gene, karyotype, CN) %>%
+#               filter(karyotype != 'NA:NA')
+# 
+#           } else if (tool == 'sequenza'){
+#             cna_data <- readRDS(get_tumourevo_qc(spn = spn,
+#                                                  coverage = c,
+#                                                  purity = p,
+#                                                  tool = 'cnaqc',
+#                                                  vcf_caller = 'mutect2',
+#                                                  cna_caller = tool,
+#                                                  sample = s)$qc_rds)
+#             
+#             pred_cna_gene <- CNAqc::CNA_gene(cna_data, genes = all_gene) %>%
+#               mutate(CN = Major + minor) %>%
+#               dplyr::select(gene, karyotype, CN) %>%
+#               filter(karyotype != 'NA:NA')
+#             # sequenza <- get_sarek_cna_file(spn = spn, sampleID = s, coverage = 100, purity = 0.9, caller = 'sequenza')
+#             # cna <- parse_Sequenza(segments_file = sequenza$segments, extra_file = sequenza$confints_CP)
+#             # muts <- readRDS(paste0('/orfeo/cephfs/scratch/cdslab/shared/SCOUT/', spn, '/tumourevo/100x_0.3p_mutect2_ascat/formatter/vcf2cnaqc/SCOUT/', spn, '/', spn, '_', s, '/SCOUT_', spn, '_', spn, '_', s, '_snv.rds'))
+#             # cna_data <- CNAqc::init(mutations = muts[[paste0(spn, '_', s)]]$mutations, cna = cna$segments, purity = cna$purity, ref = 'GRCh38')
+#             # pred_cna_gene <- CNAqc::CNA_gene(cna_data, genes = all_gene) %>%
+#             #   mutate(CN = Major + minor) %>%
+#             #   select(gene, karyotype, CN) %>%
+#             #   filter(karyotype != 'NA:NA')
+#           }
+#           true_cna <- readRDS(get_process_cna(spn = spn,
+#                                               sample = s)) %>% mutate(chr = paste0('chr', chr))
+#           driver <- all_mut_info %>%
+#             filter(sample == s) %>%
+#             dplyr::mutate(code = str_remove(code, " .*$")) %>%
+#             select(sample, code, driver) %>%
+#             distinct()
+# 
+#           true_cna_gene <- gene_pos %>%
+#             left_join(true_cna, by = join_by(chr), relationship = "many-to-many") %>%
+#             filter(from >= begin, to <= end) %>%
+#             filter(ratio>.1) %>%
+#             group_by(gene) %>%
+#             slice_max(ratio, n = 1, with_ties = FALSE) %>%
+#             ungroup() %>%
+#             mutate(karyotype = paste(major, minor, sep = ':')) %>%
+#             mutate(CN = major + minor) %>%
+#             select(gene, karyotype, CN, ratio)
+# 
+# 
+#           df <- true_cna_gene %>%
+#             select(gene, true = karyotype, CN) %>%
+#             inner_join(pred_cna_gene %>% dplyr::rename(pred = karyotype, pred_CN = CN), by = "gene") %>%
+#             mutate(delta = CN - pred_CN) %>%
+#             mutate(spn = spn, sample = s, tool = tool) %>%
+#             left_join(driver %>% select(code = code, driver),
+#                       by = c("gene" = "code")) %>%
+#             mutate(is_driver = ifelse(is.na(driver), F, T)) %>%
+#             select(-driver) %>%
+#             distinct() %>%
+#             mutate(purity = p, coverage = c)
+#          all_df <- bind_rows(all_df, df)
+#         }
+#       }
+#     }
+#   }
+# }
+# 
+# saveRDS(all_df, '/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/figure3/segm_cna/driver_df.rds')
 all_df = readRDS( '/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/figure3/segm_cna/driver_df.rds')
-all_df_spn05 = readRDS( '/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/figure3/segm_cna/driver_df_spn05.rds')
-all_df = all_df %>% bind_rows(all_df_spn05)
 
 fga <- readRDS('/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/figure3/fga_df.rds') %>% 
   distinct() %>% 
@@ -297,11 +309,14 @@ all_df2 <- all_df2 %>%
   mutate(delta = abs(delta)) %>% 
   group_by(gene, fga_class, type) %>% 
   summarise(
-    mean  = ci(delta)[[1]],
+    mean  = mean(delta),
     variance = var(delta),
-    sd = sd(delta),
-    lower = mean - sd, #ci(delta)[[2]],
-    upper = mean + sd, #ci(delta)[[3]],
+    # quantile = quantil(delta),
+    #sd = sd(delta),
+    lower = quantile(delta, 0.05),
+    upper = quantile(delta, 0.95),
+    #lower = mean - sd, #ci(delta)[[2]],
+    #upper = mean + sd, #ci(delta)[[3]],
     n=n(),
     .groups = "drop"
   ) %>% 
@@ -316,47 +331,50 @@ gene_order = all_df2 %>%
   arrange(desc(max.m)) %>% pull(gene) %>% unique()
 
 all_df2 = all_df2 %>% mutate(gene = factor(gene, levels = gene_order %>% rev()))
-gene_class_df = gene_class_df %>% mutate(gene = factor(gene, levels = gene_order %>% rev()))
+gene_class_df = gene_class_df %>% mutate(gene = factor(gene, levels = gene_order %>% rev())) %>% 
+  mutate(class = ifelse(gene == 'POLE', 'SNV', class))
 
+gene_class_df <- gene_class_df %>% 
+  mutate(type = 'NA') %>% 
+  mutate(type = ifelse(gene %in% oncogene$gene, 'Oncogene', type)) %>% 
+  mutate(type = ifelse(gene %in% supp$gene, 'TSG', type)) %>% 
+  mutate(type = ifelse(gene == 'ATRX',  'TSG', type))
 
-driver_gene_plot <- ggplot() + 
-  geom_tile(data = gene_class_df, aes(x = gene, y = -.5, fill = class), height = .3, col = 'white') +
-  geom_hline(aes(yintercept =0), linetype = 2, linewidth = .2, col ='gray30') +
+all_df2 <- all_df2 %>% 
+  rowwise() %>% 
+  mutate(upper = ifelse(upper - lower == 0, upper + 0.05, upper))
+
+driver_gene_plot <- ggplot() +                          # single empty ggplot()
+  geom_tile(data = gene_class_df, 
+                        aes(x = gene, y = -.2, fill = class),
+                        height = .3,
+                        col = 'white') +
+  geom_point(data = all_df2,
+             aes(x = gene, y = mean, color = fga_class, group = fga_class), 
+             position = position_dodge(width = 0.6), 
+             size = 0.5) + 
+  geom_errorbar(data = all_df2,
+                aes(x = gene, y = mean, color = fga_class, group = fga_class,
+                    ymin = lower, ymax = upper),
+                position = position_dodge(width = 0.6), 
+                width = 0.5) +
+  geom_hline(yintercept = 0, linetype = 2, linewidth = .2, col = 'gray30') +
   scale_fill_manual(
     name = "Driver class",
-    values = c(
-      "SNV" = "lightblue",
-      "CNA" = "khaki",
-      'CNA,SNV' = "darkseagreen"
-    )
-  ) +
-  #geom_point(data = all_df2, aes(x = gene, y = mean, color = fga_class, group = fga_class, shape = as.factor(type)), position = position_dodge(width = 0.6), size = 2) + 
-  geom_pointrange(data = all_df2, 
-    aes(x = gene, 
-        y = mean, 
-        color = fga_class, 
-        group = fga_class,
-        shape = as.factor(type),
-        ymin = lower, ymax = upper),
-    position = position_dodge(width = 0.6), 
-    size = .5
+    values = c("SNV" = "lightblue", "CNA" = "khaki", "CNA,SNV" = "darkseagreen")
   ) +
   scale_color_manual('FGA class',
                      values = c("High FGA" = "indianred3", "Low FGA" = "dodgerblue3")) +
-  scale_shape_manual('Gene type', values = c(16, 17)) + 
   my_ggplot_theme() +
-  #facet_wrap(.~tool, ncol = 1) +
+  facet_wrap(.~type, scales = 'free_x') +
   theme(
-    axis.text.x = element_text(angle = 45, hjust = 1),
-    panel.grid.major.x  = element_blank()
+    axis.text.x        = element_text(angle = 45, hjust = 1),
+    panel.grid.major.x = element_blank(),
+    legend.position    = "bottom",
+    legend.box         = "vertical",
+    legend.spacing.y   = unit(0.00001, "cm")
   ) + 
-  ylab('MAE total CN') + xlab('Gene')  +
-  theme(
-    #axis.text.x = element_blank(),
-    legend.position = "bottom",
-    legend.box = "vertical",
-    legend.spacing.y = unit(0.00001, "cm")
-  )
+  ylab('MAE total CN') + xlab('Gene')
 
 driver_gene_plot
 #ggsave(filename = 'driver.pdf', dpi = 300, width = 6, height = 3)

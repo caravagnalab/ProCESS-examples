@@ -1,4 +1,3 @@
-rm(list=ls())
 library(tidyr)
 library(dplyr)
 library(tibble)
@@ -9,7 +8,7 @@ source("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/getters/t
 source("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/getters/process_getters.R")
 source("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/report/plotting/utils.R")
 source("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/validation/SCOUT/colors.R")
-option_list <- list(make_option(c("--spn_id"), type = "character", default = 'SPN06'),
+option_list <- list(make_option(c("--spn_id"), type = "character", default = 'SPN07'),
                     make_option(c("--purity"), type = "double", default = 0.9),
                     make_option(c("--coverage"), type = "integer", default = 150),
                     make_option(c("--cna_caller"), type = "character", default = 'ascat'),
@@ -46,10 +45,14 @@ final_table = tryCatch(
 
 mut_process = get_mutations(spn=SPN, type="tumour", coverage=cov, purity=pur)
 
-seq_results = readRDS(mut_process)
+# seq_results = readRDS(mut_process)
+# 
+# process_seq = seq_results %>%
+#   mutate(mutation_id=paste0(SPN, ":", chr, ":", chr_pos,  ":", alt))
 
-process_seq = seq_results %>%
-  mutate(mutation_id=paste0(SPN, ":", chr, ":", chr_pos,  ":", alt))
+# saveRDS(object = process_seq, file = '/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/edf_figures/edf_tumourevo/process_seq.rds')
+process_seq <- readRDS('/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/edf_figures/edf_tumourevo/process_seq.rds')
+
 colors_cluster_process = c('indianred', 
                            'steelblue', 
                            'forestgreen', 
@@ -71,14 +74,13 @@ colors_cluster_process["Subclonal"] = "#cccccc"
 
 
 sample_forest = load_sample_forest(get_sample_forest(SPN))
+sample_forest_sub <- sample_forest$get_subforest_for(c('SPN07_1.1', 'SPN07_2.1'))
 phylo_forest = load_phylogenetic_forest(get_phylo_forest(spn=SPN))
-# join_table = final_table %>%
-#   inner_join(process_seq) %>% 
-#   select(chr, chr_pos, ref, alt, mutation_id, cluster_id_tool, cluster_id_process, vaf_tool)
 
 join_table = final_table %>%
   inner_join(process_seq) %>% 
   select(chr, chr_pos, ref, alt, mutation_id, cluster_id_tool, cluster_id_process, vaf_tool,causes)
+
 mutations_with_cell = join_table %>% 
   rowwise() %>%
   mutate(cell_id=phylo_forest$get_first_occurrences(Mutation(
@@ -101,15 +103,15 @@ cells_labels_tool = mutations_with_cell %>%
 # final_labels_tool = sample_forest$get_nodes() %>% as_tibble() %>% 
 #   left_join(cells_labels_tool)
 
-final_labels_tool = sample_forest$get_nodes() %>% as_tibble() %>% 
+final_labels_tool = sample_forest_sub$get_nodes() %>% as_tibble() %>% 
   left_join(cells_labels_tool) %>% 
-  filter(label=="SBS31")
+  filter(label %in% c("SBS11", 'SBS25', 'SBS26'))
 
 if (dec_caller=="pyclonevi"){
   final_labels_tool <- final_labels_tool %>% 
     mutate(label=paste0("C",label))
 }
-  
+
 
 
 
@@ -118,22 +120,22 @@ if (dec_caller=="pyclonevi"){
 signature <- phylo_forest$get_exposures()
 #palette_signature <-  get_colors_for(signature %>% pull(signature) %>% unique())
 
-df_sign <- get_exposure_ends(phylo_forest) %>% 
+df_sign <- get_exposure_ends(phylo_forest) %>%
   mutate(time = round(time),
          end_time = round(end_time)-1)
 start_time <- 0
 end_time <- max(df_sign$end_time)
 
-timeline_sbs31 <- df_sign %>% filter(signature=="SBS31")
-timeline_sbs31 <- timeline_sbs31 %>% 
+timeline_sbs11 <- df_sign %>% filter(signature=="SBS11")
+timeline_sbs11 <- timeline_sbs11 %>%
   bind_rows(
     data.frame(
       time = 0,
-      end_time   = timeline_sbs31$time[1],
+      end_time   = timeline_sbs11$time[1],
       state      = "absent"
     ),
     data.frame(
-      time = timeline_sbs31$end_time[1],
+      time = timeline_sbs11$end_time[1],
       end_time   = end_time,
       state      = "absent"
     )
@@ -146,16 +148,16 @@ timeline_sbs31 <- timeline_sbs31 %>%
 # 2   289.8730 330.5606  SBS31
 # 3   330.5606 446.0000 absent
 
-tree_plot <- plot_forest(sample_forest)
+tree_plot <- plot_forest(sample_forest_sub)
 max_Y <- max(tree_plot$data$y, na.rm = TRUE)
-plot_sticks(sample_forest, labels=final_labels_tool,cls=sbs_colors) %>%  #, cls = colors_cluster_process) %>%
-  annotate_forest(sample_forest, samples=TRUE, drivers=TRUE) +
+phylo_spn07 <- plot_sticks(sample_forest_sub, labels=final_labels_tool,cls=sbs_colors) %>%  #, cls = colors_cluster_process) %>%
+  annotate_forest(sample_forest_sub, drivers=F, samples = T, MRCAs = F) +
   theme(legend.position = 'left') + 
   ggplot2::guides(size = "none",
                   shape = "none",
                   color = ggplot2::guide_legend("Species")) +
   ggplot2::geom_rect(
-    data = timeline_sbs31 %>% filter(signature=="SBS31"),
+    data = timeline_sbs11 %>% filter(signature=="SBS11"),
     ggplot2::aes(
       xmin = -Inf,
       xmax = Inf,
@@ -164,9 +166,5 @@ plot_sticks(sample_forest, labels=final_labels_tool,cls=sbs_colors) %>%  #, cls 
       fill = signature
     ),alpha=0.2
   ) +
-  ggplot2::scale_fill_manual(values = sbs_colors)
-
-ggsave(filename = paste0("/orfeo/cephfs/scratch/cdslab/shared/SCOUT/spn06_phylo_ctree/spn06_phylogeny_",
-                         vcf_caller,"_",cna_caller,"_",sig_caller,"_",dec_caller,"_",cov,"x_",pur,"p.pdf"),
-       width = 4,height =4)
-  
+  ggplot2::scale_fill_manual(values = sbs_colors) +
+  my_ggplot_theme()

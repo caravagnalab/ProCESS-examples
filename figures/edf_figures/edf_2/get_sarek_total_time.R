@@ -22,13 +22,12 @@ parse_with_lubridate <- function(x) {
 #######################################################
 setwd("/orfeo/cephfs/scratch/cdslab/shared/SCOUT/")
 dir <- "/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/validation/benchmark/"
-spn <- "SPN01"
 
 #purities <- c(0.3,0.6,0.9)
 #coverages <- c(50,100)
 
 purity <- 0.9
-coverage <- 100
+coverage <- 150
 
 
 get_time_pipeline <- function(spn,coverage,purity,pipeline){
@@ -121,6 +120,8 @@ get_time_pipeline <- function(spn,coverage,purity,pipeline){
     
     df_sarek_variant_calling <- df_resources_sarek %>%
       filter(module%in%selected_modules) %>% 
+      filter(duration_seconds > 10, 
+             realtime_seconds > 60) %>% 
       group_by(module) %>% 
       summarise(
         mean_duration = mean(as.numeric(duration_seconds, units = "secs")),
@@ -166,6 +167,7 @@ get_time_pipeline <- function(spn,coverage,purity,pipeline){
   } else if (pipeline=="tumourevo"){
     vcf_caller = "mutect2"
     cna_caller = "ascat"
+    
     comb <- paste0(coverage,"x_",purity,"p_",vcf_caller,"_",cna_caller)
     execution_dir <- file.path(spn,"tumourevo",comb,"pipeline_info")
     execution_traces <- list.files(path = execution_dir,pattern = "execution_trace",recursive = T,full.names = T)
@@ -220,15 +222,22 @@ get_time_pipeline <- function(spn,coverage,purity,pipeline){
 
   return(df_final)
 }
-spns <- list("SPN01")
+
+p=0.6
+spns <- paste0('SPN0', 1:7)
 df_nexflow <- lapply(spns, function(x){
-  df_final_150_s <- get_time_pipeline(spn = x,purity = 0.9,coverage = 150,pipeline = "sarek")
-  df_final_100_s <- get_time_pipeline(spn = x,purity = 0.9,coverage = 100,pipeline = "sarek")
-  df_final_50_s <- get_time_pipeline(spn = x,purity = 0.9,coverage = 50,pipeline = "sarek")
-  df_final_150_t <- get_time_pipeline(spn = x,purity = 0.9,coverage = 150,pipeline = "tumourevo")
-  df_final_100_t <- get_time_pipeline(spn = x,purity = 0.9,coverage = 100,pipeline = "tumourevo")
-  df_final_50_t <- get_time_pipeline(spn = x,purity = 0.9,coverage = 50,pipeline = "tumourevo")
-  df_final <- rbind(df_final_150_s,df_final_100_s,df_final_50_s,df_final_150_t,df_final_100_t,df_final_50_t)
+  df_final_150_s <- get_time_pipeline(spn = x,purity =p,coverage = 150,pipeline = "sarek")
+  df_final_100_s <- get_time_pipeline(spn = x,purity = p,coverage = 100,pipeline = "sarek")
+  df_final_50_s <- get_time_pipeline(spn = x,purity = p,coverage = 50,pipeline = "sarek")
+  df_final_150_t <- get_time_pipeline(spn = x,purity = p,coverage = 150,pipeline = "tumourevo")
+  df_final_100_t <- get_time_pipeline(spn = x,purity = p,coverage = 100,pipeline = "tumourevo")
+  df_final_50_t <- get_time_pipeline(spn = x,purity = p,coverage = 50,pipeline = "tumourevo")
+  df_final <- rbind(df_final_150_s,
+                    df_final_100_s,
+                    df_final_50_s,
+                    df_final_150_t,
+                    df_final_100_t,
+                    df_final_50_t)
   return(df_final)
 }) %>% bind_rows() %>% 
   mutate(substep=case_when(

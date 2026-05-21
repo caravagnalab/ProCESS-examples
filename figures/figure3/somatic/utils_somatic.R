@@ -1,4 +1,4 @@
-source("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/utils_plot.R")
+#source("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/utils_plot.R")
 somatic_performance <- function(df_all_SPN_somatic,type,median_df){
   if (type=="caller"){
     palette <- col_somatic_tools
@@ -72,7 +72,7 @@ somatic_performance <- function(df_all_SPN_somatic,type,median_df){
         label = ccf_bin
       ),
       inherit.aes = FALSE,
-      size = 2
+      size = 3
     )+
     stat_summary(
       fun = "median",

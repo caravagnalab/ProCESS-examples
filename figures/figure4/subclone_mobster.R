@@ -83,6 +83,30 @@ results = results %>%
   mutate(gt = ifelse(class == 'Monoclonal', F, T)) %>% 
   dplyr::rename(pred = with_subclone)
 
+library(broom)
+slope_labels <- results %>%
+  filter(!is.na(gt)) %>%
+  mutate(TP = gt & pred,
+         FP = !gt & pred,
+         FN = gt & !pred,
+         TN = !gt & !pred) %>%
+  group_by(subclass, purity, vcf_caller) %>%
+  summarise(Polyclonal = sum(TP) / (sum(TP) + sum(FN)),
+            Monoclonal = sum(TN) / (sum(TN) + sum(FP)),
+            .groups = "drop") %>%
+  pivot_longer(cols = c(Polyclonal, Monoclonal),
+               names_to = "metric",
+               values_to = "value") %>%
+  filter(!is.na(value)) %>%                        # remove NA values
+  group_by(subclass, vcf_caller, metric) %>%
+  filter(n() >= 3) %>%                             # need at least 3 points for lm
+  summarise(
+    slope = coef(lm(value ~ as.numeric(as.factor(purity))))[2],
+    pval  = glance(lm(value ~ as.numeric(as.factor(purity))))$p.value,
+    .groups = "drop"
+  ) %>%
+  mutate(label = paste0("b=", round(slope, 2), ", p=", signif(pval, 2)))
+
 plt_subclone <- results %>% 
   filter(!is.na(gt)) %>% 
   mutate(TP = gt & pred,
@@ -99,8 +123,17 @@ plt_subclone <- results %>%
              y = value, 
              color = subclass, 
              group = subclass)) +
-  geom_line() +
-  geom_point(size = 2) +
+  geom_text(
+    data = slope_labels,
+    aes(x = Inf, y = Inf, label = label, color = subclass),
+    hjust = 1, vjust = seq(1.5, 4, by = 1.5)[as.numeric(factor(slope_labels$subclass))],
+    size = 2,
+    inherit.aes = FALSE,
+    show.legend = FALSE
+  ) + 
+  geom_line(linetype = 2) +
+  geom_smooth(method = 'lm', se = F, linewidth = .5) +
+  geom_point(size = 1.7) +
   scale_color_manual('Subclass', values = c('Polyclonal' = 'goldenrod', 
                                             'Monoclonal'='#645394', 
                                             'Weak evidence' = 'khaki3',
@@ -110,3 +143,4 @@ plt_subclone <- results %>%
   my_ggplot_theme() +
   ylim(0,1) + 
   ggh4x::facet_grid2(vcf_caller ~metric)
+plt_subclone

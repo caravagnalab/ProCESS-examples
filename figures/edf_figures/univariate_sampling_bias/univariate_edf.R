@@ -42,7 +42,7 @@ examples = tibble(spn = c('SPN06', 'SPN04', 'SPN07', 'SPN03'),
                   cna_caller =  c('ascat','ascat','sequenza', 'ascat' ),
                   title = c('Monoclonal', 'Monoclonal-Sampling Bias', 'Polyclonal',
                             'Polyclonal-Weak Evidence'),
-                  coverage = c(100, 100, 100, 150))
+                  coverage = c(100, 150, 100, 150))
 
 cluster_plots_samples <- list()
 tool = 'mobster_univariate'

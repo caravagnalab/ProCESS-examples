@@ -24,6 +24,8 @@ color_palette_process['Subclonal'] = 'gray70'
 color_palette_process_uni = RColorBrewer::brewer.pal(n = 8, name = "Dark2") 
 names(color_palette_process_uni) <- c('Clonal', paste0('Clone ', 1:7))
 color_palette_process_uni['Subclonal'] = 'gray70'
+color_palette_process['Clonal'] = "#D95F02"
+color_palette_process_uni['Clonal'] = "#D95F02"
 
 get_exposure <- function(table){
   

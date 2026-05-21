@@ -147,6 +147,27 @@ df_all_combs_SPN_cna_all_metrics <- df_all_combs_SPN_cna_all_metrics %>%
   left_join(rect_df,by = "class",relationship = "many-to-many")
 
 
+slope_labels <- df_all_combs_SPN_cna %>% 
+  group_by(tool, fga_class, coverage, true_purity) %>%
+  summarise(
+    mean_precision = mean(precision, na.rm = TRUE),
+    sd_precision   = sd(precision, na.rm = TRUE),
+    mean_recall    = mean(recall, na.rm = TRUE),
+    sd_recall      = sd(recall, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  # mutate(group_ellipse = interaction(fga_class, tool, drop = TRUE)) %>% 
+  mutate(tool = factor(tool, levels = c("ASCAT","Sequenza","Battenberg"))) %>% 
+  group_by(tool) %>%
+  summarise(
+    slope = coef(lm(mean_precision ~ mean_recall))[2],
+    r2    = summary(lm(mean_precision ~ mean_recall))$r.squared,
+    pval  = broom::glance(lm(mean_precision ~ mean_recall))$p.value,
+    .groups = "drop"
+  ) %>%
+  mutate(label = paste0("β = ", round(slope, 2),
+                        ", p = ", signif(pval, 1)))
+
 ##### Plot breakpoint
 plt_breakpoint <- df_all_combs_SPN_cna %>% 
   group_by(tool, fga_class, coverage, true_purity) %>%
@@ -170,7 +191,20 @@ plt_breakpoint <- df_all_combs_SPN_cna %>%
       color=fga_class
     ),size=2
   ) +
-  
+  # ggpmisc::stat_poly_eq(
+  #   aes(label = 
+  #         paste(after_stat(rr.label), after_stat(p.value.label), sep = "~~~") #after_stat(slope.label),
+  #       ),
+  #   formula = y ~ x,
+  #   parse = TRUE,
+  #   size = 3,
+  #   label.x = "left",
+  #   label.y = "top"
+  # ) + 
+  geom_text(data = slope_labels,
+            aes(x = Inf, y = Inf, label = label),
+            hjust = 1.1, vjust = 1.5,
+            size = 2.5, inherit.aes = FALSE) + 
   scale_fill_manual(values = c("High FGA" = "indianred2", "Low FGA"="dodgerblue3"), name = "FGA class") +
   scale_color_manual(values = c("High FGA" = "indianred2", "Low FGA"="dodgerblue3"), name = "FGA class") +
   my_ggplot_theme()+

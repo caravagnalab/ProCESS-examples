@@ -4,51 +4,54 @@ library(ggplot2)
 library(hms)
 library(ggh4x)
 library(scales)
-spn="SPN01"
-source("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/edf_figures/edf_2/get_sarek_total_time.R")
+spns <- paste0('SPN0', 1:7)
+source("/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/edf_figures/edf_2/get_sarek_total_time.R")
 ### Process Time
 time_ProCESS <- readRDS("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/validation/benchmark/time_ProCESS.rds")
 
 
-time_ProCESS_spn <-time_ProCESS %>% 
-  filter(sample==spn) %>% 
-  select(time_sample_forest,time_phylo_forest) %>% 
+time_ProCESS_spn <- time_ProCESS %>% 
+  filter(sample %in% spns) %>% 
+  select(time_sample_forest,time_phylo_forest, sample) %>% 
   pivot_longer(
-               cols = everything(),
+               cols = c(time_sample_forest, time_phylo_forest),
                names_to = "step",
                values_to = "time") %>% 
   mutate(step = gsub("^time_", "", step)) %>%
   # mutate(step="ProCESS Simulation") %>%
-  group_by(step) %>% 
+  group_by(step, sample) %>% 
   summarise(time=sum(time)) %>% 
   mutate(pipeline_step ="ProCESS Simulation") %>% 
   mutate(substep=step) %>% 
   mutate(time=hms::as_hms(time))
 time_ProCESS_spn <- time_ProCESS_spn[rep(seq_len(nrow(time_ProCESS_spn)), 3), ]
 time_ProCESS_spn <- time_ProCESS_spn %>% 
-  mutate(coverage = c(rep(x = 50,2),rep(x = 100,2),rep(x = 150,2))) 
+  mutate(coverage = c(rep(x = 50,length(spns)),rep(x = 100,length(spns)),rep(x = 150,length(spns)))) 
+
 ### Sequencing Time
-time_Build_cohort <- readRDS("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/validation/benchmark/time_sequencing_partial.rds")
+time_Build_cohort <- readRDS("/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/edf_figures/edf_2/time_sequencing.rds")
+
 time_Build_cohort_spn <- time_Build_cohort %>% 
-  filter(SPN==spn) %>% 
+  filter(SPN %in% spns) %>% 
   filter(step!="merge_rds") %>% 
-  group_by(step) %>% 
+  group_by(step, SPN) %>% 
   summarize(cpu_time_secs_mean=mean(cpu_time_secs)) %>% 
   mutate(time=hms::as_hms(cpu_time_secs_mean)) %>% 
   mutate(pipeline_step ="ProCESS Build Cohort") %>% 
   mutate(substep=step) %>% 
-  select(time,step,substep,pipeline_step)
+  select(SPN, time,step,substep,pipeline_step)
+
 time_Build_cohort_spn <- time_Build_cohort_spn[rep(seq_len(nrow(time_Build_cohort_spn)), 3), ]
 time_Build_cohort_spn <- time_Build_cohort_spn %>% 
-  mutate(coverage = c(rep(x = 50,4),rep(x = 100,4),rep(x = 150,4))) 
+  mutate(coverage = c(rep(x = 50,7),rep(x = 100,7),rep(x = 150,7))) 
 
 
 time_mergin_spn <- time_Build_cohort %>% 
-  filter(SPN==spn) %>% 
+  filter(SPN %in% spns) %>% 
   filter(step=="merge_rds") %>% 
-  arrange(cpu_time_secs) %>% 
-  mutate(coverage = c(rep(x = 50,3),rep(x = 100,3),rep(x = 150,3),rep(x = 200,3))) %>% 
-  group_by(coverage) %>% 
+  arrange(cpu_time_secs, SPN) %>% 
+  mutate(coverage = c(rep(x = 50,7*3),rep(x = 100,7*3),rep(x = 150,7*3),rep(x = 200,7*3))) %>% 
+  group_by(coverage, SPN) %>% 
   mutate(time=mean(cpu_time_secs)) %>% 
   mutate(time=hms::as_hms(time)) %>% 
   mutate(step=paste0("merging rds ",coverage)) %>% 
@@ -103,7 +106,7 @@ desired_order_step <- rev(c(
 
 
 time_sarek <- df_nexflow %>%
-  select(step,substep,coverage,mean_duration) %>% 
+  select(step,substep,coverage,mean_duration, SPN) %>% 
   mutate(time=hms::as_hms(mean_duration)) %>% 
   mutate(pipeline_step=case_when(step=="tumourevo" ~ "Tumourevo",
                                  TRUE~"Sarek")) %>% 
@@ -111,15 +114,15 @@ time_sarek <- df_nexflow %>%
 
 
 time_all <- time_Build_cohort_spn %>%
-  full_join(time_ProCESS_spn, by = c("step","substep","time","pipeline_step","coverage")) %>% 
-  full_join(time_mergin_spn, by = c("step","substep","time","pipeline_step","coverage")) %>% 
-  full_join(time_sarek, by = c("step","substep","time","pipeline_step","coverage")) %>% 
+  full_join(time_ProCESS_spn %>% ungroup %>% dplyr::rename(SPN = sample), by = c("SPN", "step","substep","time","pipeline_step","coverage")) %>% 
+  full_join(time_mergin_spn %>% ungroup, by = c("SPN", "step","substep","time","pipeline_step","coverage")) %>% 
+  full_join(time_sarek, by = c("SPN", "step","substep","time","pipeline_step","coverage")) %>% 
   mutate(step = factor(step, levels = desired_order_step),
          substep = factor(substep, levels = desired_order_substep)) %>%
   mutate(pipeline_step = factor(pipeline_step, levels = c("ProCESS Simulation","ProCESS Build Cohort","Sarek","Tumourevo"))) %>% 
   arrange(desc(substep)) %>%
   arrange(desc(step)) %>%
-  group_by(coverage) %>% 
+  group_by(SPN, coverage) %>% 
   mutate(duration = time,
          duration_secs = as.numeric(duration),
          start = hms::as_hms(cumsum(lag(duration_secs, default = 0))),
@@ -192,65 +195,64 @@ color_palette_pipeline_step <-c(
   "Sarek" = "lemonchiffon1"
 )
 
-breaks_process_simulation <- time_all %>% filter(pipeline_step == "ProCESS Simulation") %>% pull(start) %>% min()%>% as_hms()
-breaks_process_simulation<-c(breaks_process_simulation,time_all %>% filter(pipeline_step == "ProCESS Simulation") %>% pull(end)%>% as_hms())
-
-breaks_process_build_cohort <- time_all %>% filter(pipeline_step == "ProCESS Build Cohort") %>% pull(start) %>% min()%>% as_hms()
-breaks_process_build_cohort<-c(breaks_process_build_cohort,time_all %>% filter(pipeline_step == "ProCESS Build Cohort") %>% pull(end)%>% as_hms())
-
-breaks_sarek <- time_all %>% filter(pipeline_step == "Sarek") %>% pull(start) %>% min() %>% as_hms()
-breaks_sarek<-c(breaks_sarek,time_all %>% filter(pipeline_step == "Sarek",step=="preprocess 50") %>% tail(1) %>% pull(end)%>% as_hms())
-breaks_sarek<-c(breaks_sarek,time_all %>% filter(pipeline_step == "Sarek",step=="preprocess 100") %>% tail(1) %>% pull(end)%>% as_hms())
-breaks_sarek<-c(breaks_sarek,time_all %>% filter(pipeline_step == "Sarek",step=="preprocess 150") %>% tail(1) %>% pull(end)%>% as_hms())
-breaks_sarek<-c(breaks_sarek,time_all %>% filter(pipeline_step == "Sarek",step=="variant_calling 50",substep=="cna calling") %>% tail(1) %>% pull(end)%>% as_hms())
-breaks_sarek<-c(breaks_sarek,time_all %>% filter(pipeline_step == "Sarek",step=="variant_calling 50",substep=="snv/indel calling") %>% tail(1) %>% pull(end)%>% as_hms())
-breaks_sarek<-c(breaks_sarek,time_all %>% filter(pipeline_step == "Sarek",step=="variant_calling 100",substep=="cna calling") %>% tail(1) %>% pull(end)%>% as_hms())
-breaks_sarek<-c(breaks_sarek,time_all %>% filter(pipeline_step == "Sarek",step=="variant_calling 100",substep=="snv/indel calling") %>% tail(1) %>% pull(end)%>% as_hms())
-breaks_sarek<-c(breaks_sarek,time_all %>% filter(pipeline_step == "Sarek",step=="variant_calling 150",substep=="cna calling") %>% tail(1) %>% pull(end)%>% as_hms())
-breaks_sarek<-c(breaks_sarek,time_all %>% filter(pipeline_step == "Sarek",step=="variant_calling 150",substep=="snv/indel calling") %>% tail(1) %>% pull(end)%>% as_hms())
-
-start_sarek <- time_all %>% filter(pipeline_step == "Sarek") %>% pull(start) %>% min() %>% as_hms()
-end_sarek <- time_all %>% filter(pipeline_step == "Sarek") %>% pull(end) %>% max()%>% as_hms()
-breaks_sarek<-c(breaks_sarek,end_sarek)
-
-breaks_tumourevo <- time_all %>% filter(pipeline_step == "Tumourevo") %>% pull(start) %>% min() %>% as_hms()
-breaks_tumourevo<-c(breaks_tumourevo,time_all %>% filter(pipeline_step == "Tumourevo",step=="tumourevo 50") %>% tail(1) %>% pull(end)%>% as_hms())
-breaks_tumourevo<-c(breaks_tumourevo,time_all %>% filter(pipeline_step == "Tumourevo",step=="tumourevo 100") %>% tail(1) %>% pull(end)%>% as_hms())
-breaks_tumourevo<-c(breaks_tumourevo,time_all %>% filter(pipeline_step == "Tumourevo",step=="tumourevo 150") %>% tail(1) %>% pull(end)%>% as_hms())
-
-start_tumourevo <- time_all %>% filter(pipeline_step == "Tumourevo") %>% pull(start) %>% min() %>% as_hms()
-end_tumourevo <- time_all %>% filter(pipeline_step == "Tumourevo") %>% pull(end) %>% max()%>% as_hms()
-breaks_tumourevo<-c(breaks_tumourevo,end_tumourevo)
-
-bk = c(
-  round_hms(breaks_sarek, 1),
-  round_hms(breaks_tumourevo, 1)
-)
-lb = bk
+# breaks_process_simulation <- time_all %>% filter(pipeline_step == "ProCESS Simulation") %>% pull(start) %>% min()%>% as_hms()
+# breaks_process_simulation<-c(breaks_process_simulation,time_all %>% filter(pipeline_step == "ProCESS Simulation") %>% pull(end)%>% as_hms())
+# 
+# breaks_process_build_cohort <- time_all %>% filter(pipeline_step == "ProCESS Build Cohort") %>% pull(start) %>% min()%>% as_hms()
+# breaks_process_build_cohort<-c(breaks_process_build_cohort,time_all %>% filter(pipeline_step == "ProCESS Build Cohort") %>% pull(end)%>% as_hms())
+# 
+# breaks_sarek <- time_all %>% filter(pipeline_step == "Sarek") %>% pull(start) %>% min() %>% as_hms()
+# breaks_sarek<-c(breaks_sarek,time_all %>% filter(pipeline_step == "Sarek",step=="preprocess 50") %>% tail(1) %>% pull(end)%>% as_hms())
+# breaks_sarek<-c(breaks_sarek,time_all %>% filter(pipeline_step == "Sarek",step=="preprocess 100") %>% tail(1) %>% pull(end)%>% as_hms())
+# breaks_sarek<-c(breaks_sarek,time_all %>% filter(pipeline_step == "Sarek",step=="preprocess 150") %>% tail(1) %>% pull(end)%>% as_hms())
+# breaks_sarek<-c(breaks_sarek,time_all %>% filter(pipeline_step == "Sarek",step=="variant_calling 50",substep=="cna calling") %>% tail(1) %>% pull(end)%>% as_hms())
+# breaks_sarek<-c(breaks_sarek,time_all %>% filter(pipeline_step == "Sarek",step=="variant_calling 50",substep=="snv/indel calling") %>% tail(1) %>% pull(end)%>% as_hms())
+# breaks_sarek<-c(breaks_sarek,time_all %>% filter(pipeline_step == "Sarek",step=="variant_calling 100",substep=="cna calling") %>% tail(1) %>% pull(end)%>% as_hms())
+# breaks_sarek<-c(breaks_sarek,time_all %>% filter(pipeline_step == "Sarek",step=="variant_calling 100",substep=="snv/indel calling") %>% tail(1) %>% pull(end)%>% as_hms())
+# breaks_sarek<-c(breaks_sarek,time_all %>% filter(pipeline_step == "Sarek",step=="variant_calling 150",substep=="cna calling") %>% tail(1) %>% pull(end)%>% as_hms())
+# breaks_sarek<-c(breaks_sarek,time_all %>% filter(pipeline_step == "Sarek",step=="variant_calling 150",substep=="snv/indel calling") %>% tail(1) %>% pull(end)%>% as_hms())
+# 
+# start_sarek <- time_all %>% filter(pipeline_step == "Sarek") %>% pull(start) %>% min() %>% as_hms()
+# end_sarek <- time_all %>% filter(pipeline_step == "Sarek") %>% pull(end) %>% max()%>% as_hms()
+# breaks_sarek<-c(breaks_sarek,end_sarek)
+# 
+# breaks_tumourevo <- time_all %>% filter(pipeline_step == "Tumourevo") %>% pull(start) %>% min() %>% as_hms()
+# breaks_tumourevo<-c(breaks_tumourevo,time_all %>% filter(pipeline_step == "Tumourevo",step=="tumourevo 50") %>% tail(1) %>% pull(end)%>% as_hms())
+# breaks_tumourevo<-c(breaks_tumourevo,time_all %>% filter(pipeline_step == "Tumourevo",step=="tumourevo 100") %>% tail(1) %>% pull(end)%>% as_hms())
+# breaks_tumourevo<-c(breaks_tumourevo,time_all %>% filter(pipeline_step == "Tumourevo",step=="tumourevo 150") %>% tail(1) %>% pull(end)%>% as_hms())
+# 
+# start_tumourevo <- time_all %>% filter(pipeline_step == "Tumourevo") %>% pull(start) %>% min() %>% as_hms()
+# end_tumourevo <- time_all %>% filter(pipeline_step == "Tumourevo") %>% pull(end) %>% max()%>% as_hms()
+# breaks_tumourevo<-c(breaks_tumourevo,end_tumourevo)
+# 
+# bk = c(
+#   round_hms(breaks_sarek, 1),
+#   round_hms(breaks_tumourevo, 1)
+# )
+# lb = bk
 
         
 ### New plot
+time_all$end <- hms::trunc_hms(time_all$end, 1)
 plt_gannt <- time_all %>% 
   filter(coverage!=200) %>%
   ggplot(aes(x = start, xend = end, y = as.factor(coverage), yend = as.factor(coverage), color = as.factor(new_substep))) +
-    geom_segment(size = 8) +
+    geom_segment(size = 6) +
     scale_color_manual('Steps', values =color_palette_newsubstep )+
-  scale_x_time(
-    breaks = bk,
-    labels = lb
-  ) + 
-    labs(title = paste0("SCOUT Timeline: ",spn),
+    labs(
          y = "Coverage",
-         x = "Time") +
-    theme_bw(base_size = 10) +
-    theme(
-      panel.grid.major.y = element_blank(),
-      panel.grid.minor.y = element_blank()
-    )+
+         x = "Time (H:M:S)") +
+    theme_minimal(base_size = 10) +
+    # theme(
+    #   panel.grid.major.y = element_blank(),
+    #   panel.grid.minor.y = element_blank()
+    # )+
     theme(legend.position = "bottom",
-          axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1,size = 10),
+          axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
           axis.minor.ticks=element_blank(),
-          axis.ticks = element_blank())
+          axis.ticks = element_blank()) +
+  facet_grid(SPN~.) +
+  scale_x_continuous(labels = function(x) format(hms::as_hms(x), "%H:%M:%S"))
 plt_gannt
 # plt <- ggplot(time_all, aes(x = start, xend = end, y = step, yend = step, color = as.factor(substep))) +
 #   geom_segment(size = 4) +

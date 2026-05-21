@@ -4,7 +4,7 @@ source("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/f
 source("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/utils.R")
 
 color_class <- c("palegreen4", "goldenrod", "indianred", "gray")
-names(color_class) <- c('Tier 1', 'Tier 2', 'Tier 3', 'Tier 4')
+names(color_class) <- c('Tier1', 'Tier2', 'Tier3', 'Tier4')
 
 color_score <- c('plum4', 'darkseagreen4', 'cadetblue4', 'salmon2')
 
@@ -22,10 +22,10 @@ confusion_per_group_class_mutations <- lapply(pairs,FUN = function(p){
 
 cluster <- confusion_per_group_class %>%
   mutate(class = case_when(
-    class == 'Clonal' ~ 'Tier 1',
-    class == 'Medium\nExpansion' ~ 'Tier 2',
-    class == 'Low\nExpansion' ~ 'Tier 3',
-    class == 'Neutral\nExpansion' ~ 'Tier 4'
+    class == 'Clonal' ~ 'Tier1',
+    class == 'Medium\nExpansion' ~ 'Tier2',
+    class == 'Low\nExpansion' ~ 'Tier3',
+    class == 'Neutral\nExpansion' ~ 'Tier4'
   )) %>% 
   pivot_longer(cols = c(Precision, Recall, Specificity, F1, Accuracy)) %>%
   filter(name == 'Accuracy') %>% 
@@ -34,10 +34,10 @@ cluster <- confusion_per_group_class %>%
 
 mutations <- confusion_per_group_class_mutations %>% 
   mutate(class = case_when(
-    class == 'Clonal' ~ 'Tier 1',
-    class == 'Medium\nExpansion' ~ 'Tier 2',
-    class == 'Low\nExpansion' ~ 'Tier 3',
-    class == 'Neutral\nExpansion' ~ 'Tier 4'
+    class == 'Clonal' ~ 'Tier1',
+    class == 'Medium\nExpansion' ~ 'Tier2',
+    class == 'Low\nExpansion' ~ 'Tier3',
+    class == 'Neutral\nExpansion' ~ 'Tier4'
   )) %>% 
   pivot_longer(cols = c(Precision, Recall, Specificity, F1, Accuracy)) %>%
   filter(name == 'Accuracy') %>% 
@@ -45,13 +45,29 @@ mutations <- confusion_per_group_class_mutations %>%
   mutate(type = 'Mutations')
 
 
+kw_test <- mutations %>%
+  kruskal_test(value ~ class)
+
+# Step 2 — pairwise Wilcoxon post-hoc
+stat_test <- mutations %>%
+  wilcox_test(value ~ class, comparisons = NULL) %>%  # NULL = all pairs
+  adjust_pvalue(method = "BH") %>%
+  add_significance(p.col = "p.adj") %>%
+  add_xy_position(x = "class")
   
 plt <- #cluster %>% 
   mutations %>% 
   ggplot() +
   geom_boxplot(aes(x = class, y = value, col = class, fill = class), alpha = .6) +
-  scale_color_manual('ProCESS Class', values = color_class) +
-  scale_fill_manual('ProCESS Class', values = color_class) +
+  scale_color_manual('Ground truth', values = color_class) +
+  scale_fill_manual('Ground truth', values = color_class) +
+  stat_pvalue_manual(
+    stat_test,
+    label = "p.adj.signif",
+    #hide.ns = TRUE,
+    tip.length = 0.01,
+    size = 3
+  ) +
   my_ggplot_theme() +
   #ggh4x::facet_grid2(type~.) +
   #ggh4x::facet_grid2(type~sub_tool+mut_caller) +
@@ -60,8 +76,9 @@ plt <- #cluster %>%
   ylim(0,1)
 
 
+
 ggsave(filename = paste0("/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/figure5/fig5_boxplot.pdf"), 
-       plot = plt, device="pdf", width=3.5, height=2, units="in")
+       plot = plt, device="pdf", width=3, height=2, units="in")
 
 # source('/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/edf_figures/spn02/edf_spn02.R')
 # 

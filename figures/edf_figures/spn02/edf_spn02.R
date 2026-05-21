@@ -161,8 +161,8 @@ score = readRDS(paste0(path, '_df.rds')) %>% filter(spn == sp)
 sz = 4
 plt <- score %>%
   mutate(cluster = factor(cluster, levels = paste0('C', 1:15))) %>% 
-  pivot_longer(cols = c(score_tail, score_sign)) %>%
-  mutate(name = factor(name, levels = c( 'score_tail', 'score_sign'))) %>%
+  pivot_longer(cols = c(score_driver, score_tail, score_sign)) %>%
+  mutate(name = factor(name, levels = c( 'score_driver','score_tail', 'score_sign'))) %>%
   ggplot() +
   annotate("rect", xmin = -Inf, xmax = Inf, ymin = 0.9, ymax = 1, 
            fill = "palegreen4", alpha = 0.2) + 
@@ -172,10 +172,8 @@ plt <- score %>%
            fill = "salmon1", alpha = 0.2) + 
   annotate("rect", xmin = -Inf, xmax = Inf, ymin = 0.2, ymax = 0, 
            fill = "gainsboro", alpha = 0.2) +
-  geom_point(aes(x = name, y = value, col = cluster, shape = contains_driver_process), size = 3, show.legend = F) +
-  geom_line(data = ~ filter(.x, !is.na(value)), aes(x = name, y = value, col = cluster, group = cluster), linewidth = .7, show.legend = F)  +
-  #geom_text(data = ~ filter(.x, is_clonal_tool & name == 'score_all'), aes(x = name, y = value+0.07, col = cluster, group = cluster, label = 'Clonal'), size = sz) + 
-  #geom_text(data = ~ filter(.x, contains_driver_tool & name == 'score_all'), aes(x = name, y = value+0.03, col = cluster, group = cluster, label = driver_label_process), size = sz) + 
+  geom_point(aes(x = name, y = value, col = cluster, shape = contains_driver_process), size = 3, show.legend = F, position = position_dodge(width = .1)) +
+  geom_line(data = ~ filter(.x, !is.na(value)), aes(x = name, y = value, col = cluster, group = cluster), linewidth = .5, show.legend = F, position = position_dodge(width = .1))  +
   theme_minimal() +
   scale_shape_manual('Contains True Driver', values = c(4, 20)) +
   ylab('Score') +
@@ -184,7 +182,8 @@ plt <- score %>%
                      values = colors_cluster) +
   scale_x_discrete(labels = c(
                               'score_tail'   = 'Tail',
-                              'score_sign'   = 'Signature'
+                              'score_sign'   = 'Signature',
+                              'score_driver'   = 'Driver'
                               #'score_no_driver' = 'Signature\nTail',
                               #'score_no_tail' = 'Driver\nSignature',
                               #'score_no_sign' = 'Driver\nTail',
@@ -194,7 +193,7 @@ plt <- score %>%
 
 plt2 <- score %>%
   mutate(cluster = factor(cluster, levels = paste0('C', 1:15))) %>% 
-  pivot_longer(cols = c(score_no_driver)) %>%
+  pivot_longer(cols = c(score_all)) %>%
   ggplot() +
   annotate("rect", xmin = -Inf, xmax = Inf, ymin = 0.9, ymax = 1, 
            fill = "palegreen4", alpha = 0.2) + 
@@ -204,7 +203,7 @@ plt2 <- score %>%
            fill = "salmon1", alpha = 0.2) + 
   annotate("rect", xmin = -Inf, xmax = Inf, ymin = 0.2, ymax = 0, 
            fill = "gainsboro", alpha = 0.2) +
-  geom_point(aes(x = name, y = value, col = cluster, shape = contains_driver_process), size = 3) +
+  geom_point(aes(x = name, y = value, col = cluster, shape = contains_driver_process), size = 3, position = position_dodge(width = .1)) +
   geom_line(data = ~ filter(.x, !is.na(value)), aes(x = name, y = value, col = cluster, group = cluster), linewidth = .7)  +
   theme_minimal() +
   scale_shape_manual('Contains True Driver', values = c(4, 20)) +
@@ -215,10 +214,10 @@ plt2 <- score %>%
   scale_x_discrete(labels = c(
    # 'score_tail'   = 'Tail',
     #'score_sign'   = 'Signature'
-    'score_no_driver' = 'Signature\nTail'
+    #'score_no_driver' = 'Signature\nTail'
     #'score_no_tail' = 'Driver\nSignature',
     #'score_no_sign' = 'Driver\nTail',
-    #'score_all'    = 'All'
+    'score_all'    = 'All'
   )) +
   my_ggplot_theme()  +
   theme_minimal() + 
@@ -289,8 +288,8 @@ all <- p_tool + theme_minimal() + theme(legend.position = 'none') +
   plot_layout(design = 'AAABBB')
 
 
-ggsave(plot = all, width = 6.5, height = 2.5, units = 'in',
-       filename = '/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/edf_figures/spn02/spn02_v2.pdf')
+ggsave(plot = all, width = 7, height = 2.5, units = 'in',
+       filename = '/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/edf_figures/spn02/spn02_v2_n.pdf')
 
 ggsave(plot = all, width = 6.5, height = 2.5, units = 'in',
        filename = '/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/edf_figures/spn02/spn02_v2.png')

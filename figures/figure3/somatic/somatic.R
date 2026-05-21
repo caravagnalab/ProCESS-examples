@@ -9,7 +9,7 @@ COVERAGES <- c(50,100,150)
 PURITY <- c(0.3, 0.6, 0.9)
 MUTS <- c('SNV', 'INDEL')
 source("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/utils_plot.R")
-source("/orfeo/cephfs/scratch/cdslab/ggandolfi/Github/ProCESS-examples/figures/figure3/somatic/utils_somatic.R")
+source("/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/figure3/somatic/utils_somatic.R")
 
 params_grid = expand.grid(COVERAGES, PURITY, MUTS, SPNS)
 names(params_grid) <- c('cov', 'pur', 'muts', 'spn')
@@ -20,8 +20,11 @@ df_all_SPN_somatic = lapply(1:nrow(params_grid), function(i) {
   purity = params_grid[i,]$pur
   spn = params_grid[i,]$spn
 
-  file =  paste0('/orfeo/scratch/cdslab/shared/SCOUT/VALIDATION/', spn ,'/somatic/', coverage,'x_',purity,'p/report/',mut_type,'/metrics_new_binning.rds')
-
+  if (spn == 'SPN02' || spn == 'SPN05'){
+    file =  paste0('/orfeo/scratch/cdslab/shared/SCOUT/VALIDATION/', spn ,'/somatic/', coverage,'x_',purity,'p/report/',mut_type,'/metrics.rds')
+  } else {
+    file =  paste0('/orfeo/scratch/cdslab/shared/SCOUT/VALIDATION/', spn ,'/somatic/', coverage,'x_',purity,'p/report/',mut_type,'/metrics_new_binning.rds')
+  }
   if (file.exists(file)) {
     metrics = readRDS(file)
 

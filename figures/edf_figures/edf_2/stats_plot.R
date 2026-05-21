@@ -149,6 +149,7 @@ stats <- stats %>%
 
 plt_muts_count <- stats %>% 
   mutate(coverage=paste0(coverage,"x")) %>% 
+  filter(coverage != '200x') %>% 
   ggplot(aes(x=factor(coverage, levels = c("50x", "100x", "150x", "200x")), 
              y=log10(mutation_count))) + 
   geom_boxplot(aes(fill=as.factor(purity), col =as.factor(purity)), outliers = FALSE, width = 0.5,alpha=0.5)+
@@ -293,23 +294,24 @@ stats_space <- stats_space %>%
 # 
 # stats_space <- rbind(stats_space,stats_space_SPN05)
 
+stats_space$SPN <- gsub("SPN?", "", stats_space$spn)
+
 stats_space_plot1 <- stats_space %>%
   mutate(n_samples=case_when(spn%in%c("SPN01","SPN05")~"3",
                     spn%in%c("SPN02","SPN04")~"2",
                     spn%in%c("SPN03")~"4",
                     spn%in%c("SPN06","SPN07")~"5")) %>% 
-  filter(coverage==200) %>%
-  ggplot(aes(x=spn,y=Size_TB_total_all_purities,fill=n_samples)) +
-  # ggplot(aes(x=coverage,y=Size_GB_total,fill=spn)) +
-  # geom_boxplot()+
+  filter(coverage==150) %>%
+  mutate(SPN = factor(SPN, levels = rev(c("01","02","03","04","05","06","07")))) %>%
+  ggplot(aes(y=SPN,x=Size_TB_total_all_purities,fill=n_samples)) +
   geom_bar(position="dodge", stat="identity")+
-  scale_fill_manual('N samples', values  = c('2' = '#c9e4ca', '3' ='#87bba2', '4' ='#55828b', '5' ='#3b6064', '1 - Normal' = 'gray'))  +
+  scale_fill_manual('Number of\nsamples', values  = c('2' = '#c9e4ca', '3' ='#87bba2', '4' ='#55828b', '5' ='#3b6064', '1 - Normal' = 'gray'))  +
   theme_minimal()+
-  ylab("Fastq Size (TB)")+
-  xlab("SPN")+
-  labs(caption = "Paired-end reads for maximum sequenced coverage of 200x")+
+  xlab("Fastq Size (TB)")+
+  ylab("SPN")+
+  labs(caption = "Paired-end reads for maximum sequenced coverage of 150x")+
   my_ggplot_theme()
 
 # 
-wrap_plots(list(plt_muts_count,stats_space_plot1),guides="collect",design = "AABB\nAABB") + plot_annotation(tag_levels = 'A') & theme(legend.position = "bottom")
+#wrap_plots(list(plt_muts_count,stats_space_plot1),guides="collect",design = "AABB\nAABB") + plot_annotation(tag_levels = 'A') & theme(legend.position = "bottom")
 #ggsave(filename = "/orfeo/cephfs/scratch/area/lvaleriani/races/ProCESS-examples/figures/edf_figures/edf_2/edf_space.pdf",device = "pdf",width = 8,height = 4,dpi = 300)
